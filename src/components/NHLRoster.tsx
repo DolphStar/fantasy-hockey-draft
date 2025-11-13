@@ -1,0 +1,271 @@
+import { useState, useEffect } from 'react';
+import { 
+  getTeamRoster, 
+  getAllPlayers, 
+  getPlayerFullName,
+  NHL_TEAMS,
+  type RosterPerson,
+  type TeamAbbrev 
+} from '../utils/nhlApi';
+import { db } from '../firebase';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { useDraft } from '../context/DraftContext';
+import { useLeague } from '../context/LeagueContext';
+
+export default function NHLRoster() {
+  const [roster, setRoster] = useState<RosterPerson[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<TeamAbbrev>('VAN');
+  const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
+  const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
+  
+  // League context for showing user's team
+  const { myTeam } = useLeague();
+  
+  // Draft context
+  const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
+
+  const fetchRoster = async (teamAbbrev: TeamAbbrev) => {
+    try {
+      setLoading(true);
+      setError(null);
+      setRoster([]); // Clear previous roster
+      const rosterData = await getTeamRoster(teamAbbrev);
+      const allPlayers = getAllPlayers(rosterData);
+      setRoster(allPlayers);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch roster data';
+      setError(errorMessage);
+      console.error(err);
+      setRoster([]); // Clear roster on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch already drafted players
+  const fetchDraftedPlayers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'draftedPlayers'));
+      const draftedIds = new Set<number>();
+      querySnapshot.forEach(doc => {
+        draftedIds.add(doc.data().playerId);
+      });
+      setDraftedPlayerIds(draftedIds);
+    } catch (error) {
+      console.error('Error fetching drafted players:', error);
+    }
+  };
+
+  // Draft a player to Firebase
+  const onDraftPlayer = async (rosterPlayer: RosterPerson) => {
+    if (!isMyTurn) {
+      alert("It's not your turn!");
+      return;
+    }
+
+    if (!currentPick) {
+      alert('Draft is complete!');
+      return;
+    }
+
+    try {
+      setDraftingPlayerId(rosterPlayer.person.id);
+      
+      // Check if already drafted
+      if (draftedPlayerIds.has(rosterPlayer.person.id)) {
+        alert('This player has already been drafted!');
+        setDraftingPlayerId(null);
+        return;
+      }
+
+      // Save to Firebase with team assignment and pick info
+      await addDoc(collection(db, 'draftedPlayers'), {
+        playerId: rosterPlayer.person.id,
+        name: getPlayerFullName(rosterPlayer),
+        position: rosterPlayer.position.code,
+        positionName: rosterPlayer.position.name,
+        jerseyNumber: rosterPlayer.jerseyNumber,
+        nhlTeam: selectedTeam,
+        draftedByTeam: currentPick.team, // Which fantasy team drafted them
+        pickNumber: currentPick.pick,
+        round: currentPick.round,
+        draftedAt: new Date().toISOString()
+      });
+
+      // Update local state
+      setDraftedPlayerIds(prev => new Set(prev).add(rosterPlayer.person.id));
+      
+      // Advance to next pick
+      await advancePick();
+      
+      console.log(`${currentPick.team} drafted: ${getPlayerFullName(rosterPlayer)} (Pick #${currentPick.pick})`);
+    } catch (error) {
+      console.error('Error drafting player:', error);
+      alert('Failed to draft player. Please try again.');
+    } finally {
+      setDraftingPlayerId(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoster(selectedTeam);
+    fetchDraftedPlayers();
+  }, [selectedTeam]);
+
+  const getPositionBadgeColor = (positionCode: string) => {
+    switch (positionCode) {
+      case 'C':
+      case 'L':
+      case 'R':
+        return 'bg-blue-600';
+      case 'D':
+        return 'bg-green-600';
+      case 'G':
+        return 'bg-purple-600';
+      default:
+        return 'bg-gray-600';
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto p-6">
+      <h2 className="text-3xl font-bold mb-6 text-white">NHL Team Roster</h2>
+
+      {/* Draft Status Banner */}
+      {draftState && currentPick && (
+        <div className={`p-4 rounded-lg mb-6 ${
+          isMyTurn ? 'bg-green-900 border-2 border-green-500' : 'bg-gray-800 border-2 border-gray-600'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-400">
+                Pick {currentPick.pick} of {draftState.totalPicks} • Round {currentPick.round}
+                {myTeam && <span className="ml-2">• You are: <span className="text-blue-400">{myTeam.teamName}</span></span>}
+              </p>
+              <p className="text-xl font-bold text-white mt-1">
+                {isMyTurn ? (
+                  <span className="text-green-400">🏒 YOUR TURN! Draft a player below</span>
+                ) : (
+                  <span>Waiting for <span className="text-yellow-400">{currentPick.team}</span></span>
+                )}
+              </p>
+            </div>
+            {isMyTurn && (
+              <div className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold animate-pulse">
+                ON THE CLOCK
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Team Selector */}
+      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
+        <label className="block text-white font-semibold mb-3">Select Team:</label>
+        <select
+          value={selectedTeam}
+          onChange={(e) => setSelectedTeam(e.target.value as TeamAbbrev)}
+          className="w-full md:w-auto px-4 py-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
+        >
+          {Object.entries(NHL_TEAMS).map(([abbrev, name]) => (
+            <option key={abbrev} value={abbrev}>
+              {name} ({abbrev})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-gray-800 p-8 rounded-lg shadow-lg text-center">
+          <p className="text-gray-400 text-lg">Loading roster...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-900/50 border border-red-600 p-6 rounded-lg shadow-lg mb-8">
+          <p className="text-red-200 font-semibold">⚠️ {error}</p>
+        </div>
+      )}
+
+      {/* Roster Grid */}
+      {!loading && !error && roster.length > 0 && (
+        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-6 text-white">
+            {NHL_TEAMS[selectedTeam]} - {roster.length} Players
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {roster.map((rosterPlayer) => {
+              const isDrafted = draftedPlayerIds.has(rosterPlayer.person.id);
+              const isDrafting = draftingPlayerId === rosterPlayer.person.id;
+
+              return (
+                <div
+                  key={rosterPlayer.person.id}
+                  className={`rounded-lg p-4 transition-all ${
+                    isDrafted 
+                      ? 'bg-gray-900 opacity-60 border-2 border-gray-600' 
+                      : 'bg-gray-700 hover:bg-gray-650'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3">
+                    {/* Player Info */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-white font-semibold text-lg">
+                          #{rosterPlayer.jerseyNumber}
+                        </span>
+                        <span
+                          className={`${getPositionBadgeColor(rosterPlayer.position.code)} text-white text-xs px-2 py-1 rounded font-bold`}
+                        >
+                          {rosterPlayer.position.code}
+                        </span>
+                        {isDrafted && (
+                          <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">
+                            DRAFTED
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-white font-medium text-lg mb-1">
+                        {getPlayerFullName(rosterPlayer)}
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        {rosterPlayer.position.name}
+                      </p>
+                    </div>
+
+                    {/* Draft Button */}
+                    <button
+                      onClick={() => onDraftPlayer(rosterPlayer)}
+                      disabled={isDrafted || isDrafting || !isMyTurn}
+                      className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                        isDrafted
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          : isDrafting
+                          ? 'bg-yellow-600 text-white cursor-wait'
+                          : !isMyTurn
+                          ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      {isDrafting 
+                        ? 'Drafting...' 
+                        : isDrafted 
+                        ? 'Already Drafted' 
+                        : !isMyTurn 
+                        ? 'Not Your Turn' 
+                        : 'Draft Player'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
