@@ -181,7 +181,7 @@ export default function Standings() {
         )}
       </div>
 
-      {/* Player Performance Details */}
+      {/* Player Performance Details - Grouped by Team */}
       {playerPerformances.length > 0 && (
         <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden mt-6">
           <div className="flex items-center justify-between p-6 pb-4">
@@ -195,72 +195,77 @@ export default function Standings() {
           </div>
           
           {showDetails && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-700">
-                  <tr>
-                    <th className="text-left p-4 text-gray-300 font-semibold">Player</th>
-                    <th className="text-left p-4 text-gray-300 font-semibold">Team</th>
-                    <th className="text-center p-4 text-gray-300 font-semibold">NHL Team</th>
-                    <th className="text-center p-4 text-gray-300 font-semibold">Date</th>
-                    <th className="text-left p-4 text-gray-300 font-semibold">Stats</th>
-                    <th className="text-center p-4 text-gray-300 font-semibold">Fantasy Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {playerPerformances.map((perf, index) => (
-                    <tr
-                      key={`${perf.playerId}-${perf.date}-${index}`}
-                      className="border-t border-gray-700 hover:bg-gray-750 transition-colors"
-                    >
-                      <td className="p-4">
-                        <span className="text-white font-medium">{perf.playerName}</span>
-                      </td>
-                      <td className="p-4">
-                        <span className="text-gray-300">{perf.teamName}</span>
-                      </td>
-                      <td className="p-4 text-center">
-                        <span className="text-gray-400 text-sm font-mono">{perf.nhlTeam}</span>
-                      </td>
-                      <td className="p-4 text-center text-gray-400 text-sm">
-                        {new Date(perf.date).toLocaleDateString()}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(perf.stats).map(([stat, value]) => (
-                            <span
-                              key={stat}
-                              className="inline-flex items-center px-2 py-1 rounded bg-gray-700 text-xs"
+            <div className="p-6 pt-0 space-y-6">
+              {/* Group performances by team */}
+              {standings.map((team) => {
+                const teamPerfs = playerPerformances.filter(p => p.teamName === team.teamName);
+                if (teamPerfs.length === 0) return null;
+                
+                return (
+                  <div key={team.teamName} className="bg-gray-750 rounded-lg overflow-hidden">
+                    {/* Team Header */}
+                    <div className="bg-gray-700 px-4 py-3">
+                      <h4 className="text-lg font-bold text-white">{team.teamName}</h4>
+                    </div>
+                    
+                    {/* Player Stats Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-700/50">
+                          <tr>
+                            <th className="text-left p-3 text-gray-400 font-medium text-sm">Player</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">NHL</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">⚽ G</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🎯 A</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🏹 S</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">💥 H</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🛡️ BS</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🏆 W</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🥅 Sv</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🚫 SO</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm font-bold">Points</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {teamPerfs.map((perf, index) => (
+                            <tr
+                              key={`${perf.playerId}-${perf.date}-${index}`}
+                              className="border-t border-gray-700 hover:bg-gray-700/30 transition-colors"
                             >
-                              <span className="text-gray-400 mr-1">
-                                {stat === 'goals' && '⚽'}
-                                {stat === 'assists' && '🎯'}
-                                {stat === 'saves' && '🥅'}
-                                {stat === 'wins' && '🏆'}
-                                {stat === 'shutouts' && '🚫'}
-                                {stat === 'hits' && '💥'}
-                                {stat === 'blockedShots' && '🛡️'}
-                                {stat === 'shots' && '🏹'}
-                              </span>
-                              <span className="text-gray-300 font-medium">{value}</span>
-                              <span className="text-gray-500 ml-1 text-xs">
-                                {stat.replace(/([A-Z])/g, ' $1').trim()}
-                              </span>
-                            </span>
+                              <td className="p-3">
+                                <div>
+                                  <div className="text-white font-medium">{perf.playerName}</div>
+                                  <div className="text-gray-500 text-xs">
+                                    {new Date(perf.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3 text-center">
+                                <span className="text-gray-400 text-sm font-mono">{perf.nhlTeam}</span>
+                              </td>
+                              <td className="p-3 text-center text-gray-300">{perf.stats.goals || 0}</td>
+                              <td className="p-3 text-center text-gray-300">{perf.stats.assists || 0}</td>
+                              <td className="p-3 text-center text-gray-300">{perf.stats.shots || 0}</td>
+                              <td className="p-3 text-center text-gray-300">{perf.stats.hits || 0}</td>
+                              <td className="p-3 text-center text-gray-300">{perf.stats.blockedShots || 0}</td>
+                              <td className="p-3 text-center text-gray-300">{perf.stats.wins || 0}</td>
+                              <td className="p-3 text-center text-gray-300">{perf.stats.saves || 0}</td>
+                              <td className="p-3 text-center text-gray-300">{perf.stats.shutouts || 0}</td>
+                              <td className="p-3 text-center">
+                                <span className={`text-base font-bold ${
+                                  perf.points > 0 ? 'text-green-400' : perf.points < 0 ? 'text-red-400' : 'text-gray-400'
+                                }`}>
+                                  {perf.points > 0 ? '+' : ''}{perf.points.toFixed(2)}
+                                </span>
+                              </td>
+                            </tr>
                           ))}
-                        </div>
-                      </td>
-                      <td className="p-4 text-center">
-                        <span className={`text-lg font-bold ${
-                          perf.points > 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {perf.points > 0 ? '+' : ''}{perf.points.toFixed(2)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
