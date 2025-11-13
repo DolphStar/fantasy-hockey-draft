@@ -175,14 +175,16 @@ export default function DraftBoard() {
             .map(teamName => {
               const teamPlayers = draftedPlayers.filter(p => p.draftedByTeam === teamName);
               return (
-                <div key={teamName} className={`${getTeamColor(teamName)} p-4 rounded-lg`}>
+                <div key={teamName} className="bg-gray-800 p-6 rounded-lg">
                   <h4 className="text-white font-bold text-lg mb-2">{teamName}</h4>
-                  <p className="text-gray-300 text-sm">{teamPlayers.length} players drafted</p>
-                  <div className="mt-2 text-xs text-gray-400">
-                    <p>Forwards: {teamPlayers.filter(p => ['C', 'L', 'R'].includes(p.position)).length}</p>
-                    <p>Defense: {teamPlayers.filter(p => p.position === 'D').length}</p>
-                    <p>Goalies: {teamPlayers.filter(p => p.position === 'G').length}</p>
-                  </div>
+                  <p className="text-gray-400 mb-2">{teamPlayers.length} players drafted</p>
+                  {teamPlayers.length > 0 && (
+                    <div className="text-sm text-gray-400">
+                      <p>Forwards: {teamPlayers.filter(p => ['C', 'L', 'R'].includes(p.position)).length}</p>
+                      <p>Defense: {teamPlayers.filter(p => p.position === 'D').length}</p>
+                      <p>Goalies: {teamPlayers.filter(p => p.position === 'G').length}</p>
+                    </div>
+                  )}
                 </div>
               );
             })}

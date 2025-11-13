@@ -19,6 +19,7 @@ export default function NHLRoster() {
   const [selectedTeam, setSelectedTeam] = useState<TeamAbbrev>('VAN');
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
+  const [myTeamPositions, setMyTeamPositions] = useState({ F: 0, D: 0, G: 0, total: 0 });
   
   // League context for showing user's team
   const { myTeam, league } = useLeague();
@@ -49,13 +50,56 @@ export default function NHLRoster() {
     try {
       const querySnapshot = await getDocs(collection(db, 'draftedPlayers'));
       const draftedIds = new Set<number>();
+      let myForwards = 0, myDefense = 0, myGoalies = 0, myTotal = 0;
+      
       querySnapshot.forEach(doc => {
-        draftedIds.add(doc.data().playerId);
+        const data = doc.data();
+        draftedIds.add(data.playerId);
+        
+        // Count positions for my team
+        if (myTeam && data.draftedByTeam === myTeam.teamName) {
+          myTotal++;
+          const pos = data.position;
+          if (['C', 'L', 'R'].includes(pos)) {
+            myForwards++;
+          } else if (pos === 'D') {
+            myDefense++;
+          } else if (pos === 'G') {
+            myGoalies++;
+          }
+        }
       });
+      
       setDraftedPlayerIds(draftedIds);
+      setMyTeamPositions({ F: myForwards, D: myDefense, G: myGoalies, total: myTotal });
     } catch (error) {
       console.error('Error fetching drafted players:', error);
     }
+  };
+
+  // Check if we can draft a player of this position
+  const canDraftPosition = (position: string): boolean => {
+    if (!league?.rosterSettings) return true; // No limits if not configured
+    
+    const { F, D, G, total } = myTeamPositions;
+    const { forwards, defensemen, goalies } = league.rosterSettings;
+    const totalRequired = forwards + defensemen + goalies;
+    
+    // If we're in reserves (last 5 picks), allow any position
+    if (total >= totalRequired) {
+      return true;
+    }
+    
+    // Check position-specific limits
+    if (['C', 'L', 'R'].includes(position)) {
+      return F < forwards;
+    } else if (position === 'D') {
+      return D < defensemen;
+    } else if (position === 'G') {
+      return G < goalies;
+    }
+    
+    return false;
   };
 
   // Draft a player to Firebase
@@ -76,6 +120,13 @@ export default function NHLRoster() {
       // Check if already drafted
       if (draftedPlayerIds.has(rosterPlayer.person.id)) {
         alert('This player has already been drafted!');
+        setDraftingPlayerId(null);
+        return;
+      }
+      
+      // Check position limits
+      if (!canDraftPosition(rosterPlayer.position.code)) {
+        alert(`You've reached the limit for ${rosterPlayer.position.name}s! Pick a different position or add to reserves.`);
         setDraftingPlayerId(null);
         return;
       }
@@ -140,7 +191,7 @@ export default function NHLRoster() {
           isMyTurn ? 'bg-green-900 border-2 border-green-500' : 'bg-gray-800 border-2 border-gray-600'
         }`}>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm text-gray-400">
                 Pick {currentPick.pick} of {draftState.totalPicks} • Round {currentPick.round}
                 {myTeam && <span className="ml-2">• You are: <span className="text-blue-400">{myTeam.teamName}</span></span>}
@@ -152,6 +203,22 @@ export default function NHLRoster() {
                   <span>Waiting for <span className="text-yellow-400">{currentPick.team}</span></span>
                 )}
               </p>
+              {isMyTurn && league?.rosterSettings && (
+                <div className="mt-2 flex gap-4 text-sm">
+                  <span className={myTeamPositions.F >= league.rosterSettings.forwards ? 'text-green-400' : 'text-gray-400'}>
+                    F: {myTeamPositions.F}/{league.rosterSettings.forwards}
+                  </span>
+                  <span className={myTeamPositions.D >= league.rosterSettings.defensemen ? 'text-green-400' : 'text-gray-400'}>
+                    D: {myTeamPositions.D}/{league.rosterSettings.defensemen}
+                  </span>
+                  <span className={myTeamPositions.G >= league.rosterSettings.goalies ? 'text-green-400' : 'text-gray-400'}>
+                    G: {myTeamPositions.G}/{league.rosterSettings.goalies}
+                  </span>
+                  <span className="text-gray-500">
+                    ({myTeamPositions.total} total)
+                  </span>
+                </div>
+              )}
             </div>
             {isMyTurn && (
               <div className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold animate-pulse">

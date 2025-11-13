@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
+import TestScoring from './TestScoring';
 import type { LeagueTeam } from '../types/league';
 
 export default function LeagueSettings() {
@@ -342,6 +343,9 @@ export default function LeagueSettings() {
         </code>
         <p className="text-gray-400 text-sm mt-2">Share this with your league admin</p>
       </div>
+
+      {/* Test Scoring (Admin Only) */}
+      {isAdmin && <div className="mt-6"><TestScoring /></div>}
     </div>
   );
 }
