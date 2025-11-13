@@ -26,27 +26,29 @@ export interface GameScore {
 
 export interface PlayerGameStats {
   playerId: number;
-  name: string;
+  name: {
+    default: string; // NHL API returns name as object with 'default' property
+  };
+  teamAbbrev?: string;
   position: string;
-  teamAbbrev: string;
-  
-  // Skater stats
-  goals: number;
-  assists: number;
-  points: number;
-  shots: number;
-  hits: number;
-  blockedShots: number;
-  penaltyMinutes: number;
-  powerPlayGoals: number;
-  shortHandedGoals: number;
-  
-  // Goalie stats (if applicable)
+  sweaterNumber?: number;
+  goals?: number;
+  assists?: number;
+  points?: number;
+  plusMinus?: number;
+  powerPlayGoals?: number;
+  shortHandedGoals?: number;
+  shots?: number;
+  hits?: number;
+  blockedShots?: number;
+  pim?: number; // Penalty minutes
+  faceoffWinningPctg?: number;
+  toi?: string; // Time on ice
+  // Goalie stats
   wins?: number;
   losses?: number;
   otLosses?: number;
   saves?: number;
-  shotsAgainst?: number;
   goalsAgainst?: number;
   shutouts?: number;
   savePctg?: number;

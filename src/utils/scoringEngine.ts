@@ -154,7 +154,7 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
         if (allPlayers.length > 0) {
           console.log('DEBUG: Sample player from game:', {
             id: allPlayers[0].playerId,
-            name: allPlayers[0].name,
+            name: allPlayers[0].name.default,
             position: allPlayers[0].position,
             goals: allPlayers[0].goals,
             assists: allPlayers[0].assists
@@ -171,7 +171,7 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
             
             // Skip if points are invalid
             if (isNaN(points)) {
-              console.warn(`${playerStats.name} (${fantasyTeam}): Invalid points (NaN) - skipping`);
+              console.warn(`${playerStats.name.default} (${fantasyTeam}): Invalid points (NaN) - skipping`);
               continue;
             }
             
@@ -194,15 +194,15 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
               
               playerScores.push({
                 playerId: playerStats.playerId,
-                playerName: playerStats.name,
+                playerName: playerStats.name.default,
                 teamName: fantasyTeam,
-                nhlTeam: playerStats.teamAbbrev,
+                nhlTeam: playerStats.teamAbbrev || 'UNK',
                 date: dateStr,
                 points,
                 stats,
               });
               
-              console.log(`${playerStats.name} (${fantasyTeam}): ${points.toFixed(2)} pts`);
+              console.log(`${playerStats.name.default} (${fantasyTeam}): ${points.toFixed(2)} pts`);
             }
           }
         }
