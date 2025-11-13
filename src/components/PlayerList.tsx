@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
+import { collection, deleteDoc, doc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 
 interface DraftedPlayer {
@@ -20,44 +20,12 @@ interface DraftedPlayer {
 export default function PlayerList() {
   const { myTeam } = useLeague();
   const [players, setPlayers] = useState<DraftedPlayer[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Fetch only players drafted by your team
-  const fetchPlayers = async () => {
-    if (!myTeam) {
-      console.log('No team assigned to user');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Query only players drafted by your team
-      const q = query(
-        collection(db, 'draftedPlayers'),
-        where('draftedByTeam', '==', myTeam.teamName),
-        orderBy('pickNumber', 'asc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const playersData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as DraftedPlayer));
-      
-      setPlayers(playersData);
-    } catch (error) {
-      console.error('Error fetching players:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(true);
 
   // Undraft a player (remove from drafted list)
   const undraftPlayer = async (playerId: string) => {
     try {
       await deleteDoc(doc(db, 'draftedPlayers', playerId));
-      fetchPlayers(); // Refresh the list
     } catch (error) {
       console.error('Error undrafting player:', error);
     }
@@ -79,10 +47,40 @@ export default function PlayerList() {
     }
   };
 
-  // Fetch players on component mount and when myTeam changes
+  // Real-time listener for drafted players
   useEffect(() => {
-    fetchPlayers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!myTeam) {
+      console.log('PlayerList: No team assigned to user');
+      setLoading(false);
+      return;
+    }
+
+    console.log('PlayerList: Setting up listener for team:', myTeam.teamName);
+    
+    // Query only players drafted by your team
+    const q = query(
+      collection(db, 'draftedPlayers'),
+      where('draftedByTeam', '==', myTeam.teamName),
+      orderBy('pickNumber', 'asc')
+    );
+    
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const playersData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as DraftedPlayer));
+      
+      console.log(`PlayerList: Found ${playersData.length} players for team "${myTeam.teamName}"`);
+      setPlayers(playersData);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error listening to players:', error);
+      setLoading(false);
+    });
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, [myTeam]);
 
   return (
