@@ -6,10 +6,22 @@ import type { TeamScore } from '../utils/scoringEngine';
 // Import update utility for existing leagues
 import '../utils/updateLeague';
 
+interface PlayerPerformance {
+  playerId: number;
+  playerName: string;
+  teamName: string;
+  nhlTeam: string;
+  date: string;
+  points: number;
+  stats: Record<string, number>;
+}
+
 export default function Standings() {
   const { league } = useLeague();
   const [standings, setStandings] = useState<TeamScore[]>([]);
+  const [playerPerformances, setPlayerPerformances] = useState<PlayerPerformance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDetails, setShowDetails] = useState(true);
 
   // Fetch standings
   useEffect(() => {
@@ -18,29 +30,39 @@ export default function Standings() {
       return;
     }
 
-    const fetchStandings = async () => {
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        
+        // Fetch team standings
         const standingsQuery = query(
           collection(db, `leagues/${league.id}/teamScores`),
           orderBy('totalPoints', 'desc')
         );
         
-        const snapshot = await getDocs(standingsQuery);
-        const standingsData = snapshot.docs.map(doc => ({
-          ...doc.data()
-        })) as TeamScore[];
+        const standingsSnapshot = await getDocs(standingsQuery);
+        const teams = standingsSnapshot.docs.map(doc => doc.data() as TeamScore);
+        setStandings(teams);
+
+        // Fetch recent player performances (last 7 days)
+        const performancesQuery = query(
+          collection(db, `leagues/${league.id}/playerDailyScores`),
+          orderBy('date', 'desc')
+        );
         
-        setStandings(standingsData);
+        const performancesSnapshot = await getDocs(performancesQuery);
+        const performances = performancesSnapshot.docs.map(doc => doc.data() as PlayerPerformance);
+        
+        // Sort by points descending for display
+        performances.sort((a, b) => b.points - a.points);
+        
+        setPlayerPerformances(performances);
       } catch (error) {
-        console.error('Error fetching standings:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStandings();
+    fetchData();
   }, [league]);
 
   if (!league) {
@@ -158,6 +180,91 @@ export default function Standings() {
           </div>
         )}
       </div>
+
+      {/* Player Performance Details */}
+      {playerPerformances.length > 0 && (
+        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden mt-6">
+          <div className="flex items-center justify-between p-6 pb-4">
+            <h3 className="text-xl font-semibold text-white">🏒 Player Performances</h3>
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors"
+            >
+              {showDetails ? 'Hide Details' : 'Show Details'}
+            </button>
+          </div>
+          
+          {showDetails && (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-700">
+                  <tr>
+                    <th className="text-left p-4 text-gray-300 font-semibold">Player</th>
+                    <th className="text-left p-4 text-gray-300 font-semibold">Team</th>
+                    <th className="text-center p-4 text-gray-300 font-semibold">NHL Team</th>
+                    <th className="text-center p-4 text-gray-300 font-semibold">Date</th>
+                    <th className="text-left p-4 text-gray-300 font-semibold">Stats</th>
+                    <th className="text-center p-4 text-gray-300 font-semibold">Fantasy Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {playerPerformances.map((perf, index) => (
+                    <tr
+                      key={`${perf.playerId}-${perf.date}-${index}`}
+                      className="border-t border-gray-700 hover:bg-gray-750 transition-colors"
+                    >
+                      <td className="p-4">
+                        <span className="text-white font-medium">{perf.playerName}</span>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-gray-300">{perf.teamName}</span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-gray-400 text-sm font-mono">{perf.nhlTeam}</span>
+                      </td>
+                      <td className="p-4 text-center text-gray-400 text-sm">
+                        {new Date(perf.date).toLocaleDateString()}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(perf.stats).map(([stat, value]) => (
+                            <span
+                              key={stat}
+                              className="inline-flex items-center px-2 py-1 rounded bg-gray-700 text-xs"
+                            >
+                              <span className="text-gray-400 mr-1">
+                                {stat === 'goals' && '⚽'}
+                                {stat === 'assists' && '🎯'}
+                                {stat === 'saves' && '🥅'}
+                                {stat === 'wins' && '🏆'}
+                                {stat === 'shutouts' && '🚫'}
+                                {stat === 'hits' && '💥'}
+                                {stat === 'blockedShots' && '🛡️'}
+                                {stat === 'shots' && '🏹'}
+                              </span>
+                              <span className="text-gray-300 font-medium">{value}</span>
+                              <span className="text-gray-500 ml-1 text-xs">
+                                {stat.replace(/([A-Z])/g, ' $1').trim()}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className={`text-lg font-bold ${
+                          perf.points > 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {perf.points > 0 ? '+' : ''}{perf.points.toFixed(2)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Info Box */}
       <div className="bg-blue-900/30 border border-blue-500 p-4 rounded-lg mt-6">
