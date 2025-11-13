@@ -114,6 +114,11 @@ export async function getGameBoxscore(gameId: number): Promise<Boxscore> {
     const data = await response.json();
     console.log(`NHL Stats: Fetched boxscore for game ${gameId}`);
     
+    // DEBUG: Log sample player structure
+    if (data.playerByGameStats?.awayTeam?.forwards?.[0]) {
+      console.log('DEBUG: Raw player object from API:', data.playerByGameStats.awayTeam.forwards[0]);
+    }
+    
     return data;
   } catch (error) {
     console.error(`Error fetching boxscore for game ${gameId}:`, error);
