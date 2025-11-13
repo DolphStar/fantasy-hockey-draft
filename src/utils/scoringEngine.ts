@@ -170,14 +170,22 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
             const points = calculatePlayerPoints(playerStats, scoringRules);
             
             // Skip if points are invalid
-            if (isNaN(points)) {
-              console.warn(`${playerStats.name.default} (${fantasyTeam}): Invalid points (NaN) - skipping`);
+            if (isNaN(points) || !isFinite(points)) {
+              console.warn(`${playerStats.name.default} (${fantasyTeam}): Invalid points (${points}) - skipping`);
               continue;
             }
             
-            // Add to team total
+            // Add to team total (ensure currentPoints is valid too)
             const currentPoints = teamPoints.get(fantasyTeam) || 0;
-            teamPoints.set(fantasyTeam, currentPoints + points);
+            const newTotal = currentPoints + points;
+            
+            // Double-check the new total is valid
+            if (isNaN(newTotal) || !isFinite(newTotal)) {
+              console.error(`Invalid team total for ${fantasyTeam}: ${currentPoints} + ${points} = ${newTotal}`);
+              continue;
+            }
+            
+            teamPoints.set(fantasyTeam, newTotal);
             
             // Only save player daily score if they scored points
             if (points > 0) {
