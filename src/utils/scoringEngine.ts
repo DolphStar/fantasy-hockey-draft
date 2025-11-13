@@ -34,17 +34,17 @@ function calculateSkaterPoints(
 ): number {
   let points = 0;
   
-  // Goals and assists
-  points += stats.goals * rules.goal;
-  points += stats.assists * rules.assist;
+  // Goals and assists (default to 0 if undefined)
+  points += (stats.goals || 0) * rules.goal;
+  points += (stats.assists || 0) * rules.assist;
   
   // Short-handed goals (bonus on top of regular goal)
-  points += stats.shortHandedGoals * rules.shortHandedGoal;
+  points += (stats.shortHandedGoals || 0) * rules.shortHandedGoal;
   
   // Defense-specific stats
   if (isDefenseman) {
-    points += stats.blockedShots * rules.blockedShot;
-    points += stats.hits * rules.hit;
+    points += (stats.blockedShots || 0) * rules.blockedShot;
+    points += (stats.hits || 0) * rules.hit;
   }
   
   // Note: Fight and overtime goal detection would require more detailed game data
@@ -62,16 +62,16 @@ function calculateGoaliePoints(
 ): number {
   let points = 0;
   
-  // Wins and shutouts
-  if (stats.wins) points += stats.wins * rules.win;
-  if (stats.shutouts) points += stats.shutouts * rules.shutout;
+  // Wins and shutouts (default to 0 if undefined)
+  points += (stats.wins || 0) * rules.win;
+  points += (stats.shutouts || 0) * rules.shutout;
   
   // Saves
-  if (stats.saves) points += stats.saves * rules.save;
+  points += (stats.saves || 0) * rules.save;
   
   // Goalie assists and goals (rare but possible!)
-  if (stats.assists) points += stats.assists * rules.goalieAssist;
-  if (stats.goals) points += stats.goals * rules.goalieGoal;
+  points += (stats.assists || 0) * rules.goalieAssist;
+  points += (stats.goals || 0) * rules.goalieGoal;
   
   return points;
 }
@@ -156,32 +156,41 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
             // This player is on someone's fantasy team!
             const points = calculatePlayerPoints(playerStats, scoringRules);
             
+            // Skip if points are invalid
+            if (isNaN(points)) {
+              console.warn(`${playerStats.name} (${fantasyTeam}): Invalid points (NaN) - skipping`);
+              continue;
+            }
+            
             // Add to team total
             const currentPoints = teamPoints.get(fantasyTeam) || 0;
             teamPoints.set(fantasyTeam, currentPoints + points);
             
-            // Track player daily score (filter out undefined values for Firebase)
-            const stats: Record<string, number> = {};
-            if (playerStats.goals !== undefined) stats.goals = playerStats.goals;
-            if (playerStats.assists !== undefined) stats.assists = playerStats.assists;
-            if (playerStats.shots !== undefined) stats.shots = playerStats.shots;
-            if (playerStats.hits !== undefined) stats.hits = playerStats.hits;
-            if (playerStats.blockedShots !== undefined) stats.blockedShots = playerStats.blockedShots;
-            if (playerStats.wins !== undefined) stats.wins = playerStats.wins;
-            if (playerStats.saves !== undefined) stats.saves = playerStats.saves;
-            if (playerStats.shutouts !== undefined) stats.shutouts = playerStats.shutouts;
-            
-            playerScores.push({
-              playerId: playerStats.playerId,
-              playerName: playerStats.name,
-              teamName: fantasyTeam,
-              nhlTeam: playerStats.teamAbbrev,
-              date: dateStr,
-              points,
-              stats,
-            });
-            
-            console.log(`${playerStats.name} (${fantasyTeam}): ${points.toFixed(2)} pts`);
+            // Only save player daily score if they scored points
+            if (points > 0) {
+              // Track player daily score (filter out undefined values for Firebase)
+              const stats: Record<string, number> = {};
+              if (playerStats.goals !== undefined) stats.goals = playerStats.goals;
+              if (playerStats.assists !== undefined) stats.assists = playerStats.assists;
+              if (playerStats.shots !== undefined) stats.shots = playerStats.shots;
+              if (playerStats.hits !== undefined) stats.hits = playerStats.hits;
+              if (playerStats.blockedShots !== undefined) stats.blockedShots = playerStats.blockedShots;
+              if (playerStats.wins !== undefined) stats.wins = playerStats.wins;
+              if (playerStats.saves !== undefined) stats.saves = playerStats.saves;
+              if (playerStats.shutouts !== undefined) stats.shutouts = playerStats.shutouts;
+              
+              playerScores.push({
+                playerId: playerStats.playerId,
+                playerName: playerStats.name,
+                teamName: fantasyTeam,
+                nhlTeam: playerStats.teamAbbrev,
+                date: dateStr,
+                points,
+                stats,
+              });
+              
+              console.log(`${playerStats.name} (${fantasyTeam}): ${points.toFixed(2)} pts`);
+            }
           }
         }
       } catch (error) {
