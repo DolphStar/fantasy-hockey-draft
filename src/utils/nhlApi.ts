@@ -1,11 +1,11 @@
-// Using Vite proxy to avoid CORS issues
-// Requests to /v1 will be proxied to https://api-web.nhle.com
+// NHL API with Vercel proxy to avoid CORS issues
+// Local development: Vite proxy (/v1 → https://api-web.nhle.com)
+// Production: Vercel rewrites (/api/web → https://api-web.nhle.com)
 // API Documentation: https://github.com/Zmalski/NHL-API-Reference
 
-// NOTE: NHL API has strict CORS policies that block browser requests
-// For production, you'll need a backend server to proxy requests
-// For now, using mock data for development
-const USE_MOCK_DATA = true;
+// Use different base URLs for dev and production
+const BASE_URL_WEB = import.meta.env.DEV ? '/v1' : '/api/web/v1';
+const BASE_URL_STATS = import.meta.env.DEV ? '/stats' : '/api/stats';
 
 export interface RosterPlayer {
   id: number;
@@ -45,49 +45,15 @@ export interface TeamRoster {
  * @returns Promise with the team's roster data
  */
 export async function getTeamRoster(teamAbbrev: string): Promise<TeamRoster> {
-  // Use mock data due to NHL API CORS restrictions
-  if (USE_MOCK_DATA) {
-    const { getMockRoster } = await import('./mockNhlData');
-    const mockData = getMockRoster(teamAbbrev);
-    
-    if (!mockData) {
-      throw new Error(`Mock data not available for ${teamAbbrev}.`);
-    }
-    
-    console.log(`Using mock data for ${teamAbbrev}:`, mockData);
-    
-    // Convert to our roster format
-    const allPlayers = [
-      ...(mockData.forwards || []),
-      ...(mockData.defensemen || []),
-      ...(mockData.goalies || [])
-    ];
-    
-    return {
-      forwards: mockData.forwards,
-      defensemen: mockData.defensemen,
-      goalies: mockData.goalies,
-      roster: allPlayers.map((p: RosterPlayer) => ({
-        person: p,
-        jerseyNumber: String(p.sweaterNumber),
-        position: {
-          code: p.positionCode,
-          name: getPositionName(p.positionCode)
-        }
-      }))
-    };
-  }
-
-  // Real API call (currently blocked by CORS)
   try {
-    const response = await fetch(`/v1/roster/${teamAbbrev}/current`);
+    const response = await fetch(`${BASE_URL_WEB}/roster/${teamAbbrev}/current`);
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch roster: ${response.statusText}`);
+      throw new Error(`Failed to fetch roster for ${teamAbbrev}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log('API Response:', data);
+    console.log(`NHL API Response for ${teamAbbrev}:`, data);
     
     const allPlayers = [
       ...(data.forwards || []),
@@ -104,7 +70,9 @@ export async function getTeamRoster(teamAbbrev: string): Promise<TeamRoster> {
           name: getPositionName(p.positionCode)
         }
       })),
-      ...data
+      forwards: data.forwards,
+      defensemen: data.defensemen,
+      goalies: data.goalies
     };
   } catch (error) {
     console.error(`Error fetching roster for ${teamAbbrev}:`, error);

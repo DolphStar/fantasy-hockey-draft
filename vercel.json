@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/web/:path*",
+      "destination": "https://api-web.nhle.com/:path*"
+    },
+    {
+      "source": "/api/stats/:path*",
+      "destination": "https://api.nhle.com/:path*"
+    }
+  ]
+}
