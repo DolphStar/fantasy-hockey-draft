@@ -3,8 +3,9 @@ import { db } from '../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import type { TeamScore } from '../utils/scoringEngine';
-// Import update utility for existing leagues
+// Import utilities for existing leagues
 import '../utils/updateLeague';
+import '../utils/clearScores';
 
 interface PlayerPerformance {
   playerId: number;
