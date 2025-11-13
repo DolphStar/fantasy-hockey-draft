@@ -142,11 +142,24 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split('T')[0];
     
+    console.log('DEBUG: Drafted player IDs:', Array.from(playerToTeamMap.keys()).slice(0, 5));
+    
     // 5. Process each game
     for (const gameId of gameIds) {
       try {
         const boxscore = await getGameBoxscore(gameId);
         const allPlayers = getAllPlayersFromBoxscore(boxscore);
+        
+        console.log(`DEBUG: Game ${gameId} has ${allPlayers.length} players`);
+        if (allPlayers.length > 0) {
+          console.log('DEBUG: Sample player from game:', {
+            id: allPlayers[0].playerId,
+            name: allPlayers[0].name,
+            position: allPlayers[0].position,
+            goals: allPlayers[0].goals,
+            assists: allPlayers[0].assists
+          });
+        }
         
         // 6. Calculate points for drafted players who played
         for (const playerStats of allPlayers) {
@@ -200,7 +213,15 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
     }
     
     // 7. Update team scores in Firestore
+    console.log('DEBUG: Team points before update:', Array.from(teamPoints.entries()));
+    
     for (const [teamName, points] of teamPoints.entries()) {
+      // Skip if points are invalid
+      if (isNaN(points) || !isFinite(points)) {
+        console.warn(`Skipping ${teamName}: invalid points (${points})`);
+        continue;
+      }
+      
       const teamScoreRef = doc(db, `leagues/${leagueId}/teamScores`, teamName);
       
       try {
