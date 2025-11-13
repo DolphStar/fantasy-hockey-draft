@@ -109,12 +109,43 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
     try {
       const leagueId = `league-${Date.now()}`;
+      
+      // Default scoring rules (as per your rules)
+      const defaultScoringRules = {
+        // Skaters
+        goal: 1,
+        assist: 1,
+        shortHandedGoal: 1,
+        overtimeGoal: 1,
+        fight: 2,
+        // Defense
+        blockedShot: 0.15,
+        hit: 0.1,
+        // Goalies
+        win: 1,
+        shutout: 2,
+        save: 0.04,
+        goalieAssist: 1,
+        goalieGoal: 20,
+        goalieFight: 5,
+      };
+      
+      // Default roster settings: 9F / 6D / 2G / 5 reserves
+      const defaultRosterSettings = {
+        forwards: 9,
+        defensemen: 6,
+        goalies: 2,
+        reserves: 5,
+      };
+      
       const leagueData: Omit<League, 'id'> = {
         leagueName: data.leagueName,
         admin: user.uid,
         status: 'pending',
         teams: data.teams,
         draftRounds: data.draftRounds || 15,
+        scoringRules: defaultScoringRules,
+        rosterSettings: defaultRosterSettings,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

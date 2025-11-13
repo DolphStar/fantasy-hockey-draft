@@ -8,5 +8,11 @@
       "source": "/api/stats/:path*",
       "destination": "https://api.nhle.com/:path*"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/calculate-scores",
+      "schedule": "0 5 * * *"
+    }
   ]
 }

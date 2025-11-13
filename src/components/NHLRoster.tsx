@@ -21,7 +21,7 @@ export default function NHLRoster() {
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
   
   // League context for showing user's team
-  const { myTeam } = useLeague();
+  const { myTeam, league } = useLeague();
   
   // Draft context
   const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
@@ -91,6 +91,7 @@ export default function NHLRoster() {
         draftedByTeam: currentPick.team, // Which fantasy team drafted them
         pickNumber: currentPick.pick,
         round: currentPick.round,
+        leagueId: league?.id, // Link to league for scoring
         draftedAt: new Date().toISOString()
       });
 
