@@ -196,7 +196,7 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
                 playerId: playerStats.playerId,
                 playerName: playerStats.name.default,
                 teamName: fantasyTeam,
-                nhlTeam: playerStats.teamAbbrev || 'UNK',
+                nhlTeam: playerStats.teamAbbrev || 'UNK', // Should be set by getAllPlayersFromBoxscore
                 date: dateStr,
                 points,
                 stats,

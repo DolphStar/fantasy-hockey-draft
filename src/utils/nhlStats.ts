@@ -56,6 +56,12 @@ export interface PlayerGameStats {
 
 export interface Boxscore {
   gameId: number;
+  awayTeam?: {
+    abbrev?: string;
+  };
+  homeTeam?: {
+    abbrev?: string;
+  };
   playerByGameStats: {
     awayTeam: {
       forwards: PlayerGameStats[];
@@ -163,19 +169,33 @@ export function getAllPlayersFromBoxscore(boxscore: Boxscore): PlayerGameStats[]
   }
   
   const { awayTeam, homeTeam } = boxscore.playerByGameStats;
+  const awayTeamAbbrev = boxscore.awayTeam?.abbrev || 'UNK';
+  const homeTeamAbbrev = boxscore.homeTeam?.abbrev || 'UNK';
   
-  // Collect all away team players
+  // Collect all away team players and add team abbreviation
   if (awayTeam) {
-    players.push(...(awayTeam.forwards || []));
-    players.push(...(awayTeam.defense || []));
-    players.push(...(awayTeam.goalies || []));
+    const awayPlayers = [
+      ...(awayTeam.forwards || []),
+      ...(awayTeam.defense || []),
+      ...(awayTeam.goalies || [])
+    ];
+    awayPlayers.forEach(player => {
+      player.teamAbbrev = awayTeamAbbrev;
+    });
+    players.push(...awayPlayers);
   }
   
-  // Collect all home team players
+  // Collect all home team players and add team abbreviation
   if (homeTeam) {
-    players.push(...(homeTeam.forwards || []));
-    players.push(...(homeTeam.defense || []));
-    players.push(...(homeTeam.goalies || []));
+    const homePlayers = [
+      ...(homeTeam.forwards || []),
+      ...(homeTeam.defense || []),
+      ...(homeTeam.goalies || [])
+    ];
+    homePlayers.forEach(player => {
+      player.teamAbbrev = homeTeamAbbrev;
+    });
+    players.push(...homePlayers);
   }
   
   return players;
