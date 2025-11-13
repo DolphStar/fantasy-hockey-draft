@@ -8,6 +8,19 @@
 // In development, use Vite's proxy
 const BASE_URL_WEB = import.meta.env.PROD ? '/api/web/v1' : '/v1';
 
+// Compute the current NHL season ID (e.g. 20252026)
+// Season starts in September and runs through the following year
+function getCurrentSeasonId(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1-12
+
+  const startYear = month >= 9 ? year : year - 1;
+  const endYear = startYear + 1;
+
+  return `${startYear}${endYear}`;
+}
+
 export interface RosterPlayer {
   id: number;
   headshot: string;
@@ -47,7 +60,8 @@ export interface TeamRoster {
  */
 export async function getTeamRoster(teamAbbrev: string): Promise<TeamRoster> {
   try {
-    const response = await fetch(`${BASE_URL_WEB}/roster/${teamAbbrev}/current`);
+    const seasonId = getCurrentSeasonId();
+    const response = await fetch(`${BASE_URL_WEB}/roster/${teamAbbrev}/${seasonId}`);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch roster for ${teamAbbrev}: ${response.statusText}`);
