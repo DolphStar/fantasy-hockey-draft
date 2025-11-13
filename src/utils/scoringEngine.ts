@@ -21,16 +21,7 @@ export interface PlayerDailyScore {
   nhlTeam: string;
   date: string;
   points: number;
-  stats: {
-    goals?: number;
-    assists?: number;
-    shots?: number;
-    hits?: number;
-    blockedShots?: number;
-    wins?: number;
-    saves?: number;
-    shutouts?: number;
-  };
+  stats: Record<string, number>; // Dynamic stats object (only includes defined values)
 }
 
 /**
@@ -169,7 +160,17 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
             const currentPoints = teamPoints.get(fantasyTeam) || 0;
             teamPoints.set(fantasyTeam, currentPoints + points);
             
-            // Track player daily score
+            // Track player daily score (filter out undefined values for Firebase)
+            const stats: Record<string, number> = {};
+            if (playerStats.goals !== undefined) stats.goals = playerStats.goals;
+            if (playerStats.assists !== undefined) stats.assists = playerStats.assists;
+            if (playerStats.shots !== undefined) stats.shots = playerStats.shots;
+            if (playerStats.hits !== undefined) stats.hits = playerStats.hits;
+            if (playerStats.blockedShots !== undefined) stats.blockedShots = playerStats.blockedShots;
+            if (playerStats.wins !== undefined) stats.wins = playerStats.wins;
+            if (playerStats.saves !== undefined) stats.saves = playerStats.saves;
+            if (playerStats.shutouts !== undefined) stats.shutouts = playerStats.shutouts;
+            
             playerScores.push({
               playerId: playerStats.playerId,
               playerName: playerStats.name,
@@ -177,16 +178,7 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
               nhlTeam: playerStats.teamAbbrev,
               date: dateStr,
               points,
-              stats: {
-                goals: playerStats.goals,
-                assists: playerStats.assists,
-                shots: playerStats.shots,
-                hits: playerStats.hits,
-                blockedShots: playerStats.blockedShots,
-                wins: playerStats.wins,
-                saves: playerStats.saves,
-                shutouts: playerStats.shutouts,
-              },
+              stats,
             });
             
             console.log(`${playerStats.name} (${fantasyTeam}): ${points.toFixed(2)} pts`);
