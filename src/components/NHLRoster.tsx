@@ -8,7 +8,7 @@ import {
   type TeamAbbrev 
 } from '../utils/nhlApi';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
 
@@ -45,14 +45,13 @@ export default function NHLRoster() {
     }
   };
 
-  // Fetch already drafted players
-  const fetchDraftedPlayers = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'draftedPlayers'));
+  // Set up real-time listener for drafted players
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'draftedPlayers'), (snapshot) => {
       const draftedIds = new Set<number>();
       let myForwards = 0, myDefense = 0, myGoalies = 0, myTotal = 0;
       
-      querySnapshot.forEach(doc => {
+      snapshot.docs.forEach(doc => {
         const data = doc.data();
         draftedIds.add(data.playerId);
         
@@ -72,10 +71,10 @@ export default function NHLRoster() {
       
       setDraftedPlayerIds(draftedIds);
       setMyTeamPositions({ F: myForwards, D: myDefense, G: myGoalies, total: myTotal });
-    } catch (error) {
-      console.error('Error fetching drafted players:', error);
-    }
-  };
+    });
+    
+    return () => unsubscribe();
+  }, [myTeam]);
 
   // Check if we can draft a player of this position
   const canDraftPosition = (position: string): boolean => {
@@ -163,7 +162,6 @@ export default function NHLRoster() {
 
   useEffect(() => {
     fetchRoster(selectedTeam);
-    fetchDraftedPlayers();
   }, [selectedTeam]);
 
   const getPositionBadgeColor = (positionCode: string) => {
