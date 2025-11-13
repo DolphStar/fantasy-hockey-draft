@@ -3,9 +3,8 @@
 // Production: Vercel rewrites (/api/web → https://api-web.nhle.com)
 // API Documentation: https://github.com/Zmalski/NHL-API-Reference
 
-// Use different base URLs for dev and production
+// Use different base URL for dev and production
 const BASE_URL_WEB = import.meta.env.DEV ? '/v1' : '/api/web/v1';
-const BASE_URL_STATS = import.meta.env.DEV ? '/stats' : '/api/stats';
 
 export interface RosterPlayer {
   id: number;
