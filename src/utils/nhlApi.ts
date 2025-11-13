@@ -4,7 +4,9 @@
 // API Documentation: https://github.com/Zmalski/NHL-API-Reference
 
 // Use different base URL for dev and production
-const BASE_URL_WEB = import.meta.env.DEV ? '/v1' : '/api/web/v1';
+// In production (Vercel), use the proxy endpoint
+// In development, use Vite's proxy
+const BASE_URL_WEB = import.meta.env.PROD ? '/api/web/v1' : '/v1';
 
 export interface RosterPlayer {
   id: number;
