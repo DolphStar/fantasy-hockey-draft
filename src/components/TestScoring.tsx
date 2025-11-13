@@ -6,10 +6,17 @@ export default function TestScoring() {
   const { league, isAdmin } = useLeague();
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  
+  const hasRules = league?.scoringRules !== undefined;
 
   const handleRunScoring = async () => {
     if (!league) {
       setResult('❌ No league found');
+      return;
+    }
+    
+    if (!hasRules) {
+      setResult('❌ League needs scoring rules first. Run: addScoringRulesToLeague("' + league.id + '") in console');
       return;
     }
 
@@ -36,6 +43,19 @@ export default function TestScoring() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-blue-900/30 border border-blue-500 p-6 rounded-lg">
         <h2 className="text-2xl font-bold text-white mb-4">🧪 Test Scoring System</h2>
+        
+        {!hasRules && (
+          <div className="bg-yellow-900/50 border border-yellow-500 p-4 rounded-lg mb-4">
+            <p className="text-yellow-200 font-semibold mb-2">⚠️ Scoring Rules Not Configured</p>
+            <p className="text-yellow-100 text-sm mb-2">Your league needs scoring rules before scoring can run.</p>
+            <p className="text-yellow-100 text-sm">Open browser console (F12) and run:</p>
+            <code className="block bg-black/50 p-2 rounded mt-2 text-yellow-300 text-sm">
+              addScoringRulesToLeague("{league?.id}")
+            </code>
+            <p className="text-yellow-100 text-sm mt-2">Then refresh the page.</p>
+          </div>
+        )}
+        
         <p className="text-gray-300 mb-4">
           Manually trigger yesterday's game scoring to test the system.
           This will calculate fantasy points for all drafted players based on their real NHL performance.

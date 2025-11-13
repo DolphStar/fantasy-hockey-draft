@@ -119,6 +119,10 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
     const leagueData = leagueDoc.docs[0].data();
     const scoringRules = leagueData.scoringRules as ScoringRules;
     
+    if (!scoringRules) {
+      throw new Error(`League ${leagueId} does not have scoring rules configured. Please update the league with scoring rules first.`);
+    }
+    
     // 2. Get all drafted players for this league
     const draftedPlayersQuery = query(
       collection(db, 'draftedPlayers'),
