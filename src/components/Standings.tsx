@@ -3,6 +3,8 @@ import { db } from '../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import type { TeamScore } from '../utils/scoringEngine';
+// Import update utility for existing leagues
+import '../utils/updateLeague';
 
 export default function Standings() {
   const { league } = useLeague();
@@ -55,32 +57,34 @@ export default function Standings() {
       <h2 className="text-3xl font-bold mb-6 text-white">{league.leagueName} - Standings</h2>
 
       {/* Scoring Rules Info */}
-      <div className="bg-gray-800 p-4 rounded-lg mb-6">
-        <h3 className="text-lg font-semibold text-white mb-2">📊 Scoring Rules</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-300">
-          <div>
-            <p className="font-semibold text-white mb-1">Skaters</p>
-            <p>Goal: {league.scoringRules.goal}pt</p>
-            <p>Assist: {league.scoringRules.assist}pt</p>
-            <p>SH Goal: +{league.scoringRules.shortHandedGoal}pt</p>
-            <p>OT Goal: +{league.scoringRules.overtimeGoal}pt</p>
-            <p>Fight: {league.scoringRules.fight}pts</p>
-          </div>
-          <div>
-            <p className="font-semibold text-white mb-1">Defense</p>
-            <p>Blocked Shot: {league.scoringRules.blockedShot}pt</p>
-            <p>Hit: {league.scoringRules.hit}pt</p>
-          </div>
-          <div>
-            <p className="font-semibold text-white mb-1">Goalies</p>
-            <p>Win: {league.scoringRules.win}pt</p>
-            <p>Shutout: {league.scoringRules.shutout}pts</p>
-            <p>Save: {league.scoringRules.save}pt</p>
-            <p>Assist: {league.scoringRules.goalieAssist}pt</p>
-            <p>Goal: {league.scoringRules.goalieGoal}pts!</p>
+      {league.scoringRules && (
+        <div className="bg-gray-800 p-4 rounded-lg mb-6">
+          <h3 className="text-lg font-semibold text-white mb-2">📊 Scoring Rules</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-300">
+            <div>
+              <p className="font-semibold text-white mb-1">Skaters</p>
+              <p>Goal: {league.scoringRules.goal}pt</p>
+              <p>Assist: {league.scoringRules.assist}pt</p>
+              <p>SH Goal: +{league.scoringRules.shortHandedGoal}pt</p>
+              <p>OT Goal: +{league.scoringRules.overtimeGoal}pt</p>
+              <p>Fight: {league.scoringRules.fight}pts</p>
+            </div>
+            <div>
+              <p className="font-semibold text-white mb-1">Defense</p>
+              <p>Blocked Shot: {league.scoringRules.blockedShot}pt</p>
+              <p>Hit: {league.scoringRules.hit}pt</p>
+            </div>
+            <div>
+              <p className="font-semibold text-white mb-1">Goalies</p>
+              <p>Win: {league.scoringRules.win}pt</p>
+              <p>Shutout: {league.scoringRules.shutout}pts</p>
+              <p>Save: {league.scoringRules.save}pt</p>
+              <p>Assist: {league.scoringRules.goalieAssist}pt</p>
+              <p>Goal: {league.scoringRules.goalieGoal}pts!</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Standings Table */}
       <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
