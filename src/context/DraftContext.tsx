@@ -100,23 +100,58 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     if (!league) return;
     
     try {
+      console.log('Starting draft reset...');
+      
       // 1. Delete all drafted players
       const playersQuery = query(collection(db, 'draftedPlayers'));
       const playersSnapshot = await getDocs(playersQuery);
       
-      const deletePromises = playersSnapshot.docs.map(playerDoc => 
+      const deletePlayersPromises = playersSnapshot.docs.map(playerDoc => 
         deleteDoc(doc(db, 'draftedPlayers', playerDoc.id))
       );
-      await Promise.all(deletePromises);
+      await Promise.all(deletePlayersPromises);
+      console.log(`✓ Deleted ${playersSnapshot.docs.length} drafted players`);
       
-      console.log(`Deleted ${playersSnapshot.docs.length} drafted players`);
+      // 2. Delete all player performance stats (daily scores)
+      const scoresPath = `leagues/${league.id}/playerDailyScores`;
+      const scoresQuery = query(collection(db, scoresPath));
+      const scoresSnapshot = await getDocs(scoresQuery);
       
-      // 2. Reset the draft state
+      const deleteScoresPromises = scoresSnapshot.docs.map(scoreDoc => 
+        deleteDoc(doc(db, scoresPath, scoreDoc.id))
+      );
+      await Promise.all(deleteScoresPromises);
+      console.log(`✓ Deleted ${scoresSnapshot.docs.length} player performance stats`);
+      
+      // 3. Delete all team scores
+      const teamScoresPath = `leagues/${league.id}/teamScores`;
+      const teamScoresQuery = query(collection(db, teamScoresPath));
+      const teamScoresSnapshot = await getDocs(teamScoresQuery);
+      
+      const deleteTeamScoresPromises = teamScoresSnapshot.docs.map(scoreDoc => 
+        deleteDoc(doc(db, teamScoresPath, scoreDoc.id))
+      );
+      await Promise.all(deleteTeamScoresPromises);
+      console.log(`✓ Deleted ${teamScoresSnapshot.docs.length} team scores`);
+      
+      // 4. Delete all live stats
+      const liveStatsPath = `leagues/${league.id}/liveStats`;
+      const liveStatsQuery = query(collection(db, liveStatsPath));
+      const liveStatsSnapshot = await getDocs(liveStatsQuery);
+      
+      const deleteLiveStatsPromises = liveStatsSnapshot.docs.map(statDoc => 
+        deleteDoc(doc(db, liveStatsPath, statDoc.id))
+      );
+      await Promise.all(deleteLiveStatsPromises);
+      console.log(`✓ Deleted ${liveStatsSnapshot.docs.length} live stats`);
+      
+      // 5. Reset the draft state
       const teamNames = league.teams.map(t => t.teamName);
       const initialState = createInitialDraftState(teamNames, league.draftRounds);
       await setDoc(doc(db, 'drafts', league.id), initialState);
+      console.log('✓ Reset draft state');
       
-      console.log('Draft reset complete!');
+      console.log('✅ Draft reset complete!');
     } catch (err) {
       console.error('Error resetting draft:', err);
       throw err;
