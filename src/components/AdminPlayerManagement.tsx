@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, deleteDoc, doc, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
-import { getPlayerFullName, type RosterPerson } from '../utils/nhlApi';
 
 interface DraftedPlayer {
   id: string;
@@ -68,32 +67,9 @@ export default function AdminPlayerManagement() {
     }
   };
 
-  // Add player manually (for commissioner adds)
-  const addPlayerManually = async (playerData: RosterPerson, teamName: string) => {
-    try {
-      const highestPick = Math.max(...players.map(p => p.pickNumber), 0);
-      
-      await addDoc(collection(db, 'draftedPlayers'), {
-        playerId: playerData.person.id,
-        name: getPlayerFullName(playerData),
-        position: playerData.position.code,
-        positionName: playerData.position.name,
-        jerseyNumber: playerData.jerseyNumber,
-        nhlTeam: (playerData as any).teamAbbrev || 'UNK',
-        draftedByTeam: teamName,
-        pickNumber: highestPick + 1,
-        round: Math.ceil((highestPick + 1) / (league?.teams.length || 1)),
-        leagueId: league?.id,
-        draftedAt: new Date().toISOString(),
-        rosterSlot: 'active'
-      });
-
-      console.log(`Manually added ${getPlayerFullName(playerData)} to ${teamName}`);
-    } catch (error) {
-      console.error('Error adding player:', error);
-      alert('Failed to add player. Please try again.');
-    }
-  };
+  // Future: Add player manually functionality
+  // For now, players can only be added via the draft
+  // Admin can remove players, but manual adds would require a full player selector UI
 
   const getPositionBadgeColor = (position: string) => {
     switch (position) {
