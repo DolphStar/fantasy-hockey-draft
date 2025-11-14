@@ -140,6 +140,8 @@ export default function PlayerList() {
     if (!league?.rosterSettings) return true;
     const counts = countActiveRoster();
     
+    // Active roster must be EXACTLY 9F/6D/2G, not more
+    // Can only add if current count is below the EXACT requirement
     if (['C', 'L', 'R'].includes(position)) {
       return counts.forwards < league.rosterSettings.forwards;
     } else if (position === 'D') {
@@ -150,14 +152,14 @@ export default function PlayerList() {
     return false;
   };
 
-  // Check if we can move player to reserves
+  // Check if we can move player to reserves  
   const canMoveToReserve = (position: string) => {
     if (!league?.rosterSettings) return true;
     const counts = countActiveRoster();
     
-    // Check if removing this player would break minimum requirements
+    // Can only move to reserve if active roster has MORE than required
+    // This allows swapping (must have extras to move one out)
     if (['C', 'L', 'R'].includes(position)) {
-      // Need at least the minimum forwards in active
       return counts.forwards > league.rosterSettings.forwards;
     } else if (position === 'D') {
       return counts.defense > league.rosterSettings.defensemen;

@@ -201,10 +201,15 @@ export default function LeagueSettings() {
 
       {/* Show form if no league exists or if user is admin */}
       {(!league || isAdmin) && (
-        <form onSubmit={league ? handleUpdateLeague : handleCreateLeague} className="bg-gray-800 p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-white">
-            {league ? 'Update League' : 'Create New League'}
+        <form onSubmit={league ? handleUpdateLeague : handleCreateLeague} className="bg-gray-800 p-6 rounded-lg shadow-lg border-2 border-yellow-500">
+          <h3 className="text-2xl font-bold mb-2 text-yellow-400">
+            {league ? '⚙️ Update League Settings' : 'Create New League'}
           </h3>
+          {league && (
+            <p className="text-gray-400 text-sm mb-4">
+              Change draft rounds, add/remove teams, and update settings below ⬇️
+            </p>
+          )}
 
           {error && (
             <div className="bg-red-900/50 border border-red-600 p-4 rounded-lg mb-4">
@@ -218,45 +223,43 @@ export default function LeagueSettings() {
             </div>
           )}
 
+          {/* League Name - only show when creating */}
           {!league && (
-            <>
-              {/* League Name */}
-              <div className="mb-4">
-                <label className="block text-white font-semibold mb-2">League Name</label>
-                <input
-                  type="text"
-                  value={leagueName}
-                  onChange={(e) => setLeagueName(e.target.value)}
-                  placeholder="e.g., My Hockey League"
-                  className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  required
-                />
-              </div>
-
-              {/* Draft Rounds */}
-              <div className="mb-6">
-                <label className="block text-white font-semibold mb-2">Draft Rounds</label>
-                <input
-                  type="number"
-                  value={draftRounds}
-                  onChange={(e) => setDraftRounds(parseInt(e.target.value))}
-                  min="1"
-                  max="30"
-                  className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-                />
-                <p className="text-sm text-gray-400 mt-1">
-                  💡 Recommended: <span className="text-yellow-400 font-semibold">22 rounds</span>
-                  {' '}(9F + 6D + 2G + 5 reserves = 22 players per team)
-                </p>
-                {draftRounds < 22 && (
-                  <p className="text-sm text-orange-400 mt-1">
-                    ⚠️ Warning: {draftRounds} rounds × {teams.length} teams = {draftRounds * teams.length} total picks. 
-                    Each team only gets {draftRounds} picks but needs 22 to fill roster!
-                  </p>
-                )}
-              </div>
-            </>
+            <div className="mb-4">
+              <label className="block text-white font-semibold mb-2">League Name</label>
+              <input
+                type="text"
+                value={leagueName}
+                onChange={(e) => setLeagueName(e.target.value)}
+                placeholder="e.g., My Hockey League"
+                className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
+                required
+              />
+            </div>
           )}
+
+          {/* Draft Rounds - show for both create and update */}
+          <div className="mb-6">
+            <label className="block text-white font-semibold mb-2">Draft Rounds</label>
+            <input
+              type="number"
+              value={draftRounds}
+              onChange={(e) => setDraftRounds(parseInt(e.target.value))}
+              min="1"
+              max="30"
+              className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
+            />
+            <p className="text-sm text-gray-400 mt-1">
+              💡 Recommended: <span className="text-yellow-400 font-semibold">22 rounds</span>
+              {' '}(9F + 6D + 2G + 5 reserves = 22 players per team)
+            </p>
+            {draftRounds < 22 && (
+              <p className="text-sm text-orange-400 mt-1">
+                ⚠️ Warning: {draftRounds} rounds × {teams.length} teams = {draftRounds * teams.length} total picks. 
+                Each team only gets {draftRounds} picks but needs 22 to fill roster!
+              </p>
+            )}
+          </div>
 
           {/* Teams */}
           <div className="mb-6">
