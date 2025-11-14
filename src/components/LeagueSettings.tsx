@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
@@ -24,6 +24,15 @@ export default function LeagueSettings() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Populate form when league loads
+  useEffect(() => {
+    if (league) {
+      setLeagueName(league.leagueName);
+      setDraftRounds(league.draftRounds);
+      setTeams(league.teams);
+    }
+  }, [league]);
 
   // Update team field
   const updateTeam = (index: number, field: keyof LeagueTeam, value: string) => {
@@ -89,8 +98,8 @@ export default function LeagueSettings() {
 
     try {
       setCreating(true);
-      await updateLeague(league.id, { teams });
-      setSuccess('League updated successfully!');
+      await updateLeague(league.id, { teams, draftRounds });
+      setSuccess('League updated successfully! Remember to reset the draft if you changed rounds.');
     } catch (err) {
       setError('Failed to update league');
       console.error(err);
@@ -118,6 +127,12 @@ export default function LeagueSettings() {
           <p className="text-gray-400 text-sm">Status: <span className="text-blue-400 font-semibold">{league.status}</span></p>
           <p className="text-gray-400 text-sm">Teams: {league.teams.length}</p>
           <p className="text-gray-400 text-sm">Draft Rounds: {league.draftRounds}</p>
+          {league.draftRounds < 22 && (
+            <p className="text-orange-400 text-sm mt-1">
+              ⚠️ Warning: {league.draftRounds} rounds is not enough! Each team needs 22 picks to fill roster (9F + 6D + 2G + 5 reserves).
+              {isAdmin && ' Update "Draft Rounds" below and reset draft.'}
+            </p>
+          )}
           {draftState && (
             <p className="text-gray-400 text-sm">
               Draft Progress: Pick {draftState.currentPickNumber} of {draftState.totalPicks}
@@ -229,6 +244,16 @@ export default function LeagueSettings() {
                   max="30"
                   className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
                 />
+                <p className="text-sm text-gray-400 mt-1">
+                  💡 Recommended: <span className="text-yellow-400 font-semibold">22 rounds</span>
+                  {' '}(9F + 6D + 2G + 5 reserves = 22 players per team)
+                </p>
+                {draftRounds < 22 && (
+                  <p className="text-sm text-orange-400 mt-1">
+                    ⚠️ Warning: {draftRounds} rounds × {teams.length} teams = {draftRounds * teams.length} total picks. 
+                    Each team only gets {draftRounds} picks but needs 22 to fill roster!
+                  </p>
+                )}
               </div>
             </>
           )}
