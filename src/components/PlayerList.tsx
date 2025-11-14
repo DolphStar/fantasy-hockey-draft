@@ -38,8 +38,50 @@ export default function PlayerList() {
 
   // Request roster slot swap (applies next Saturday)
   const requestSwap = async (playerId: string, newSlot: 'active' | 'reserve') => {
+    const player = players.find(p => p.id === playerId);
+    if (!player) return;
+
     try {
       setSwapping(playerId);
+
+      // Validate move to reserves
+      if (newSlot === 'reserve') {
+        if (!canAddToReserves()) {
+          alert('❌ Cannot move to reserves: Reserve roster is full (5/5)!');
+          setSwapping(null);
+          return;
+        }
+        
+        if (!canMoveToReserve(player.position)) {
+          const posName = player.positionName || player.position;
+          alert(
+            `❌ Cannot move to reserves: You must keep at least ${league?.rosterSettings.forwards || 9} Forwards, ` +
+            `${league?.rosterSettings.defensemen || 6} Defensemen, and ${league?.rosterSettings.goalies || 2} Goalies in active roster.\n\n` +
+            `Moving "${player.name}" (${posName}) would break this requirement.`
+          );
+          setSwapping(null);
+          return;
+        }
+      }
+
+      // Validate move to active
+      if (newSlot === 'active') {
+        if (!canMoveToActive(player.position)) {
+          const posName = player.positionName || player.position;
+          alert(
+            `❌ Cannot move to active: Active ${posName} roster is full!\n\n` +
+            `Maximum: ${
+              ['C', 'L', 'R'].includes(player.position) ? `${league?.rosterSettings.forwards} Forwards` :
+              player.position === 'D' ? `${league?.rosterSettings.defensemen} Defensemen` :
+              `${league?.rosterSettings.goalies} Goalies`
+            }`
+          );
+          setSwapping(null);
+          return;
+        }
+      }
+
+      // Validation passed, proceed with swap
       const playerRef = doc(db, 'draftedPlayers', playerId);
       await updateDoc(playerRef, {
         pendingSlot: newSlot
@@ -106,6 +148,29 @@ export default function PlayerList() {
       return counts.goalies < league.rosterSettings.goalies;
     }
     return false;
+  };
+
+  // Check if we can move player to reserves
+  const canMoveToReserve = (position: string) => {
+    if (!league?.rosterSettings) return true;
+    const counts = countActiveRoster();
+    
+    // Check if removing this player would break minimum requirements
+    if (['C', 'L', 'R'].includes(position)) {
+      // Need at least the minimum forwards in active
+      return counts.forwards > league.rosterSettings.forwards;
+    } else if (position === 'D') {
+      return counts.defense > league.rosterSettings.defensemen;
+    } else if (position === 'G') {
+      return counts.goalies > league.rosterSettings.goalies;
+    }
+    return false;
+  };
+
+  // Check if reserves are full
+  const canAddToReserves = () => {
+    const reserves = players.filter(p => (p.rosterSlot || 'active') === 'reserve');
+    return reserves.length < 5; // Max 5 reserves
   };
 
   // Real-time listener for drafted players
@@ -219,11 +284,26 @@ export default function PlayerList() {
                   >
                     Cancel Swap
                   </button>
-                ) : (
+                ) : canMoveToReserve(player.position) && canAddToReserves() ? (
                   <button
                     onClick={() => requestSwap(player.id, 'reserve')}
                     disabled={swapping === player.id}
                     className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded transition-colors ml-4"
+                  >
+                    → Reserve
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="bg-gray-700 text-gray-500 px-4 py-2 rounded transition-colors ml-4 cursor-not-allowed"
+                    title={
+                      !canAddToReserves() 
+                        ? "Reserves full (5/5)" 
+                        : `Must keep minimum ${
+                            ['C', 'L', 'R'].includes(player.position) ? 'Forwards' :
+                            player.position === 'D' ? 'Defensemen' : 'Goalies'
+                          } in active roster`
+                    }
                   >
                     → Reserve
                   </button>
