@@ -84,13 +84,12 @@ export default function PlayerList() {
     return pos1 === pos2;
   };
 
-  // Get position name
+  // Get position TYPE for swap messaging (group all forwards together)
   const getPositionName = (pos: string): string => {
-    const names: { [key: string]: string } = {
-      'C': 'Center', 'L': 'Left Wing', 'R': 'Right Wing',
-      'D': 'Defense', 'G': 'Goalie'
-    };
-    return names[pos] || pos;
+    if (['C', 'L', 'R'].includes(pos)) return 'Forward';
+    if (pos === 'D') return 'Defense';
+    if (pos === 'G') return 'Goalie';
+    return pos;
   };
 
   // Perform atomic swap between two players
