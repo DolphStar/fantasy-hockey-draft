@@ -22,8 +22,6 @@ export default function NHLRoster() {
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ALL');
-  const [viewMode, setViewMode] = useState<'single' | 'all'>('single'); // Default to single team for speed
-  const [selectedTeam, setSelectedTeam] = useState<TeamAbbrev>('EDM'); // Default team
   
   // League context for showing user's team
   const { myTeam, league } = useLeague();
@@ -31,54 +29,60 @@ export default function NHLRoster() {
   // Draft context
   const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
 
-  const fetchSingleTeam = async (teamAbbrev: TeamAbbrev) => {
-    try {
-      setLoading(true);
-      setError(null);
-      setRoster([]);
-      const rosterData = await getTeamRoster(teamAbbrev);
-      const teamPlayers = getAllPlayers(rosterData);
-      // Add team info to each player
-      teamPlayers.forEach(player => {
-        (player as any).teamAbbrev = teamAbbrev;
-      });
-      setRoster(teamPlayers);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch roster data';
-      setError(errorMessage);
-      console.error(err);
-      setRoster([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchAllPlayers = async () => {
+    const CACHE_KEY = 'nhl_all_players';
+    const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+    
     try {
       setLoading(true);
       setError(null);
       setRoster([]);
       
-      console.log('Loading all NHL players...');
-      const allPlayers: RosterPerson[] = [];
+      // Check cache first
+      const cached = localStorage.getItem(CACHE_KEY);
+      const cacheTime = localStorage.getItem(`${CACHE_KEY}_time`);
       
-      // Fetch rosters from all teams
-      for (const teamAbbrev of Object.keys(NHL_TEAMS) as TeamAbbrev[]) {
-        try {
-          const rosterData = await getTeamRoster(teamAbbrev);
-          const teamPlayers = getAllPlayers(rosterData);
-          // Add team info to each player for filtering
-          teamPlayers.forEach(player => {
-            (player as any).teamAbbrev = teamAbbrev;
-          });
-          allPlayers.push(...teamPlayers);
-        } catch (err) {
-          console.warn(`Failed to load ${teamAbbrev}:`, err);
-          // Continue with other teams
+      if (cached && cacheTime) {
+        const age = Date.now() - parseInt(cacheTime);
+        if (age < CACHE_DURATION) {
+          console.log('📦 Loading from cache (instant!)');
+          const cachedPlayers = JSON.parse(cached);
+          setRoster(cachedPlayers);
+          setLoading(false);
+          return;
         }
       }
       
-      console.log(`Loaded ${allPlayers.length} total players from ${Object.keys(NHL_TEAMS).length} teams`);
+      console.log('🏒 Loading all NHL players in parallel...');
+      const startTime = Date.now();
+      
+      // Fetch ALL teams in parallel (much faster than sequential)
+      const teamPromises = (Object.keys(NHL_TEAMS) as TeamAbbrev[]).map(async (teamAbbrev) => {
+        try {
+          const rosterData = await getTeamRoster(teamAbbrev);
+          const teamPlayers = getAllPlayers(rosterData);
+          // Add team info to each player
+          teamPlayers.forEach(player => {
+            (player as any).teamAbbrev = teamAbbrev;
+          });
+          return teamPlayers;
+        } catch (err) {
+          console.warn(`Failed to load ${teamAbbrev}:`, err);
+          return [];
+        }
+      });
+      
+      // Wait for all teams to finish loading
+      const results = await Promise.all(teamPromises);
+      const allPlayers = results.flat();
+      
+      const loadTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`✅ Loaded ${allPlayers.length} players from ${Object.keys(NHL_TEAMS).length} teams in ${loadTime}s`);
+      
+      // Cache the results
+      localStorage.setItem(CACHE_KEY, JSON.stringify(allPlayers));
+      localStorage.setItem(`${CACHE_KEY}_time`, Date.now().toString());
+      
       setRoster(allPlayers);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch roster data';
@@ -206,12 +210,8 @@ export default function NHLRoster() {
   };
 
   useEffect(() => {
-    if (viewMode === 'all') {
-      fetchAllPlayers();
-    } else {
-      fetchSingleTeam(selectedTeam);
-    }
-  }, [viewMode, selectedTeam]); // Load when mode or team changes
+    fetchAllPlayers();
+  }, []); // Load once on mount
 
   const getPositionBadgeColor = (positionCode: string) => {
     switch (positionCode) {
@@ -289,50 +289,6 @@ export default function NHLRoster() {
           </div>
         </div>
       )}
-
-      {/* View Mode Toggle */}
-      <div className="bg-gray-800 p-4 rounded-lg shadow-lg mb-4">
-        <div className="flex items-center gap-4">
-          <label className="text-white font-semibold">View Mode:</label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('single')}
-              className={`px-4 py-2 rounded transition-colors ${
-                viewMode === 'single'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              Single Team (Fast)
-            </button>
-            <button
-              onClick={() => setViewMode('all')}
-              className={`px-4 py-2 rounded transition-colors ${
-                viewMode === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              All Teams (Slow ~15s)
-            </button>
-          </div>
-          
-          {/* Single Team Selector */}
-          {viewMode === 'single' && (
-            <select
-              value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value as TeamAbbrev)}
-              className="px-4 py-2 rounded bg-gray-700 text-white border border-gray-600"
-            >
-              {Object.entries(NHL_TEAMS).map(([abbrev, name]) => (
-                <option key={abbrev} value={abbrev}>
-                  {abbrev} - {name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
 
       {/* Search and Filters */}
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
@@ -432,12 +388,7 @@ export default function NHLRoster() {
           {filteredRoster.length > 0 ? (
             <>
               <h3 className="text-xl font-semibold mb-6 text-white">
-                {viewMode === 'single' 
-                  ? `${NHL_TEAMS[selectedTeam]} - ` 
-                  : teamFilter !== 'ALL' 
-                    ? `${NHL_TEAMS[teamFilter as TeamAbbrev]} - ` 
-                    : 'All NHL Players - '
-                }
+                {teamFilter !== 'ALL' ? `${NHL_TEAMS[teamFilter as TeamAbbrev]} - ` : 'All NHL Players - '}
                 {filteredRoster.length} Player{filteredRoster.length !== 1 ? 's' : ''}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
