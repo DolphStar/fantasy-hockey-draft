@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
+import { processLiveStats } from '../utils/liveStats';
 import type { LivePlayerStats } from '../utils/liveStats';
 
 export default function LiveStats() {
@@ -9,6 +10,8 @@ export default function LiveStats() {
   const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(300); // 5 minutes
 
   // Real-time listener for live stats
   useEffect(() => {
@@ -47,6 +50,62 @@ export default function LiveStats() {
     return () => unsubscribe();
   }, [league]);
 
+  // Auto-refresh countdown timer
+  useEffect(() => {
+    const countdown = setInterval(() => {
+      setSecondsUntilRefresh(prev => {
+        if (prev <= 1) {
+          return 300; // Reset to 5 minutes
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdown);
+  }, []);
+
+  // Auto-refresh live stats every 5 minutes
+  useEffect(() => {
+    if (!league) return;
+
+    const autoRefresh = setInterval(async () => {
+      console.log('🔄 Auto-refreshing live stats...');
+      setRefreshing(true);
+      try {
+        await processLiveStats(league.id);
+        setSecondsUntilRefresh(300); // Reset countdown
+      } catch (error) {
+        console.error('Auto-refresh failed:', error);
+      } finally {
+        setRefreshing(false);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(autoRefresh);
+  }, [league]);
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    if (!league || refreshing) return;
+    
+    setRefreshing(true);
+    try {
+      await processLiveStats(league.id);
+      setSecondsUntilRefresh(300); // Reset countdown
+    } catch (error) {
+      console.error('Manual refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Format countdown timer
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Group stats by team
   const statsByTeam = liveStats.reduce((acc, stat) => {
     if (!acc[stat.teamName]) {
@@ -63,7 +122,7 @@ export default function LiveStats() {
   return (
     <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden mt-6">
       <div className="p-6 pb-4 border-b border-gray-700">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <h3 className="text-xl font-semibold text-white">🔴 Live Stats - Today's Games</h3>
             {liveStats.length > 0 && (
@@ -71,13 +130,39 @@ export default function LiveStats() {
                 LIVE
               </span>
             )}
+            {refreshing && (
+              <span className="animate-spin text-blue-400 text-lg">🔄</span>
+            )}
           </div>
-          {lastUpdate && (
-            <div className="text-right">
-              <p className="text-gray-400 text-xs">Last updated</p>
-              <p className="text-gray-300 text-sm">{lastUpdate.toLocaleTimeString()}</p>
+          
+          <div className="flex items-center gap-4">
+            {/* Countdown Timer */}
+            <div className="text-center">
+              <p className="text-gray-400 text-xs">Next refresh in</p>
+              <p className="text-green-400 text-sm font-mono font-bold">{formatCountdown(secondsUntilRefresh)}</p>
             </div>
-          )}
+            
+            {/* Manual Refresh Button */}
+            <button
+              onClick={handleManualRefresh}
+              disabled={refreshing}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                refreshing
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              {refreshing ? 'Refreshing...' : '🔄 Refresh Now'}
+            </button>
+            
+            {/* Last Updated */}
+            {lastUpdate && (
+              <div className="text-right">
+                <p className="text-gray-400 text-xs">Last updated</p>
+                <p className="text-gray-300 text-sm">{lastUpdate.toLocaleTimeString()}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -198,8 +283,9 @@ export default function LiveStats() {
       {/* Info Box */}
       <div className="bg-blue-900/30 border-t border-blue-500/30 p-4">
         <p className="text-blue-200 text-sm">
-          🔴 <strong>Live Updates:</strong> Stats update automatically every 10-15 minutes during games. 
-          Fantasy points will be calculated at end of day. Refresh the page to see the latest updates.
+          � <strong>Auto-Refresh:</strong> Stats update automatically every 5 minutes. 
+          Click "🔄 Refresh Now" to update immediately. 
+          Fantasy points will be calculated at end of day via daily scoring.
         </p>
       </div>
     </div>

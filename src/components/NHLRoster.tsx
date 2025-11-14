@@ -20,6 +20,8 @@ export default function NHLRoster() {
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
   const [myTeamPositions, setMyTeamPositions] = useState({ F: 0, D: 0, G: 0, total: 0 });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [positionFilter, setPositionFilter] = useState<string>('ALL');
   
   // League context for showing user's team
   const { myTeam, league } = useLeague();
@@ -179,6 +181,18 @@ export default function NHLRoster() {
     }
   };
 
+  // Filter roster based on search and position
+  const filteredRoster = roster.filter(player => {
+    const playerName = getPlayerFullName(player).toLowerCase();
+    const matchesSearch = searchQuery === '' || playerName.includes(searchQuery.toLowerCase());
+    
+    const matchesPosition = positionFilter === 'ALL' || 
+      (positionFilter === 'F' && ['C', 'L', 'R'].includes(player.position.code)) ||
+      (positionFilter === player.position.code);
+    
+    return matchesSearch && matchesPosition;
+  });
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h2 className="text-3xl font-bold mb-6 text-white">NHL Team Roster</h2>
@@ -228,7 +242,7 @@ export default function NHLRoster() {
       )}
 
       {/* Team Selector */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
+      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
         <label className="block text-white font-semibold mb-3">Select Team:</label>
         <select
           value={selectedTeam}
@@ -241,6 +255,65 @@ export default function NHLRoster() {
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Search Input */}
+          <div className="flex-1">
+            <label className="block text-white font-semibold mb-2">🔍 Search Players:</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name..."
+              className="w-full px-4 py-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Position Filter */}
+          <div className="md:w-48">
+            <label className="block text-white font-semibold mb-2">Filter by Position:</label>
+            <select
+              value={positionFilter}
+              onChange={(e) => setPositionFilter(e.target.value)}
+              className="w-full px-4 py-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="ALL">All Positions</option>
+              <option value="F">Forwards (C/L/R)</option>
+              <option value="C">Center (C)</option>
+              <option value="L">Left Wing (L)</option>
+              <option value="R">Right Wing (R)</option>
+              <option value="D">Defense (D)</option>
+              <option value="G">Goalie (G)</option>
+            </select>
+          </div>
+
+          {/* Clear Button */}
+          {(searchQuery || positionFilter !== 'ALL') && (
+            <div className="md:w-auto md:self-end">
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setPositionFilter('ALL');
+                }}
+                className="w-full md:w-auto px-4 py-3 rounded bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+              >
+                Clear Filters
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Results Count */}
+        {!loading && roster.length > 0 && (
+          <div className="mt-4 text-gray-400 text-sm">
+            Showing {filteredRoster.length} of {roster.length} players
+            {searchQuery && <span className="ml-1">matching "{searchQuery}"</span>}
+            {positionFilter !== 'ALL' && <span className="ml-1">• Position: {positionFilter === 'F' ? 'Forwards' : positionFilter}</span>}
+          </div>
+        )}
       </div>
 
       {/* Loading State */}
@@ -260,11 +333,13 @@ export default function NHLRoster() {
       {/* Roster Grid */}
       {!loading && !error && roster.length > 0 && (
         <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-6 text-white">
-            {NHL_TEAMS[selectedTeam]} - {roster.length} Players
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {roster.map((rosterPlayer) => {
+          {filteredRoster.length > 0 ? (
+            <>
+              <h3 className="text-xl font-semibold mb-6 text-white">
+                {NHL_TEAMS[selectedTeam]} - {filteredRoster.length} Player{filteredRoster.length !== 1 ? 's' : ''}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredRoster.map((rosterPlayer) => {
               const isDrafted = draftedPlayerIds.has(rosterPlayer.person.id);
               const isDrafting = draftingPlayerId === rosterPlayer.person.id;
 
@@ -330,6 +405,21 @@ export default function NHLRoster() {
               );
             })}
           </div>
+        </>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-gray-400 text-lg">No players found matching your search.</p>
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setPositionFilter('ALL');
+            }}
+            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
         </div>
       )}
     </div>
