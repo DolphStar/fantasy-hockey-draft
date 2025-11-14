@@ -32,11 +32,13 @@ export async function processLiveStats(leagueId: string) {
   try {
     console.log('🔴 LIVE STATS: Starting live stats update...');
     
-    // Get today's date
+    // Get today's date in Eastern Time (NHL timezone)
     const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
+    // Use EST (UTC-5) since DST ended in early November
+    const etDate = new Date(today.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const dateStr = etDate.toISOString().split('T')[0];
     
-    console.log(`🔴 LIVE STATS: Fetching games for ${dateStr}`);
+    console.log(`🔴 LIVE STATS: Fetching games for ${dateStr} (ET)`);
     
     // 1. Get all games scheduled for today
     const games = await getGamesForDate(dateStr);

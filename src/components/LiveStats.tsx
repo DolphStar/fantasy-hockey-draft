@@ -17,7 +17,9 @@ export default function LiveStats() {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    // Get today's date in ET (NHL timezone)
+    const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const today = etDate.toISOString().split('T')[0];
     const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
 
     // Set up real-time listener
