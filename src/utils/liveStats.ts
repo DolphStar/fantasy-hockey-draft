@@ -33,12 +33,13 @@ export async function processLiveStats(leagueId: string) {
     console.log('🔴 LIVE STATS: Starting live stats update...');
     
     // Get today's date in Eastern Time (NHL timezone)
-    const today = new Date();
-    // Use EST (UTC-5) since DST ended in early November
-    const etDate = new Date(today.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    const dateStr = etDate.toISOString().split('T')[0];
+    // Since DST ended in early November, EST is UTC-5
+    const now = new Date();
+    const utcDate = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
+    const estDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000)); // UTC-5 for EST
+    const dateStr = estDate.toISOString().split('T')[0];
     
-    console.log(`🔴 LIVE STATS: Fetching games for ${dateStr} (ET)`);
+    console.log(`🔴 LIVE STATS: Fetching games for ${dateStr} (ET, converted from your local time)`);
     
     // 1. Get all games scheduled for today
     const games = await getGamesForDate(dateStr);

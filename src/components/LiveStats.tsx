@@ -18,8 +18,10 @@ export default function LiveStats() {
     }
 
     // Get today's date in ET (NHL timezone)
-    const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    const today = etDate.toISOString().split('T')[0];
+    const now = new Date();
+    const utcDate = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
+    const estDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000)); // UTC-5 for EST
+    const today = estDate.toISOString().split('T')[0];
     const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
 
     // Set up real-time listener
