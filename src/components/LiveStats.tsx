@@ -17,11 +17,12 @@ export default function LiveStats() {
       return;
     }
 
-    // Get today's date in ET (NHL timezone)
+    // Get today's date in local timezone
     const now = new Date();
-    const utcDate = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
-    const estDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000)); // UTC-5 for EST
-    const today = estDate.toISOString().split('T')[0];
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const today = `${year}-${month}-${day}`;
     const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
 
     // Set up real-time listener
