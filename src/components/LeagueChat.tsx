@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { collection, addDoc, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, limit, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,11 +14,12 @@ interface ChatMessage {
 }
 
 export default function LeagueChat() {
-  const { league } = useLeague();
+  const { league, isAdmin } = useLeague();
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // Scroll to bottom when messages change
@@ -46,6 +47,18 @@ export default function LeagueChat() {
     return () => unsubscribe();
   }, [league]);
 
+  // Watch for chat ban status for current user
+  useEffect(() => {
+    if (!league || !user) return;
+
+    const banRef = doc(db, `leagues/${league.id}/chatBans`, user.uid);
+    const unsubscribe = onSnapshot(banRef, (snapshot) => {
+      setIsBanned(snapshot.exists());
+    });
+
+    return () => unsubscribe();
+  }, [league, user]);
+
   if (!league) {
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -57,6 +70,11 @@ export default function LeagueChat() {
 
   const handleSend = async () => {
     if (!user || !newMessage.trim() || sending) return;
+
+    if (isBanned) {
+      alert('You have been muted in this league chat by the admin.');
+      return;
+    }
 
     try {
       setSending(true);
@@ -92,6 +110,39 @@ export default function LeagueChat() {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!league || !isAdmin) return;
+
+    const confirmDelete = window.confirm('Delete this message for everyone?');
+    if (!confirmDelete) return;
+
+    try {
+      const messageRef = doc(db, `leagues/${league.id}/chatMessages`, messageId);
+      await deleteDoc(messageRef);
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      alert('Failed to delete message. Please try again.');
+    }
+  };
+
+  const handleBanUser = async (targetUserId: string, displayName: string) => {
+    if (!league || !isAdmin) return;
+
+    const confirmBan = window.confirm(`Ban ${displayName} from league chat?`);
+    if (!confirmBan) return;
+
+    try {
+      const banRef = doc(db, `leagues/${league.id}/chatBans`, targetUserId);
+      await setDoc(banRef, {
+        userId: targetUserId,
+        bannedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Failed to ban user:', error);
+      alert('Failed to ban user from chat. Please try again.');
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 flex flex-col h-[70vh]">
       <h2 className="text-3xl font-bold mb-4 text-white">💬 League Chat</h2>
@@ -99,6 +150,12 @@ export default function LeagueChat() {
         Chat with everyone in <span className="font-semibold text-blue-300">{league.leagueName}</span>.
         Messages are visible to all league members.
       </p>
+
+      {isBanned && (
+        <div className="bg-red-900/40 border border-red-600 text-red-100 text-sm px-4 py-2 rounded mb-3">
+          You have been muted in this league chat by the admin. You can still read messages but cannot send new ones.
+        </div>
+      )}
 
       {/* Messages list */}
       <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-y-auto border border-gray-700">
@@ -124,7 +181,29 @@ export default function LeagueChat() {
                       <span className="font-semibold text-xs">
                         {msg.teamName || msg.userName}
                       </span>
-                      <span className="text-[10px] opacity-80">{formatTime(msg.createdAt)}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] opacity-80">{formatTime(msg.createdAt)}</span>
+                        {isAdmin && !isMe && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="text-[10px] text-gray-300 hover:text-red-300 px-1 py-0.5 rounded"
+                              title="Delete message"
+                            >
+                              🗑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleBanUser(msg.userId, msg.teamName || msg.userName)}
+                              className="text-[10px] text-gray-300 hover:text-yellow-300 px-1 py-0.5 rounded"
+                              title="Ban user from chat"
+                            >
+                              🚫
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                   </div>
@@ -147,12 +226,13 @@ export default function LeagueChat() {
             rows={2}
             placeholder="Type a message and press Enter to send..."
             className="flex-1 resize-none px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-500 text-sm"
+            disabled={isBanned}
           />
           <button
             onClick={handleSend}
-            disabled={sending || !newMessage.trim()}
+            disabled={sending || !newMessage.trim() || isBanned}
             className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
-              sending || !newMessage.trim()
+              sending || !newMessage.trim() || isBanned
                 ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}

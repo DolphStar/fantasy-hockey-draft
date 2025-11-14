@@ -20,6 +20,12 @@ service cloud.firestore {
     function isInLeague(leagueId) {
       return isSignedIn();
     }
+
+    // Helper to check if a user is banned from league chat
+    function isChatBanned(leagueId) {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/leagues/$(leagueId)/chatBans/$(request.auth.uid));
+    }
     
     // Leagues collection
     match /leagues/{leagueId} {
@@ -51,12 +57,20 @@ service cloud.firestore {
         allow write: if isInLeague(leagueId); // Allow any league member to trigger live stats
       }
 
+      // Chat bans - only league admin can manage banned users
+      match /chatBans/{userId} {
+        allow read, write: if isLeagueAdmin(leagueId);
+      }
+
       // League chat messages - simple league-wide chat
       match /chatMessages/{messageId} {
-        // Any authenticated league user can read/write chat messages
-        allow read, create: if isInLeague(leagueId);
+        // Any authenticated league user in this league can read messages
+        allow read: if isInLeague(leagueId);
 
-        // Allow delete only for league admin (e.g. moderating messages)
+        // Only non-banned league users can send messages
+        allow create: if isInLeague(leagueId) && !isChatBanned(leagueId);
+
+        // Allow delete/update only for league admin (moderation)
         allow delete, update: if isLeagueAdmin(leagueId);
       }
     }
