@@ -4,7 +4,6 @@
 import { db } from '../firebase';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getGamesForDate, getGameBoxscore, getAllPlayersFromBoxscore } from './nhlStats';
-import type { PlayerGameStats } from './nhlStats';
 
 export interface LivePlayerStats {
   playerId: number;
@@ -146,7 +145,7 @@ export async function getLiveStatsSummary(leagueId: string) {
   try {
     const today = new Date().toISOString().split('T')[0];
     const liveStatsRef = collection(db, `leagues/${leagueId}/liveStats`);
-    const { getDocs, query, where } = await import('firebase/firestore');
+    const { getDocs } = await import('firebase/firestore');
     
     // Get all live stats for today
     const snapshot = await getDocs(liveStatsRef);
