@@ -24,6 +24,12 @@ export default function PlayerList() {
   const [players, setPlayers] = useState<DraftedPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [swapping, setSwapping] = useState<string | null>(null);
+  const [selectedForSwap, setSelectedForSwap] = useState<{
+    playerId: string;
+    playerName: string;
+    position: string;
+    currentSlot: 'active' | 'reserve';
+  } | null>(null);
 
   // Calculate next Saturday at 9 AM ET
   const getNextSaturday = () => {
@@ -36,57 +42,86 @@ export default function PlayerList() {
     return nextSat;
   };
 
-  // Request roster slot swap (applies next Saturday)
-  const requestSwap = async (playerId: string, newSlot: 'active' | 'reserve') => {
+  // Select player for swap
+  const selectPlayerForSwap = (playerId: string) => {
     const player = players.find(p => p.id === playerId);
     if (!player) return;
 
-    try {
-      setSwapping(playerId);
-
-      // Validate move to reserves
-      if (newSlot === 'reserve') {
-        if (!canAddToReserves()) {
-          alert('❌ Cannot move to reserves: Reserve roster is full (5/5)!');
-          setSwapping(null);
-          return;
-        }
-        
-        if (!canMoveToReserve(player.position)) {
-          const posName = player.positionName || player.position;
-          alert(
-            `❌ Cannot move to reserves: You must keep at least ${league?.rosterSettings.forwards || 9} Forwards, ` +
-            `${league?.rosterSettings.defensemen || 6} Defensemen, and ${league?.rosterSettings.goalies || 2} Goalies in active roster.\n\n` +
-            `Moving "${player.name}" (${posName}) would break this requirement.`
-          );
-          setSwapping(null);
-          return;
-        }
-      }
-
-      // Validate move to active
-      if (newSlot === 'active') {
-        if (!canMoveToActive(player.position)) {
-          const posName = player.positionName || player.position;
-          alert(
-            `❌ Cannot move to active: Active ${posName} roster is full!\n\n` +
-            `Maximum: ${
-              ['C', 'L', 'R'].includes(player.position) ? `${league?.rosterSettings.forwards} Forwards` :
-              player.position === 'D' ? `${league?.rosterSettings.defensemen} Defensemen` :
-              `${league?.rosterSettings.goalies} Goalies`
-            }`
-          );
-          setSwapping(null);
-          return;
-        }
-      }
-
-      // Validation passed, proceed with swap
-      const playerRef = doc(db, 'draftedPlayers', playerId);
-      await updateDoc(playerRef, {
-        pendingSlot: newSlot
+    const currentSlot = (player.rosterSlot || 'active') as 'active' | 'reserve';
+    
+    // If no player selected yet, select this one
+    if (!selectedForSwap) {
+      setSelectedForSwap({
+        playerId: player.id,
+        playerName: player.name,
+        position: player.position,
+        currentSlot: currentSlot
       });
-      console.log(`Swap requested: Will move to ${newSlot} on ${getNextSaturday().toDateString()}`);
+      return;
+    }
+
+    // If same player clicked again, deselect
+    if (selectedForSwap.playerId === playerId) {
+      setSelectedForSwap(null);
+      return;
+    }
+
+    // If different slot (one active, one reserve) and same position type, perform swap
+    const targetSlot = currentSlot;
+    if (selectedForSwap.currentSlot !== targetSlot && isSamePositionType(selectedForSwap.position, player.position)) {
+      performSwap(selectedForSwap.playerId, playerId);
+    } else if (selectedForSwap.currentSlot === targetSlot) {
+      alert(`❌ Both players are in ${targetSlot}. You must select one active and one reserve player to swap.`);
+    } else {
+      alert(`❌ Position mismatch! You can only swap players of the same position type.\n\nSelected: ${selectedForSwap.position} (${getPositionName(selectedForSwap.position)})\nClicked: ${player.position} (${player.positionName})`);
+    }
+  };
+
+  // Check if two positions are the same type (all forwards count as same)
+  const isSamePositionType = (pos1: string, pos2: string): boolean => {
+    const forwards = ['C', 'L', 'R'];
+    if (forwards.includes(pos1) && forwards.includes(pos2)) return true;
+    return pos1 === pos2;
+  };
+
+  // Get position name
+  const getPositionName = (pos: string): string => {
+    const names: { [key: string]: string } = {
+      'C': 'Center', 'L': 'Left Wing', 'R': 'Right Wing',
+      'D': 'Defense', 'G': 'Goalie'
+    };
+    return names[pos] || pos;
+  };
+
+  // Perform atomic swap between two players
+  const performSwap = async (player1Id: string, player2Id: string) => {
+    try {
+      setSwapping(player1Id);
+
+      const player1Ref = doc(db, 'draftedPlayers', player1Id);
+      const player2Ref = doc(db, 'draftedPlayers', player2Id);
+
+      const player1 = players.find(p => p.id === player1Id);
+      const player2 = players.find(p => p.id === player2Id);
+
+      if (!player1 || !player2) return;
+
+      const player1CurrentSlot = (player1.rosterSlot || 'active') as 'active' | 'reserve';
+      const player2CurrentSlot = (player2.rosterSlot || 'active') as 'active' | 'reserve';
+
+      // Mark both players with pending swaps (will apply on Saturday)
+      await updateDoc(player1Ref, {
+        pendingSlot: player2CurrentSlot
+      });
+
+      await updateDoc(player2Ref, {
+        pendingSlot: player1CurrentSlot
+      });
+
+      console.log(`Swap requested: "${player1.name}" ↔ "${player2.name}" will swap on ${getNextSaturday().toDateString()}`);
+      alert(`✅ Swap requested!\n\n"${player1.name}" (${player1CurrentSlot}) ↔ "${player2.name}" (${player2CurrentSlot})\n\nWill apply on ${getNextSaturday().toLocaleDateString()}`);
+      
+      setSelectedForSwap(null);
     } catch (error) {
       console.error('Error requesting swap:', error);
       alert('Failed to request swap. Please try again.');
@@ -135,45 +170,8 @@ export default function PlayerList() {
     return { forwards, defense, goalies, total: active.length };
   };
 
-  // Check if we can move player to active
-  const canMoveToActive = (position: string) => {
-    if (!league?.rosterSettings) return true;
-    const counts = countActiveRoster();
-    
-    // Active roster must be EXACTLY 9F/6D/2G, not more
-    // Can only add if current count is below the EXACT requirement
-    if (['C', 'L', 'R'].includes(position)) {
-      return counts.forwards < league.rosterSettings.forwards;
-    } else if (position === 'D') {
-      return counts.defense < league.rosterSettings.defensemen;
-    } else if (position === 'G') {
-      return counts.goalies < league.rosterSettings.goalies;
-    }
-    return false;
-  };
-
-  // Check if we can move player to reserves  
-  const canMoveToReserve = (position: string) => {
-    if (!league?.rosterSettings) return true;
-    const counts = countActiveRoster();
-    
-    // Can only move to reserve if active roster has MORE than required
-    // This allows swapping (must have extras to move one out)
-    if (['C', 'L', 'R'].includes(position)) {
-      return counts.forwards > league.rosterSettings.forwards;
-    } else if (position === 'D') {
-      return counts.defense > league.rosterSettings.defensemen;
-    } else if (position === 'G') {
-      return counts.goalies > league.rosterSettings.goalies;
-    }
-    return false;
-  };
-
-  // Check if reserves are full
-  const canAddToReserves = () => {
-    const reserves = players.filter(p => (p.rosterSlot || 'active') === 'reserve');
-    return reserves.length < 5; // Max 5 reserves
-  };
+  // Note: With atomic swaps, we don't need validation functions
+  // The swap logic ensures active roster stays at exactly 9F/6D/2G
 
   // Real-time listener for drafted players
   useEffect(() => {
@@ -221,12 +219,44 @@ export default function PlayerList() {
       <h2 className="text-3xl font-bold mb-6 text-white">{myTeam?.teamName || 'My'}'s Roster</h2>
 
       {/* Roster Lock Info */}
-      <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mb-6">
+      <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mb-4">
         <p className="text-blue-200 text-sm">
           📅 <strong>Next Roster Lock:</strong> {nextSaturday.toLocaleString()} 
           <span className="ml-2 text-gray-400">• Pending swaps will apply then</span>
         </p>
       </div>
+
+      {/* Swap Instructions */}
+      {selectedForSwap && (
+        <div className="bg-yellow-900/30 border-2 border-yellow-500 p-4 rounded-lg mb-4">
+          <p className="text-yellow-200 font-semibold mb-2">
+            🔄 Swap Mode Active
+          </p>
+          <p className="text-yellow-100 text-sm mb-2">
+            Selected: <strong>{selectedForSwap.playerName}</strong> ({getPositionName(selectedForSwap.position)}) 
+            {' '}in <strong>{selectedForSwap.currentSlot}</strong> roster
+          </p>
+          <p className="text-gray-300 text-sm">
+            Now select a <strong>{getPositionName(selectedForSwap.position)}</strong> from the{' '}
+            <strong>{selectedForSwap.currentSlot === 'active' ? 'Reserve' : 'Active'}</strong> roster to swap with.
+          </p>
+          <button
+            onClick={() => setSelectedForSwap(null)}
+            className="mt-2 bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+          >
+            Cancel Selection
+          </button>
+        </div>
+      )}
+
+      {!selectedForSwap && (
+        <div className="bg-gray-700/50 border border-gray-600 p-4 rounded-lg mb-6">
+          <p className="text-gray-300 text-sm">
+            <strong>💡 How to Swap Players:</strong> Click "🔄 Select to Swap" on a player, 
+            then select another player of the same position from the opposite roster (active ↔ reserve) to swap them.
+          </p>
+        </div>
+      )}
 
       {/* Active Roster */}
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
@@ -286,28 +316,17 @@ export default function PlayerList() {
                   >
                     Cancel Swap
                   </button>
-                ) : canMoveToReserve(player.position) && canAddToReserves() ? (
-                  <button
-                    onClick={() => requestSwap(player.id, 'reserve')}
-                    disabled={swapping === player.id}
-                    className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded transition-colors ml-4"
-                  >
-                    → Reserve
-                  </button>
                 ) : (
                   <button
-                    disabled
-                    className="bg-gray-700 text-gray-500 px-4 py-2 rounded transition-colors ml-4 cursor-not-allowed"
-                    title={
-                      !canAddToReserves() 
-                        ? "Reserves full (5/5)" 
-                        : `Must keep minimum ${
-                            ['C', 'L', 'R'].includes(player.position) ? 'Forwards' :
-                            player.position === 'D' ? 'Defensemen' : 'Goalies'
-                          } in active roster`
-                    }
+                    onClick={() => selectPlayerForSwap(player.id)}
+                    disabled={swapping === player.id}
+                    className={`px-4 py-2 rounded transition-colors ml-4 ${
+                      selectedForSwap?.playerId === player.id
+                        ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
                   >
-                    → Reserve
+                    {selectedForSwap?.playerId === player.id ? '✓ Selected' : '🔄 Select to Swap'}
                   </button>
                 )}
               </div>
@@ -363,16 +382,18 @@ export default function PlayerList() {
                   >
                     Cancel Swap
                   </button>
-                ) : canMoveToActive(player.position) ? (
-                  <button
-                    onClick={() => requestSwap(player.id, 'active')}
-                    disabled={swapping === player.id}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors ml-4"
-                  >
-                    → Active
-                  </button>
                 ) : (
-                  <span className="text-gray-500 text-sm ml-4">Active roster full</span>
+                  <button
+                    onClick={() => selectPlayerForSwap(player.id)}
+                    disabled={swapping === player.id}
+                    className={`px-4 py-2 rounded transition-colors ml-4 ${
+                      selectedForSwap?.playerId === player.id
+                        ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    {selectedForSwap?.playerId === player.id ? '✓ Selected' : '🔄 Select to Swap'}
+                  </button>
                 )}
               </div>
             ))}
