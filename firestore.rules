@@ -61,11 +61,17 @@ service cloud.firestore {
                       request.resource.data.leagueId != null;
       
       // Only league admin can delete (for draft reset)
+      // Note: resource.data is the existing document before deletion
       allow delete: if isSignedIn() && 
+                      resource.data.leagueId != null &&
                       isLeagueAdmin(resource.data.leagueId);
       
-      // No updates allowed (drafted players are final)
-      allow update: if false;
+      // Allow updates for roster slot management (active/reserve swaps)
+      // Only allow changing rosterSlot and pendingSlot fields
+      allow update: if isSignedIn() && 
+                      resource.data.leagueId != null &&
+                      isInLeague(resource.data.leagueId) &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rosterSlot', 'pendingSlot', 'lastSwapDate']);
     }
     
     // Draft state - per league

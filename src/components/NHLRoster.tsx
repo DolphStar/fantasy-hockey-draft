@@ -22,12 +22,36 @@ export default function NHLRoster() {
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useState<'single' | 'all'>('single'); // Default to single team for speed
+  const [selectedTeam, setSelectedTeam] = useState<TeamAbbrev>('EDM'); // Default team
   
   // League context for showing user's team
   const { myTeam, league } = useLeague();
   
   // Draft context
   const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
+
+  const fetchSingleTeam = async (teamAbbrev: TeamAbbrev) => {
+    try {
+      setLoading(true);
+      setError(null);
+      setRoster([]);
+      const rosterData = await getTeamRoster(teamAbbrev);
+      const teamPlayers = getAllPlayers(rosterData);
+      // Add team info to each player
+      teamPlayers.forEach(player => {
+        (player as any).teamAbbrev = teamAbbrev;
+      });
+      setRoster(teamPlayers);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch roster data';
+      setError(errorMessage);
+      console.error(err);
+      setRoster([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchAllPlayers = async () => {
     try {
@@ -182,8 +206,12 @@ export default function NHLRoster() {
   };
 
   useEffect(() => {
-    fetchAllPlayers();
-  }, []); // Load once on mount
+    if (viewMode === 'all') {
+      fetchAllPlayers();
+    } else {
+      fetchSingleTeam(selectedTeam);
+    }
+  }, [viewMode, selectedTeam]); // Load when mode or team changes
 
   const getPositionBadgeColor = (positionCode: string) => {
     switch (positionCode) {
@@ -261,6 +289,50 @@ export default function NHLRoster() {
           </div>
         </div>
       )}
+
+      {/* View Mode Toggle */}
+      <div className="bg-gray-800 p-4 rounded-lg shadow-lg mb-4">
+        <div className="flex items-center gap-4">
+          <label className="text-white font-semibold">View Mode:</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode('single')}
+              className={`px-4 py-2 rounded transition-colors ${
+                viewMode === 'single'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Single Team (Fast)
+            </button>
+            <button
+              onClick={() => setViewMode('all')}
+              className={`px-4 py-2 rounded transition-colors ${
+                viewMode === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              All Teams (Slow ~15s)
+            </button>
+          </div>
+          
+          {/* Single Team Selector */}
+          {viewMode === 'single' && (
+            <select
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value as TeamAbbrev)}
+              className="px-4 py-2 rounded bg-gray-700 text-white border border-gray-600"
+            >
+              {Object.entries(NHL_TEAMS).map(([abbrev, name]) => (
+                <option key={abbrev} value={abbrev}>
+                  {abbrev} - {name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
 
       {/* Search and Filters */}
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
@@ -360,7 +432,12 @@ export default function NHLRoster() {
           {filteredRoster.length > 0 ? (
             <>
               <h3 className="text-xl font-semibold mb-6 text-white">
-                {teamFilter !== 'ALL' ? `${NHL_TEAMS[teamFilter as TeamAbbrev]} - ` : 'All NHL Players - '}
+                {viewMode === 'single' 
+                  ? `${NHL_TEAMS[selectedTeam]} - ` 
+                  : teamFilter !== 'ALL' 
+                    ? `${NHL_TEAMS[teamFilter as TeamAbbrev]} - ` 
+                    : 'All NHL Players - '
+                }
                 {filteredRoster.length} Player{filteredRoster.length !== 1 ? 's' : ''}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
