@@ -16,12 +16,12 @@ export default function NHLRoster() {
   const [roster, setRoster] = useState<RosterPerson[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<TeamAbbrev>('VAN');
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
   const [myTeamPositions, setMyTeamPositions] = useState({ F: 0, D: 0, G: 0, total: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
+  const [teamFilter, setTeamFilter] = useState<string>('ALL');
   
   // League context for showing user's team
   const { myTeam, league } = useLeague();
@@ -29,19 +29,38 @@ export default function NHLRoster() {
   // Draft context
   const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
 
-  const fetchRoster = async (teamAbbrev: TeamAbbrev) => {
+  const fetchAllPlayers = async () => {
     try {
       setLoading(true);
       setError(null);
-      setRoster([]); // Clear previous roster
-      const rosterData = await getTeamRoster(teamAbbrev);
-      const allPlayers = getAllPlayers(rosterData);
+      setRoster([]);
+      
+      console.log('Loading all NHL players...');
+      const allPlayers: RosterPerson[] = [];
+      
+      // Fetch rosters from all teams
+      for (const teamAbbrev of Object.keys(NHL_TEAMS) as TeamAbbrev[]) {
+        try {
+          const rosterData = await getTeamRoster(teamAbbrev);
+          const teamPlayers = getAllPlayers(rosterData);
+          // Add team info to each player for filtering
+          teamPlayers.forEach(player => {
+            (player as any).teamAbbrev = teamAbbrev;
+          });
+          allPlayers.push(...teamPlayers);
+        } catch (err) {
+          console.warn(`Failed to load ${teamAbbrev}:`, err);
+          // Continue with other teams
+        }
+      }
+      
+      console.log(`Loaded ${allPlayers.length} total players from ${Object.keys(NHL_TEAMS).length} teams`);
       setRoster(allPlayers);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch roster data';
       setError(errorMessage);
       console.error(err);
-      setRoster([]); // Clear roster on error
+      setRoster([]);
     } finally {
       setLoading(false);
     }
@@ -139,7 +158,7 @@ export default function NHLRoster() {
         position: rosterPlayer.position.code,
         positionName: rosterPlayer.position.name,
         jerseyNumber: rosterPlayer.jerseyNumber,
-        nhlTeam: selectedTeam,
+        nhlTeam: (rosterPlayer as any).teamAbbrev || 'UNK',
         draftedByTeam: currentPick.team, // Which fantasy team drafted them
         pickNumber: currentPick.pick,
         round: currentPick.round,
@@ -163,8 +182,8 @@ export default function NHLRoster() {
   };
 
   useEffect(() => {
-    fetchRoster(selectedTeam);
-  }, [selectedTeam]);
+    fetchAllPlayers();
+  }, []); // Load once on mount
 
   const getPositionBadgeColor = (positionCode: string) => {
     switch (positionCode) {
@@ -181,7 +200,7 @@ export default function NHLRoster() {
     }
   };
 
-  // Filter roster based on search and position
+  // Filter roster based on search, position, and team
   const filteredRoster = roster.filter(player => {
     const playerName = getPlayerFullName(player).toLowerCase();
     const matchesSearch = searchQuery === '' || playerName.includes(searchQuery.toLowerCase());
@@ -190,7 +209,9 @@ export default function NHLRoster() {
       (positionFilter === 'F' && ['C', 'L', 'R'].includes(player.position.code)) ||
       (positionFilter === player.position.code);
     
-    return matchesSearch && matchesPosition;
+    const matchesTeam = teamFilter === 'ALL' || (player as any).teamAbbrev === teamFilter;
+    
+    return matchesSearch && matchesPosition && matchesTeam;
   });
 
   return (
@@ -241,22 +262,6 @@ export default function NHLRoster() {
         </div>
       )}
 
-      {/* Team Selector */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
-        <label className="block text-white font-semibold mb-3">Select Team:</label>
-        <select
-          value={selectedTeam}
-          onChange={(e) => setSelectedTeam(e.target.value as TeamAbbrev)}
-          className="w-full md:w-auto px-4 py-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-        >
-          {Object.entries(NHL_TEAMS).map(([abbrev, name]) => (
-            <option key={abbrev} value={abbrev}>
-              {name} ({abbrev})
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* Search and Filters */}
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
         <div className="flex flex-col md:flex-row gap-4">
@@ -274,7 +279,7 @@ export default function NHLRoster() {
 
           {/* Position Filter */}
           <div className="md:w-48">
-            <label className="block text-white font-semibold mb-2">Filter by Position:</label>
+            <label className="block text-white font-semibold mb-2">Position:</label>
             <select
               value={positionFilter}
               onChange={(e) => setPositionFilter(e.target.value)}
@@ -290,13 +295,31 @@ export default function NHLRoster() {
             </select>
           </div>
 
+          {/* Team Filter */}
+          <div className="md:w-48">
+            <label className="block text-white font-semibold mb-2">NHL Team:</label>
+            <select
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+              className="w-full px-4 py-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="ALL">All Teams</option>
+              {Object.entries(NHL_TEAMS).map(([abbrev, name]) => (
+                <option key={abbrev} value={abbrev}>
+                  {abbrev} - {name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Clear Button */}
-          {(searchQuery || positionFilter !== 'ALL') && (
+          {(searchQuery || positionFilter !== 'ALL' || teamFilter !== 'ALL') && (
             <div className="md:w-auto md:self-end">
               <button
                 onClick={() => {
                   setSearchQuery('');
                   setPositionFilter('ALL');
+                  setTeamFilter('ALL');
                 }}
                 className="w-full md:w-auto px-4 py-3 rounded bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
               >
@@ -312,6 +335,7 @@ export default function NHLRoster() {
             Showing {filteredRoster.length} of {roster.length} players
             {searchQuery && <span className="ml-1">matching "{searchQuery}"</span>}
             {positionFilter !== 'ALL' && <span className="ml-1">• Position: {positionFilter === 'F' ? 'Forwards' : positionFilter}</span>}
+            {teamFilter !== 'ALL' && <span className="ml-1">• Team: {teamFilter}</span>}
           </div>
         )}
       </div>
@@ -336,7 +360,8 @@ export default function NHLRoster() {
           {filteredRoster.length > 0 ? (
             <>
               <h3 className="text-xl font-semibold mb-6 text-white">
-                {NHL_TEAMS[selectedTeam]} - {filteredRoster.length} Player{filteredRoster.length !== 1 ? 's' : ''}
+                {teamFilter !== 'ALL' ? `${NHL_TEAMS[teamFilter as TeamAbbrev]} - ` : 'All NHL Players - '}
+                {filteredRoster.length} Player{filteredRoster.length !== 1 ? 's' : ''}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredRoster.map((rosterPlayer) => {
@@ -355,7 +380,7 @@ export default function NHLRoster() {
                   <div className="flex flex-col gap-3">
                     {/* Player Info */}
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className="text-white font-semibold text-lg">
                           #{rosterPlayer.jerseyNumber}
                         </span>
@@ -363,6 +388,9 @@ export default function NHLRoster() {
                           className={`${getPositionBadgeColor(rosterPlayer.position.code)} text-white text-xs px-2 py-1 rounded font-bold`}
                         >
                           {rosterPlayer.position.code}
+                        </span>
+                        <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded font-bold">
+                          {(rosterPlayer as any).teamAbbrev || 'UNK'}
                         </span>
                         {isDrafted && (
                           <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">
@@ -413,6 +441,7 @@ export default function NHLRoster() {
             onClick={() => {
               setSearchQuery('');
               setPositionFilter('ALL');
+              setTeamFilter('ALL');
             }}
             className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
           >
