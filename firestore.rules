@@ -50,6 +50,15 @@ service cloud.firestore {
         allow read: if isInLeague(leagueId);
         allow write: if isInLeague(leagueId); // Allow any league member to trigger live stats
       }
+
+      // League chat messages - simple league-wide chat
+      match /chatMessages/{messageId} {
+        // Any authenticated league user can read/write chat messages
+        allow read, create: if isInLeague(leagueId);
+
+        // Allow delete only for league admin (e.g. moderating messages)
+        allow delete, update: if isLeagueAdmin(leagueId);
+      }
     }
     
     // Drafted players - linked to specific league

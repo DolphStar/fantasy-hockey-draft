@@ -4,10 +4,11 @@ import NHLRoster from './components/NHLRoster'
 import DraftBoard from './components/DraftBoard'
 import LeagueSettings from './components/LeagueSettings'
 import Standings from './components/Standings'
+import LeagueChat from './components/LeagueChat'
 import Login from './components/Login'
 import { useAuth } from './context/AuthContext'
 
-type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'leagueSettings'
+type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'leagueSettings' | 'chat'
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('roster')
@@ -119,6 +120,16 @@ function App() {
             🏆 Standings
           </button>
           <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-6 py-3 font-semibold transition-colors ${
+              activeTab === 'chat'
+                ? 'text-blue-400 border-b-2 border-blue-400'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            💬 Chat
+          </button>
+          <button
             onClick={() => setActiveTab('leagueSettings')}
             className={`px-6 py-3 font-semibold transition-colors ${
               activeTab === 'leagueSettings'
@@ -136,6 +147,7 @@ function App() {
       {activeTab === 'draftBoard' && <DraftBoard />}
       {activeTab === 'myPlayers' && <PlayerList />}
       {activeTab === 'standings' && <Standings />}
+      {activeTab === 'chat' && <LeagueChat />}
       {activeTab === 'leagueSettings' && <LeagueSettings />}
     </div>
     );
