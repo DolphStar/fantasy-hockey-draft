@@ -4,6 +4,7 @@ import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
 import TestScoring from './TestScoring';
 import TestLiveStats from './TestLiveStats';
+import AdminPlayerManagement from './AdminPlayerManagement';
 import type { LeagueTeam } from '../types/league';
 
 export default function LeagueSettings() {
@@ -345,11 +346,12 @@ export default function LeagueSettings() {
         <p className="text-gray-400 text-sm mt-2">Share this with your league admin</p>
       </div>
 
-      {/* Test Scoring (Admin Only) */}
+      {/* Admin Tools */}
       {isAdmin && (
         <>
           <div className="mt-6"><TestScoring /></div>
           <div className="mt-6"><TestLiveStats /></div>
+          <div className="mt-6"><AdminPlayerManagement /></div>
         </>
       )}
     </div>

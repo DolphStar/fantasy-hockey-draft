@@ -27,8 +27,12 @@ export default async function handler(
       });
     }
 
-    // Import the scoring engine (dynamic import for serverless)
+    // Import the scoring engine and roster swaps (dynamic import for serverless)
     const { processYesterdayScores } = await import('../src/utils/scoringEngine');
+    const { applyRosterSwaps } = await import('../src/utils/applyRosterSwaps');
+    
+    // Apply roster swaps if it's Saturday
+    const swapResult = await applyRosterSwaps();
     
     // Run the scoring calculation
     await processYesterdayScores(leagueId);
@@ -38,7 +42,8 @@ export default async function handler(
     return res.status(200).json({ 
       success: true,
       message: `Scores calculated for league ${leagueId}`,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      rosterSwaps: swapResult
     });
     
   } catch (error) {
