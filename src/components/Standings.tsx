@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import type { TeamScore } from '../utils/scoringEngine';
+import LiveStats from './LiveStats';
 // Import utilities for existing leagues
 import '../utils/updateLeague';
 import '../utils/clearScores';
@@ -181,6 +182,9 @@ export default function Standings() {
           </div>
         )}
       </div>
+
+      {/* Live Stats Section */}
+      <LiveStats />
 
       {/* Player Performance Details - Grouped by Team */}
       {playerPerformances.length > 0 && (
