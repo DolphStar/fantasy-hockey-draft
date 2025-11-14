@@ -18,7 +18,11 @@ export default function NHLRoster() {
   const [error, setError] = useState<string | null>(null);
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
-  const [myTeamPositions, setMyTeamPositions] = useState({ F: 0, D: 0, G: 0, total: 0 });
+  const [myTeamPositions, setMyTeamPositions] = useState({ 
+    active: { F: 0, D: 0, G: 0 },
+    reserve: 0,
+    total: 0 
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ALL');
@@ -98,7 +102,8 @@ export default function NHLRoster() {
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'draftedPlayers'), (snapshot) => {
       const draftedIds = new Set<number>();
-      let myForwards = 0, myDefense = 0, myGoalies = 0, myTotal = 0;
+      let activeForwards = 0, activeDefense = 0, activeGoalies = 0;
+      let reserveCount = 0, myTotal = 0;
       
       snapshot.docs.forEach(doc => {
         const data = doc.data();
@@ -108,37 +113,41 @@ export default function NHLRoster() {
         if (myTeam && data.draftedByTeam === myTeam.teamName) {
           myTotal++;
           const pos = data.position;
-          if (['C', 'L', 'R'].includes(pos)) {
-            myForwards++;
-          } else if (pos === 'D') {
-            myDefense++;
-          } else if (pos === 'G') {
-            myGoalies++;
+          const slot = data.rosterSlot || 'active';
+          
+          if (slot === 'reserve') {
+            reserveCount++;
+          } else {
+            // Active roster
+            if (['C', 'L', 'R'].includes(pos)) {
+              activeForwards++;
+            } else if (pos === 'D') {
+              activeDefense++;
+            } else if (pos === 'G') {
+              activeGoalies++;
+            }
           }
         }
       });
       
       setDraftedPlayerIds(draftedIds);
-      setMyTeamPositions({ F: myForwards, D: myDefense, G: myGoalies, total: myTotal });
+      setMyTeamPositions({ 
+        active: { F: activeForwards, D: activeDefense, G: activeGoalies },
+        reserve: reserveCount,
+        total: myTotal 
+      });
     });
     
     return () => unsubscribe();
   }, [myTeam]);
 
-  // Check if we can draft a player of this position
-  const canDraftPosition = (position: string): boolean => {
-    if (!league?.rosterSettings) return true; // No limits if not configured
+  // Check if we can draft a player to active roster
+  const canDraftToActive = (position: string): boolean => {
+    if (!league?.rosterSettings) return true;
     
-    const { F, D, G, total } = myTeamPositions;
+    const { F, D, G } = myTeamPositions.active;
     const { forwards, defensemen, goalies } = league.rosterSettings;
-    const totalRequired = forwards + defensemen + goalies;
     
-    // If we're in reserves (last 5 picks), allow any position
-    if (total >= totalRequired) {
-      return true;
-    }
-    
-    // Check position-specific limits
     if (['C', 'L', 'R'].includes(position)) {
       return F < forwards;
     } else if (position === 'D') {
@@ -149,9 +158,14 @@ export default function NHLRoster() {
     
     return false;
   };
+  
+  // Check if we can add to reserves (max 5)
+  const canDraftToReserve = (): boolean => {
+    return myTeamPositions.reserve < 5;
+  };
 
   // Draft a player to Firebase
-  const onDraftPlayer = async (rosterPlayer: RosterPerson) => {
+  const onDraftPlayer = async (rosterPlayer: RosterPerson, forceReserve: boolean = false) => {
     if (!isMyTurn) {
       alert("It's not your turn!");
       return;
@@ -172,11 +186,40 @@ export default function NHLRoster() {
         return;
       }
       
-      // Check position limits
-      if (!canDraftPosition(rosterPlayer.position.code)) {
-        alert(`You've reached the limit for ${rosterPlayer.position.name}s! Pick a different position or add to reserves.`);
-        setDraftingPlayerId(null);
-        return;
+      // Determine roster slot
+      let rosterSlot: 'active' | 'reserve' = 'active';
+      const canAddToActive = canDraftToActive(rosterPlayer.position.code);
+      const canAddToReserves = canDraftToReserve();
+      
+      if (forceReserve) {
+        // User confirmed adding to reserves
+        if (!canAddToReserves) {
+          alert('Reserve roster is full (5/5)! Cannot draft more players.');
+          setDraftingPlayerId(null);
+          return;
+        }
+        rosterSlot = 'reserve';
+      } else if (!canAddToActive) {
+        // Active position is full
+        if (canAddToReserves) {
+          // Ask user if they want to add to reserves
+          const posName = rosterPlayer.position.name;
+          const confirmed = window.confirm(
+            `Active ${posName} roster is full (${myTeamPositions.active.F + myTeamPositions.active.D + myTeamPositions.active.G} active players).\n\n` +
+            `Add "${getPlayerFullName(rosterPlayer)}" to RESERVES instead?\n\n` +
+            `Reserves: ${myTeamPositions.reserve}/5`
+          );
+          
+          if (!confirmed) {
+            setDraftingPlayerId(null);
+            return;
+          }
+          rosterSlot = 'reserve';
+        } else {
+          alert(`Cannot draft: Active ${rosterPlayer.position.name} roster is full AND reserves are full (5/5)!`);
+          setDraftingPlayerId(null);
+          return;
+        }
       }
 
       // Save to Firebase with team assignment and pick info
@@ -187,11 +230,12 @@ export default function NHLRoster() {
         positionName: rosterPlayer.position.name,
         jerseyNumber: rosterPlayer.jerseyNumber,
         nhlTeam: (rosterPlayer as any).teamAbbrev || 'UNK',
-        draftedByTeam: currentPick.team, // Which fantasy team drafted them
+        draftedByTeam: currentPick.team,
         pickNumber: currentPick.pick,
         round: currentPick.round,
-        leagueId: league?.id, // Link to league for scoring
-        draftedAt: new Date().toISOString()
+        leagueId: league?.id,
+        draftedAt: new Date().toISOString(),
+        rosterSlot: rosterSlot // 'active' or 'reserve'
       });
 
       // Update local state
@@ -266,14 +310,17 @@ export default function NHLRoster() {
               </p>
               {isMyTurn && league?.rosterSettings && (
                 <div className="mt-2 flex gap-4 text-sm">
-                  <span className={myTeamPositions.F >= league.rosterSettings.forwards ? 'text-green-400' : 'text-gray-400'}>
-                    F: {myTeamPositions.F}/{league.rosterSettings.forwards}
+                  <span className={myTeamPositions.active.F >= league.rosterSettings.forwards ? 'text-green-400' : 'text-gray-400'}>
+                    F: {myTeamPositions.active.F}/{league.rosterSettings.forwards}
                   </span>
-                  <span className={myTeamPositions.D >= league.rosterSettings.defensemen ? 'text-green-400' : 'text-gray-400'}>
-                    D: {myTeamPositions.D}/{league.rosterSettings.defensemen}
+                  <span className={myTeamPositions.active.D >= league.rosterSettings.defensemen ? 'text-green-400' : 'text-gray-400'}>
+                    D: {myTeamPositions.active.D}/{league.rosterSettings.defensemen}
                   </span>
-                  <span className={myTeamPositions.G >= league.rosterSettings.goalies ? 'text-green-400' : 'text-gray-400'}>
-                    G: {myTeamPositions.G}/{league.rosterSettings.goalies}
+                  <span className={myTeamPositions.active.G >= league.rosterSettings.goalies ? 'text-green-400' : 'text-gray-400'}>
+                    G: {myTeamPositions.active.G}/{league.rosterSettings.goalies}
+                  </span>
+                  <span className="text-purple-400">
+                    Reserves: {myTeamPositions.reserve}/5
                   </span>
                   <span className="text-gray-500">
                     ({myTeamPositions.total} total)
