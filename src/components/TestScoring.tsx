@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useLeague } from '../context/LeagueContext';
 import { processYesterdayScores } from '../utils/scoringEngine';
+import { db } from '../firebase';
+import { collection, getDocs, writeBatch } from 'firebase/firestore';
 
 export default function TestScoring() {
   const { league, isAdmin } = useLeague();
   const [processing, setProcessing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   
   const hasRules = league?.scoringRules !== undefined;
@@ -35,6 +38,68 @@ export default function TestScoring() {
     }
   };
 
+  const handleClearScores = async () => {
+    if (!league) {
+      setResult('❌ No league found');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      '⚠️ Clear ALL scores and processed dates?\n\n' +
+      'This will:\n' +
+      '• Reset all team scores to 0\n' +
+      '• Delete all player daily scores\n' +
+      '• Clear processed dates (allows re-running scoring)\n\n' +
+      'Are you sure?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setClearing(true);
+      setResult('⏳ Clearing all scores...');
+
+      // Clear team scores
+      const teamScoresRef = collection(db, `leagues/${league.id}/teamScores`);
+      const teamScoresSnap = await getDocs(teamScoresRef);
+      
+      const batch = writeBatch(db);
+      let deleteCount = 0;
+
+      teamScoresSnap.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+        deleteCount++;
+      });
+
+      // Clear player daily scores
+      const playerScoresRef = collection(db, `leagues/${league.id}/playerDailyScores`);
+      const playerScoresSnap = await getDocs(playerScoresRef);
+      
+      playerScoresSnap.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+        deleteCount++;
+      });
+
+      // Clear processed dates (allows re-running scoring)
+      const processedDatesRef = collection(db, `leagues/${league.id}/processedDates`);
+      const processedDatesSnap = await getDocs(processedDatesRef);
+      
+      processedDatesSnap.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+        deleteCount++;
+      });
+
+      await batch.commit();
+
+      setResult(`✅ Cleared ${deleteCount} documents. You can now re-run scoring.`);
+    } catch (error) {
+      console.error('Error clearing scores:', error);
+      setResult(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setClearing(false);
+    }
+  };
+
   if (!isAdmin) {
     return null;
   }
@@ -61,17 +126,31 @@ export default function TestScoring() {
           This will calculate fantasy points for all drafted players based on their real NHL performance.
         </p>
         
-        <button
-          onClick={handleRunScoring}
-          disabled={processing}
-          className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-            processing
-              ? 'bg-gray-600 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
-          }`}
-        >
-          {processing ? '⏳ Processing...' : '▶️ Run Yesterday\'s Scoring'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleRunScoring}
+            disabled={processing || clearing}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              processing || clearing
+                ? 'bg-gray-600 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            {processing ? '⏳ Processing...' : '▶️ Run Yesterday\'s Scoring'}
+          </button>
+
+          <button
+            onClick={handleClearScores}
+            disabled={processing || clearing}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              processing || clearing
+                ? 'bg-gray-600 cursor-not-allowed'
+                : 'bg-red-600 hover:bg-red-700 text-white'
+            }`}
+          >
+            {clearing ? '⏳ Clearing...' : '🗑️ Clear Scores'}
+          </button>
+        </div>
         
         {result && (
           <div className={`mt-4 p-4 rounded-lg ${
