@@ -36,18 +36,31 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
     const findUserLeague = async () => {
       try {
-        // Check localStorage first
+        const { collection, getDocs, getDoc } = await import('firebase/firestore');
+        
+        // Check localStorage first, but VERIFY user is in that league
         const savedLeagueId = localStorage.getItem('currentLeagueId');
         if (savedLeagueId) {
-          setCurrentLeagueId(savedLeagueId);
-          return;
+          const leagueDoc = await getDoc(doc(db, 'leagues', savedLeagueId));
+          if (leagueDoc.exists()) {
+            const leagueData = leagueDoc.data() as Omit<League, 'id'>;
+            const userTeam = leagueData.teams.find(team => team.ownerUid === user.uid);
+            
+            if (userTeam) {
+              // User is in this cached league - use it!
+              console.log('Using cached league:', savedLeagueId, 'as team:', userTeam.teamName);
+              setCurrentLeagueId(savedLeagueId);
+              return;
+            } else {
+              // User is NOT in this cached league - clear it
+              console.log('Cached league invalid for this user - clearing');
+              localStorage.removeItem('currentLeagueId');
+            }
+          }
         }
 
-        // Otherwise, search for league containing this user's UID
-        const { collection, getDocs } = await import('firebase/firestore');
+        // Search for league containing this user's UID
         const leaguesRef = collection(db, 'leagues');
-        
-        // Get all leagues (for now - could optimize later)
         const snapshot = await getDocs(leaguesRef);
         
         for (const doc of snapshot.docs) {
