@@ -25,28 +25,21 @@ const NHL_TEAM_ABBREVS = [
 ];
 
 /**
- * Fetch injuries for all NHL teams
+ * Fetch injuries for all NHL teams using NHL API
  * 
- * NOTE: Free injury data is not reliably available from any API.
- * Options for production:
- * 1. Pay for Sportradar API ($500+/month) - https://developer.sportradar.com/
- * 2. Scrape from NHL.com (fragile, against ToS)
- * 3. Manually maintain an injury list in Firestore (admin can update)
+ * Method: Check each player's landing page for injuryStatus field
+ * Endpoint: https://api-web.nhle.com/v1/player/{playerId}/landing
  * 
- * For now, returns empty array - injury feature is disabled pending data source.
+ * Also checks game center data for game-day scratches/injuries:
+ * https://api-web.nhle.com/v1/gamecenter/{gameId}/landing
  */
 export async function fetchAllInjuries(): Promise<InjuryReport[]> {
-  // Return empty for now - no free API available
-  console.warn('⚠️ Injury data unavailable: No free NHL injury API exists');
-  console.log('Consider Sportradar API (paid) or manual injury tracking');
-  return [];
-  
-  // Keeping the original code structure for future implementation
-  /*
   const allInjuries: InjuryReport[] = [];
   
   try {
-    // Fetch all teams' rosters in parallel
+    console.log('🏒 Fetching NHL injury data...');
+    
+    // Fetch all teams' rosters and check each player
     const promises = NHL_TEAM_ABBREVS.map(teamAbbrev => fetchTeamInjuries(teamAbbrev));
     
     const results = await Promise.allSettled(promises);
@@ -54,53 +47,98 @@ export async function fetchAllInjuries(): Promise<InjuryReport[]> {
     results.forEach(result => {
       if (result.status === 'fulfilled') {
         allInjuries.push(...result.value);
+      } else {
+        console.warn('Failed to fetch team injuries:', result.reason);
       }
     });
     
-    console.log(`Fetched ${allInjuries.length} injuries from NHL API`);
+    console.log(`✅ Fetched ${allInjuries.length} injuries from NHL API`);
     return allInjuries;
   } catch (error) {
     console.error('Error fetching all injuries:', error);
     return [];
   }
-  */
 }
 
 /**
- * Fetch injuries for a specific team using NHL roster API
+ * Fetch injuries for a specific team using NHL roster + player landing pages
  */
 async function fetchTeamInjuries(teamAbbrev: string): Promise<InjuryReport[]> {
   try {
-    // Use NHL's roster endpoint which includes player status
-    const response = await fetch(`${NHL_API_BASE}/roster/${teamAbbrev}/current`);
+    // Step 1: Get team roster
+    const rosterResponse = await fetch(`${NHL_API_BASE}/roster/${teamAbbrev}/current`);
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    if (!rosterResponse.ok) {
+      throw new Error(`HTTP ${rosterResponse.status}`);
     }
     
-    const data: any = await response.json();
+    const rosterData: any = await rosterResponse.json();
     const injuries: InjuryReport[] = [];
     
-    // Check forwards, defensemen, and goalies
+    // Step 2: Get all players from roster
     const allPlayers = [
-      ...(data.forwards || []),
-      ...(data.defensemen || []),
-      ...(data.goalies || [])
+      ...(rosterData.forwards || []),
+      ...(rosterData.defensemen || []),
+      ...(rosterData.goalies || [])
     ];
     
-    for (const player of allPlayers) {
-      // NHL API doesn't always have injury data directly
-      // We'll create a simple mock for now - you may need to scrape from NHL.com
-      // or use a paid API for detailed injury info
+    // Step 3: Check each player's landing page for injury status
+    // Limit concurrent requests to avoid rate limiting
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < allPlayers.length; i += BATCH_SIZE) {
+      const batch = allPlayers.slice(i, i + BATCH_SIZE);
+      const playerPromises = batch.map(player => checkPlayerInjury(player, teamAbbrev));
+      const playerResults = await Promise.allSettled(playerPromises);
       
-      // For now, return empty array - we need a different approach
-      // This is a limitation of free NHL APIs
+      playerResults.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+          injuries.push(result.value);
+        }
+      });
     }
     
     return injuries;
   } catch (error) {
     console.warn(`Failed to fetch injuries for team ${teamAbbrev}:`, error);
     return [];
+  }
+}
+
+/**
+ * Check if a specific player is injured using their landing page
+ * Endpoint: https://api-web.nhle.com/v1/player/{playerId}/landing
+ */
+async function checkPlayerInjury(player: any, teamAbbrev: string): Promise<InjuryReport | null> {
+  try {
+    const playerId = player.id;
+    const response = await fetch(`${NHL_API_BASE}/player/${playerId}/landing`);
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    const data: any = await response.json();
+    
+    // Check if player has injury status
+    if (data.injuryStatus) {
+      return {
+        playerId: playerId,
+        playerName: `${player.firstName?.default || ''} ${player.lastName?.default || ''}`.trim(),
+        team: teamAbbrev,
+        teamAbbrev: teamAbbrev,
+        position: player.positionCode || 'N/A',
+        status: data.injuryStatus || 'Out',
+        injuryType: data.injuryDescription || 'Undisclosed',
+        description: data.injuryDescription || 'No details available',
+        returnDate: data.injuryReturnDate,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    // Silently fail for individual players to avoid spam
+    return null;
   }
 }
 
