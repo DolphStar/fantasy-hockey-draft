@@ -383,11 +383,11 @@ export default function NHLRoster() {
                 className="w-16 h-16 rounded-full object-cover border-2 border-gray-600 bg-gray-800"
               />
               {/* Team Logo Badge */}
-              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 w-6 h-6 flex items-center justify-center border border-gray-300">
+              <div className="absolute -bottom-1 -right-1 w-8 h-8">
                 <img 
                   src={teamLogoUrl} 
                   alt={teamAbbrev}
-                  className="w-full h-full"
+                  className="w-full h-full drop-shadow-lg"
                 />
               </div>
             </div>
