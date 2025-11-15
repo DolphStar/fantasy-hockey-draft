@@ -260,7 +260,6 @@ export default function LiveStats() {
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">NHL</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">⚽ G</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🎯 A</th>
-                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🏹 S</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">💥 H</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🛡️ BS</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🏆 W</th>
@@ -280,7 +279,6 @@ export default function LiveStats() {
                                 <td className="p-3 text-center text-gray-300">{player.nhlTeam}</td>
                                 <td className="p-3 text-center text-gray-300">{player.goals}</td>
                                 <td className="p-3 text-center text-gray-300">{player.assists}</td>
-                                <td className="p-3 text-center text-gray-300">{player.shots || 0}</td>
                                 <td className="p-3 text-center text-gray-300">{player.hits || 0}</td>
                                 <td className="p-3 text-center text-gray-300">{player.blockedShots || 0}</td>
                                 <td className="p-3 text-center text-gray-300">{player.wins || 0}</td>
