@@ -316,10 +316,16 @@ export default function Standings() {
                           </tr>
                         </thead>
                         <tbody>
-                          {teamPerfs.map((perf, index) => (
+                          {teamPerfs.map((perf, index) => {
+                            // Check if this is a "big night" (goal or 2+ points)
+                            const isBigNight = (perf.stats.goals && perf.stats.goals > 0) || perf.points >= 2;
+                            
+                            return (
                             <tr
                               key={`${perf.playerId}-${perf.date}-${index}`}
-                              className="border-t border-gray-700 hover:bg-gray-700/30 transition-colors"
+                              className={`border-t border-gray-700 hover:bg-gray-700/30 transition-colors ${
+                                isBigNight ? 'bg-green-900/10' : ''
+                              }`}
                             >
                               <td className="p-3">
                                 <div>
@@ -340,15 +346,43 @@ export default function Standings() {
                                 </div>
                               </td>
                               <td className="p-3 text-center">
-                                <span className="text-gray-400 text-sm font-mono">{perf.nhlTeam}</span>
+                                <div className="flex items-center justify-center">
+                                  <img
+                                    src={`https://assets.nhle.com/logos/nhl/svg/${perf.nhlTeam}_dark.svg`}
+                                    alt={perf.nhlTeam}
+                                    className="w-6 h-6"
+                                    onError={(e) => {
+                                      // Fallback to text if logo fails to load
+                                      const target = e.currentTarget as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const sibling = target.nextElementSibling as HTMLSpanElement;
+                                      if (sibling) sibling.style.display = 'inline';
+                                    }}
+                                  />
+                                  <span className="text-gray-400 text-xs font-mono hidden">{perf.nhlTeam}</span>
+                                </div>
                               </td>
-                              <td className="p-3 text-center text-gray-300">{perf.stats.goals || 0}</td>
-                              <td className="p-3 text-center text-gray-300">{perf.stats.assists || 0}</td>
-                              <td className="p-3 text-center text-gray-300">{perf.stats.hits || 0}</td>
-                              <td className="p-3 text-center text-gray-300">{perf.stats.blockedShots || 0}</td>
-                              <td className="p-3 text-center text-gray-300">{perf.stats.wins || 0}</td>
-                              <td className="p-3 text-center text-gray-300">{perf.stats.saves || 0}</td>
-                              <td className="p-3 text-center text-gray-300">{perf.stats.shutouts || 0}</td>
+                              <td className={`p-3 text-center ${
+                                isBigNight ? 'text-white font-semibold' : 'text-gray-300'
+                              }`}>{perf.stats.goals || 0}</td>
+                              <td className={`p-3 text-center ${
+                                isBigNight ? 'text-white font-semibold' : 'text-gray-300'
+                              }`}>{perf.stats.assists || 0}</td>
+                              <td className={`p-3 text-center ${
+                                isBigNight ? 'text-white font-semibold' : 'text-gray-300'
+                              }`}>{perf.stats.hits || 0}</td>
+                              <td className={`p-3 text-center ${
+                                isBigNight ? 'text-white font-semibold' : 'text-gray-300'
+                              }`}>{perf.stats.blockedShots || 0}</td>
+                              <td className={`p-3 text-center ${
+                                isBigNight ? 'text-white font-semibold' : 'text-gray-300'
+                              }`}>{perf.stats.wins || 0}</td>
+                              <td className={`p-3 text-center ${
+                                isBigNight ? 'text-white font-semibold' : 'text-gray-300'
+                              }`}>{perf.stats.saves || 0}</td>
+                              <td className={`p-3 text-center ${
+                                isBigNight ? 'text-white font-semibold' : 'text-gray-300'
+                              }`}>{perf.stats.shutouts || 0}</td>
                               <td className="p-3 text-center">
                                 <span className={`text-base font-bold ${
                                   perf.points > 0 ? 'text-green-400' : perf.points < 0 ? 'text-red-400' : 'text-gray-400'
@@ -357,7 +391,8 @@ export default function Standings() {
                                 </span>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
