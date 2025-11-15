@@ -11,7 +11,7 @@ import { db } from '../firebase';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
-import { fetchAllInjuries, isPlayerInjured, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { fetchAllInjuries, isPlayerInjuredByName, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
 
 export default function NHLRoster() {
   const [roster, setRoster] = useState<RosterPerson[]>([]);
@@ -640,7 +640,7 @@ export default function NHLRoster() {
                           </span>
                         )}
                         {(() => {
-                          const injury = isPlayerInjured(rosterPlayer.person.id, injuries);
+                          const injury = isPlayerInjuredByName(getPlayerFullName(rosterPlayer), injuries);
                           return injury && (
                             <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
                               {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}

@@ -81,10 +81,33 @@ export async function fetchAllInjuries(): Promise<InjuryReport[]> {
 }
 
 /**
- * Check if a specific player is injured
+ * Check if a specific player is injured by ID
  */
 export function isPlayerInjured(playerId: number, injuries: InjuryReport[]): InjuryReport | null {
   return injuries.find(injury => injury.playerId === playerId) || null;
+}
+
+/**
+ * Check if a specific player is injured by name (more reliable for cross-API matching)
+ */
+export function isPlayerInjuredByName(playerName: string, injuries: InjuryReport[]): InjuryReport | null {
+  if (!playerName) return null;
+  
+  const normalizedSearchName = playerName.toLowerCase().trim();
+  
+  return injuries.find(injury => {
+    const injuryName = injury.playerName.toLowerCase().trim();
+    
+    // Exact match
+    if (injuryName === normalizedSearchName) return true;
+    
+    // Handle different name formats (e.g., "Connor McDavid" vs "McDavid, Connor")
+    const searchParts = normalizedSearchName.split(/[\s,]+/);
+    const injuryParts = injuryName.split(/[\s,]+/);
+    
+    // Check if both first and last names appear in either order
+    return searchParts.every(part => injuryParts.includes(part));
+  }) || null;
 }
 
 /**

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, doc, query, where, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
-import { fetchAllInjuries, isPlayerInjured, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { fetchAllInjuries, isPlayerInjuredByName, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
 
 interface DraftedPlayer {
   id: string;
@@ -319,7 +319,7 @@ export default function PlayerList() {
                       </span>
                     )}
                     {(() => {
-                      const injury = isPlayerInjured(player.playerId, injuries);
+                      const injury = isPlayerInjuredByName(player.name, injuries);
                       return injury && (
                         <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
                           {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
@@ -393,7 +393,7 @@ export default function PlayerList() {
                       </span>
                     )}
                     {(() => {
-                      const injury = isPlayerInjured(player.playerId, injuries);
+                      const injury = isPlayerInjuredByName(player.name, injuries);
                       return injury && (
                         <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
                           {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}

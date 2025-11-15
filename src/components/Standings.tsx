@@ -4,7 +4,7 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import type { TeamScore } from '../utils/scoringEngine';
 import LiveStats from './LiveStats';
-import { fetchAllInjuries, isPlayerInjured, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { fetchAllInjuries, isPlayerInjuredByName, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
 // Import utilities for existing leagues
 import '../utils/updateLeague';
 import '../utils/clearScores';
@@ -257,7 +257,7 @@ export default function Standings() {
                                   <div className="text-white font-medium flex items-center gap-2">
                                     {perf.playerName}
                                     {(() => {
-                                      const injury = isPlayerInjured(perf.playerId, injuries);
+                                      const injury = isPlayerInjuredByName(perf.playerName, injuries);
                                       return injury && (
                                         <span className={`${getInjuryColor(injury.status)} text-white text-xs px-1.5 py-0.5 rounded text-[10px] font-bold`} title={`${injury.injuryType} - ${injury.description}`}>
                                           {getInjuryIcon(injury.status)}
