@@ -122,13 +122,20 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
     const draftedPlayersSnapshot = await getDocs(draftedPlayersQuery);
     
     // Create a map of NHL player ID → fantasy team name
+    // IMPORTANT: Only count ACTIVE roster players, not reserves!
     const playerToTeamMap = new Map<number, string>();
+    let reserveCount = 0;
     draftedPlayersSnapshot.docs.forEach(doc => {
       const data = doc.data();
-      playerToTeamMap.set(data.playerId, data.draftedByTeam);
+      // Only include players in active roster slots
+      if (data.rosterSlot === 'active') {
+        playerToTeamMap.set(data.playerId, data.draftedByTeam);
+      } else {
+        reserveCount++;
+      }
     });
     
-    console.log(`Found ${playerToTeamMap.size} drafted players in league ${leagueId}`);
+    console.log(`Found ${playerToTeamMap.size} active roster players in league ${leagueId} (${reserveCount} reserve players excluded from scoring)`);
     
     // 3. Get yesterday's completed games
     const gameIds = await getCompletedGamesYesterday();
