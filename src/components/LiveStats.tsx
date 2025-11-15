@@ -4,10 +4,12 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import { processLiveStats } from '../utils/liveStats';
 import type { LivePlayerStats } from '../utils/liveStats';
+import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 
 export default function LiveStats() {
   const { league } = useLeague();
   const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
+  const [upcomingMatchups, setUpcomingMatchups] = useState<PlayerMatchup[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,6 +51,48 @@ export default function LiveStats() {
 
     return () => unsubscribe();
   }, [league]);
+
+  // Fetch upcoming matchups when no live stats
+  useEffect(() => {
+    if (!league || liveStats.length > 0) return;
+
+    const fetchMatchups = async () => {
+      try {
+        // Fetch today's schedule
+        const todaysGames = await fetchTodaySchedule();
+        
+        // Get user's roster from drafted players
+        const draftedPlayersSnapshot = await onSnapshot(
+          collection(db, 'draftedPlayers'),
+          (snapshot) => {
+            const roster = snapshot.docs
+              .filter(doc => {
+                const data = doc.data();
+                return data.leagueId === league.id && data.rosterSlot === 'active';
+              })
+              .map(doc => {
+                const data = doc.data();
+                return {
+                  playerId: data.playerId,
+                  name: data.name,
+                  nhlTeam: data.nhlTeam
+                };
+              });
+
+            // Get matchups for user's roster
+            const matchups = getUpcomingMatchups(roster, todaysGames);
+            setUpcomingMatchups(matchups);
+          }
+        );
+
+        return () => draftedPlayersSnapshot();
+      } catch (error) {
+        console.error('Error fetching matchups:', error);
+      }
+    };
+
+    fetchMatchups();
+  }, [league, liveStats.length]);
 
   // Auto-refresh countdown timer
   useEffect(() => {
@@ -172,10 +216,58 @@ export default function LiveStats() {
         </div>
       ) : liveStats.length === 0 ? (
         <div className="p-6">
-          <p className="text-gray-400">No games in progress or completed today yet.</p>
-          <p className="text-gray-500 text-sm mt-1">
-            Live stats will appear here once today's NHL games start. Updates every 10-15 minutes during games.
-          </p>
+          <div className="text-center py-4">
+            <h4 className="text-lg font-bold text-white mb-2">🏒 Upcoming Matchups Tonight</h4>
+            <p className="text-gray-400 text-sm mb-6">
+              Your players' games for today
+            </p>
+            
+            {upcomingMatchups.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
+                {upcomingMatchups.map((matchup) => (
+                  <div 
+                    key={matchup.playerId} 
+                    className="bg-gray-750 p-4 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Player Headshot */}
+                      <img
+                        src={`https://assets.nhle.com/mugs/nhl/20242025/${matchup.teamAbbrev}/${matchup.playerId}.png`}
+                        alt={matchup.playerName}
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
+                        }}
+                        className="w-12 h-12 rounded-full border-2 border-gray-600"
+                      />
+                      
+                      <div className="flex-1 text-left">
+                        <p className="text-white font-semibold text-sm">{matchup.playerName}</p>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-gray-400">{matchup.teamAbbrev}</span>
+                          <span className="text-blue-400">vs</span>
+                          <span className="text-gray-400">{matchup.opponent}</span>
+                          <span className="text-gray-500">•</span>
+                          <span className="text-green-400">{matchup.gameTime}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Team Logo */}
+                      <img
+                        src={`https://assets.nhle.com/logos/nhl/svg/${matchup.teamAbbrev}_dark.svg`}
+                        alt={matchup.teamAbbrev}
+                        className="w-8 h-8 opacity-50"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-gray-500">
+                <p>No games for your active roster today.</p>
+                <p className="text-sm mt-2">Check back tomorrow for upcoming matchups!</p>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="p-6 pt-0 space-y-6">
