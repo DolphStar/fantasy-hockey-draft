@@ -86,7 +86,7 @@ export default function DraftBoardGrid() {
   return (
     <div className="bg-gray-900 rounded-lg shadow-2xl overflow-hidden">
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4">
+      <div className="bg-gray-800 border-b border-gray-700 p-3">
         <h2 className="text-2xl font-bold text-white flex items-center gap-3">
           <span>🏒</span>
           Draft Board
@@ -96,8 +96,8 @@ export default function DraftBoardGrid() {
         </h2>
       </div>
 
-      {/* Scrollable Grid Container */}
-      <div className="overflow-auto max-h-[800px]">
+      {/* Scrollable Grid Container - Increased height */}
+      <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         <table className="w-full border-collapse">
           {/* Sticky Header Row */}
           <thead className="sticky top-0 bg-gray-800 z-20">
