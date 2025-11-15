@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
-  getTeamRoster, 
-  getAllPlayers, 
   getPlayerFullName,
+  getAllPlayers,
   NHL_TEAMS,
   type RosterPerson,
   type TeamAbbrev 
@@ -11,12 +10,11 @@ import { db } from '../firebase';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
-import { fetchAllInjuries, isPlayerInjuredByName, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
+import { useInjuries } from '../queries/useInjuries';
+import { useTeamRoster } from '../queries/useTeamRoster';
 
 export default function NHLRoster() {
-  const [roster, setRoster] = useState<RosterPerson[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
   const [myTeamPositions, setMyTeamPositions] = useState({ 
@@ -28,13 +26,27 @@ export default function NHLRoster() {
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ANA'); // Default to Anaheim Ducks
   const [pickupTeam, setPickupTeam] = useState<string>(''); // Admin: which team to pick up for
-  const [injuries, setInjuries] = useState<InjuryReport[]>([]);
   
   // League context for showing user's team
   const { myTeam, league, isAdmin } = useLeague();
   
   // Draft context
   const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
+  
+  // React Query hooks - automatic caching and refetching!
+  const { data: injuries = [], isLoading: injuriesLoading } = useInjuries();
+  const { data: rosterData, isLoading: rosterLoading, error: rosterError } = useTeamRoster(
+    teamFilter as TeamAbbrev
+  );
+  
+  // Extract and flatten roster from query data
+  const roster: RosterPerson[] = rosterData ? getAllPlayers(rosterData).map(player => {
+    // Add team abbreviation to each player
+    (player as any).teamAbbrev = teamFilter;
+    return player;
+  }) : [];
+  const loading = rosterLoading;
+  const error = rosterError ? (rosterError as Error).message : null;
 
   // Admin: Pick up free agent for a team
   const pickUpFreeAgent = async (rosterPlayer: any) => {
@@ -96,125 +108,8 @@ export default function NHLRoster() {
     }
   };
 
-  // Fetch single team roster
-  const fetchSingleTeam = async (teamAbbrev: TeamAbbrev) => {
-    const CACHE_KEY = `nhl_team_${teamAbbrev}`;
-    const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
-    
-    try {
-      setLoading(true);
-      setError(null);
-      setRoster([]);
-      
-      // Check cache first
-      const cached = localStorage.getItem(CACHE_KEY);
-      const cacheTime = localStorage.getItem(`${CACHE_KEY}_time`);
-      
-      if (cached && cacheTime) {
-        const age = Date.now() - parseInt(cacheTime);
-        if (age < CACHE_DURATION) {
-          console.log(`📦 Loading ${teamAbbrev} from cache (instant!)`);
-          const cachedPlayers = JSON.parse(cached);
-          setRoster(cachedPlayers);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      console.log(`🏒 Loading ${NHL_TEAMS[teamAbbrev]} roster...`);
-      const startTime = Date.now();
-      
-      const rosterData = await getTeamRoster(teamAbbrev);
-      const teamPlayers = getAllPlayers(rosterData);
-      
-      // Add team info to each player
-      teamPlayers.forEach(player => {
-        (player as any).teamAbbrev = teamAbbrev;
-      });
-      
-      const loadTime = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(`✅ Loaded ${teamPlayers.length} players from ${NHL_TEAMS[teamAbbrev]} in ${loadTime}s`);
-      
-      // Cache the results
-      localStorage.setItem(CACHE_KEY, JSON.stringify(teamPlayers));
-      localStorage.setItem(`${CACHE_KEY}_time`, Date.now().toString());
-      
-      setRoster(teamPlayers);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch roster data';
-      setError(errorMessage);
-      console.error(err);
-      setRoster([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch all teams roster
-  const fetchAllPlayers = async () => {
-    const CACHE_KEY = 'nhl_all_players';
-    const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
-    
-    try {
-      setLoading(true);
-      setError(null);
-      setRoster([]);
-      
-      // Check cache first
-      const cached = localStorage.getItem(CACHE_KEY);
-      const cacheTime = localStorage.getItem(`${CACHE_KEY}_time`);
-      
-      if (cached && cacheTime) {
-        const age = Date.now() - parseInt(cacheTime);
-        if (age < CACHE_DURATION) {
-          console.log('📦 Loading from cache (instant!)');
-          const cachedPlayers = JSON.parse(cached);
-          setRoster(cachedPlayers);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      console.log('🏒 Loading all NHL players in parallel...');
-      const startTime = Date.now();
-      
-      // Fetch ALL teams in parallel (much faster than sequential)
-      const teamPromises = (Object.keys(NHL_TEAMS) as TeamAbbrev[]).map(async (teamAbbrev) => {
-        try {
-          const rosterData = await getTeamRoster(teamAbbrev);
-          const teamPlayers = getAllPlayers(rosterData);
-          // Add team info to each player
-          teamPlayers.forEach(player => {
-            (player as any).teamAbbrev = teamAbbrev;
-          });
-          return teamPlayers;
-        } catch (err) {
-          console.warn(`Failed to load ${teamAbbrev}:`, err);
-          return [];
-        }
-      });
-      
-      // Wait for all teams to finish loading
-      const results = await Promise.all(teamPromises);
-      const allPlayers = results.flat();
-      
-      const loadTime = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(`✅ Loaded ${allPlayers.length} players from ${Object.keys(NHL_TEAMS).length} teams in ${loadTime}s`);
-      
-      // Cache the results
-      localStorage.setItem(CACHE_KEY, JSON.stringify(allPlayers));
-      localStorage.setItem(`${CACHE_KEY}_time`, Date.now().toString());
-      
-      setRoster(allPlayers);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch roster data';
-      setError(errorMessage);
-      console.error(err);
-      setRoster([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Note: React Query now handles all data fetching and caching!
+  // No more manual fetch functions needed.
 
   // Set up real-time listener for drafted players
   useEffect(() => {
@@ -371,27 +266,8 @@ export default function NHLRoster() {
     }
   };
 
-  // Fetch injuries on mount
-  useEffect(() => {
-    const loadInjuries = async () => {
-      const data = await fetchAllInjuries();
-      setInjuries(data);
-    };
-    loadInjuries();
-    
-    // Refresh injuries every 5 minutes
-    const interval = setInterval(loadInjuries, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Load roster based on teamFilter selection
-  useEffect(() => {
-    if (teamFilter === 'ALL') {
-      fetchAllPlayers();
-    } else {
-      fetchSingleTeam(teamFilter as TeamAbbrev);
-    }
-  }, [teamFilter]); // Reload when teamFilter changes
+  // React Query automatically handles data fetching and caching based on teamFilter
+  // No manual useEffects needed!
 
   const getPositionBadgeColor = (positionCode: string) => {
     switch (positionCode) {

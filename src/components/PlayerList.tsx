@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, doc, query, where, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
-import { fetchAllInjuries, isPlayerInjuredByName, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
+import { useInjuries } from '../queries/useInjuries';
 
 interface DraftedPlayer {
   id: string;
@@ -31,7 +32,9 @@ export default function PlayerList() {
     position: string;
     currentSlot: 'active' | 'reserve';
   } | null>(null);
-  const [injuries, setInjuries] = useState<InjuryReport[]>([]);
+  
+  // React Query hook for injuries - automatic caching!
+  const { data: injuries = [] } = useInjuries();
 
   // Calculate next Saturday at 9 AM ET
   const getNextSaturday = () => {
@@ -174,18 +177,7 @@ export default function PlayerList() {
   // Note: With atomic swaps, we don't need validation functions
   // The swap logic ensures active roster stays at exactly 9F/6D/2G
 
-  // Fetch injuries on mount
-  useEffect(() => {
-    const loadInjuries = async () => {
-      const data = await fetchAllInjuries();
-      setInjuries(data);
-    };
-    loadInjuries();
-    
-    // Refresh injuries every 5 minutes
-    const interval = setInterval(loadInjuries, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  // React Query automatically handles injury fetching and refetching!
 
   // Real-time listener for drafted players
   useEffect(() => {

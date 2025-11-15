@@ -1,32 +1,16 @@
-import { useState, useEffect } from 'react';
-import { fetchAllInjuries, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { useState } from 'react';
+import { getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { useInjuries } from '../queries/useInjuries';
 
 export default function Injuries() {
-  const [injuries, setInjuries] = useState<InjuryReport[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [teamFilter, setTeamFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const loadInjuries = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchAllInjuries();
-      setInjuries(data);
-      setLastUpdated(new Date());
-    } catch (err) {
-      setError('Failed to load injury data from ESPN');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // React Query hook - automatic caching and refetching!
+  const { data: injuries = [], isLoading: loading, dataUpdatedAt, error, refetch } = useInjuries();
 
-  useEffect(() => {
-    loadInjuries();
-  }, []);
+  // Convert dataUpdatedAt timestamp to Date
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
   // Get unique teams
   const teams = Array.from(new Set(injuries.map(i => i.teamAbbrev))).sort();
@@ -109,11 +93,11 @@ export default function Injuries() {
           {/* Refresh Button */}
           <div className="md:w-auto md:self-end">
             <button
-              onClick={loadInjuries}
+              onClick={() => refetch()}
               disabled={loading}
-              className="w-full md:w-auto px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors disabled:bg-gray-600"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded transition-colors flex items-center gap-2"
             >
-              {loading ? '🔄 Loading...' : '🔄 Refresh'}
+              🔄 {loading ? 'Refreshing...' : 'Refresh Injuries'}
             </button>
           </div>
         </div>
@@ -136,9 +120,9 @@ export default function Injuries() {
       {/* Error State */}
       {error && (
         <div className="bg-red-900/50 border border-red-600 p-6 rounded-lg shadow-lg mb-8">
-          <p className="text-red-200 font-semibold">⚠️ {error}</p>
+          <p className="text-red-200 font-semibold">⚠️ {(error as Error).message}</p>
           <button
-            onClick={loadInjuries}
+            onClick={() => refetch()}
             className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white"
           >
             Try Again

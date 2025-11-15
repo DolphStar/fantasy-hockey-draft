@@ -4,7 +4,8 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import type { TeamScore } from '../utils/scoringEngine';
 import LiveStats from './LiveStats';
-import { fetchAllInjuries, isPlayerInjuredByName, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
+import { useInjuries } from '../queries/useInjuries';
 // Import utilities for existing leagues
 import '../utils/updateLeague';
 import '../utils/clearScores';
@@ -25,20 +26,11 @@ export default function Standings() {
   const [playerPerformances, setPlayerPerformances] = useState<PlayerPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(true);
-  const [injuries, setInjuries] = useState<InjuryReport[]>([]);
+  
+  // React Query hook for injuries - automatic caching!
+  const { data: injuries = [] } = useInjuries();
 
-  // Fetch injuries on mount
-  useEffect(() => {
-    const loadInjuries = async () => {
-      const data = await fetchAllInjuries();
-      setInjuries(data);
-    };
-    loadInjuries();
-    
-    // Refresh injuries every 5 minutes
-    const interval = setInterval(loadInjuries, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  // React Query automatically handles injury fetching and refetching!
 
   // Fetch standings
   useEffect(() => {
