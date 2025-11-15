@@ -515,7 +515,7 @@ export default function NHLRoster() {
                   <span>Waiting for <span className="text-yellow-400">{currentPick.team}</span></span>
                 )}
               </p>
-              {isMyTurn && league?.rosterSettings && (
+              {myTeam && league?.rosterSettings && (
                 <div className="mt-2 flex gap-4 text-sm">
                   <span className={myTeamPositions.active.F >= league.rosterSettings.forwards ? 'text-green-400' : 'text-gray-400'}>
                     F: {myTeamPositions.active.F}/{league.rosterSettings.forwards}
