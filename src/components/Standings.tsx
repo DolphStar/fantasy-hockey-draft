@@ -401,17 +401,15 @@ export default function Standings() {
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* How Scoring Works Info Box */}
-      {playerPerformances.length > 0 && (
-        <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mt-6">
-          <p className="text-blue-200 text-sm">
-            💡 <strong>How Scoring Works:</strong> Every day, the system automatically checks yesterday's NHL games and 
-            calculates fantasy points for your drafted players based on their real-life performance. Points are added 
-            to your team's total score.
-          </p>
+          
+          {/* How Scoring Works Info Box */}
+          <div className="bg-blue-900/30 border-t border-blue-500/30 p-4">
+            <p className="text-blue-200 text-sm">
+              💡 <strong>How Scoring Works:</strong> Every day, the system automatically checks yesterday's NHL games and 
+              calculates fantasy points for your drafted players based on their real-life performance. Points are added 
+              to your team's total score.
+            </p>
+          </div>
         </div>
       )}
 
