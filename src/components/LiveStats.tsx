@@ -7,7 +7,7 @@ import type { LivePlayerStats } from '../utils/liveStats';
 import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 
 export default function LiveStats() {
-  const { league } = useLeague();
+  const { league, myTeam } = useLeague();
   const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
   const [upcomingMatchups, setUpcomingMatchups] = useState<PlayerMatchup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,21 +54,25 @@ export default function LiveStats() {
 
   // Fetch upcoming matchups when no live stats
   useEffect(() => {
-    if (!league || liveStats.length > 0) return;
+    if (!league || !myTeam || liveStats.length > 0) return;
 
     const fetchMatchups = async () => {
       try {
         // Fetch today's schedule
         const todaysGames = await fetchTodaySchedule();
         
-        // Get user's roster from drafted players
+        // Get user's roster from drafted players (ONLY YOUR TEAM)
         const draftedPlayersSnapshot = await onSnapshot(
           collection(db, 'draftedPlayers'),
           (snapshot) => {
             const roster = snapshot.docs
               .filter(doc => {
                 const data = doc.data();
-                return data.leagueId === league.id && data.rosterSlot === 'active';
+                return (
+                  data.leagueId === league.id && 
+                  data.rosterSlot === 'active' &&
+                  data.draftedByTeam === myTeam.teamName  // ← FILTER BY YOUR TEAM!
+                );
               })
               .map(doc => {
                 const data = doc.data();
@@ -92,7 +96,7 @@ export default function LiveStats() {
     };
 
     fetchMatchups();
-  }, [league, liveStats.length]);
+  }, [league, myTeam, liveStats.length]);
 
   // Auto-refresh countdown timer
   useEffect(() => {
