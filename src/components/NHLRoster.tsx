@@ -11,6 +11,7 @@ import { db } from '../firebase';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
+import { fetchAllInjuries, isPlayerInjured, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
 
 export default function NHLRoster() {
   const [roster, setRoster] = useState<RosterPerson[]>([]);
@@ -27,6 +28,7 @@ export default function NHLRoster() {
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ANA'); // Default to Anaheim Ducks
   const [pickupTeam, setPickupTeam] = useState<string>(''); // Admin: which team to pick up for
+  const [injuries, setInjuries] = useState<InjuryReport[]>([]);
   
   // League context for showing user's team
   const { myTeam, league, isAdmin } = useLeague();
@@ -369,6 +371,19 @@ export default function NHLRoster() {
     }
   };
 
+  // Fetch injuries on mount
+  useEffect(() => {
+    const loadInjuries = async () => {
+      const data = await fetchAllInjuries();
+      setInjuries(data);
+    };
+    loadInjuries();
+    
+    // Refresh injuries every 5 minutes
+    const interval = setInterval(loadInjuries, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Load roster based on teamFilter selection
   useEffect(() => {
     if (teamFilter === 'ALL') {
@@ -624,6 +639,14 @@ export default function NHLRoster() {
                             DRAFTED
                           </span>
                         )}
+                        {(() => {
+                          const injury = isPlayerInjured(rosterPlayer.person.id, injuries);
+                          return injury && (
+                            <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
+                              {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <p className="text-white font-medium text-lg mb-1">
                         {getPlayerFullName(rosterPlayer)}
