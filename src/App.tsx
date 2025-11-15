@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import PlayerList from './components/PlayerList'
 import NHLRoster from './components/NHLRoster'
-import DraftBoard from './components/DraftBoard'
+import DraftBoardGrid from './components/DraftBoardGrid'
 import LeagueSettings from './components/LeagueSettings'
 import Standings from './components/Standings'
 import LeagueChat from './components/LeagueChat'
@@ -159,7 +159,7 @@ function App() {
 
       {/* Tab Content */}
       {activeTab === 'roster' && <NHLRoster />}
-      {activeTab === 'draftBoard' && <DraftBoard />}
+      {activeTab === 'draftBoard' && <DraftBoardGrid />}
       {activeTab === 'myPlayers' && <PlayerList />}
       {activeTab === 'standings' && <Standings />}
       {activeTab === 'injuries' && <Injuries />}
