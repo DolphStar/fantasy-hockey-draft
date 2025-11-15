@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useDraft } from '../context/DraftContext';
+import { useLeague } from '../context/LeagueContext';
 
 interface DraftedPlayer {
   id: string;
@@ -18,6 +19,7 @@ interface DraftedPlayer {
 }
 
 export default function DraftBoard() {
+  const { league } = useLeague();
   const [draftedPlayers, setDraftedPlayers] = useState<DraftedPlayer[]>([]);
   const [loading, setLoading] = useState(false);
   const { draftState, currentPick } = useDraft();
@@ -80,6 +82,18 @@ export default function DraftBoard() {
     };
     return colors[teamName] || 'border-l-4 border-gray-500 bg-gray-900/20';
   };
+
+  // Show message if no league
+  if (!league) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <h2 className="text-3xl font-bold mb-6 text-white">Draft Board</h2>
+        <div className="bg-gray-800 p-6 rounded-lg shadow-lg text-center">
+          <p className="text-gray-400">No league found. Create or join a league to see the draft board.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6">

@@ -263,9 +263,21 @@ export default function PlayerList() {
   const rosterCounts = countActiveRoster();
   const nextSaturday = getNextSaturday();
 
+  // Show message if no league or team
+  if (!league || !myTeam) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <h2 className="text-3xl font-bold mb-6 text-white">My Players</h2>
+        <div className="bg-gray-800 p-6 rounded-lg shadow-lg text-center">
+          <p className="text-gray-400">No league found. Create or join a league to see your roster.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-6 text-white">{myTeam?.teamName || 'My'}'s Roster</h2>
+      <h2 className="text-3xl font-bold mb-6 text-white">{myTeam.teamName}'s Roster</h2>
 
       {/* Roster Lock Info */}
       <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mb-4">
