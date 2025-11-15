@@ -224,39 +224,71 @@ export default function LiveStats() {
             
             {upcomingMatchups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
-                {upcomingMatchups.map((matchup) => (
+                {/* Group matchups by game */}
+                {Object.entries(
+                  upcomingMatchups.reduce((acc, matchup) => {
+                    const gameKey = `${matchup.teamAbbrev}-${matchup.opponent}-${matchup.gameTime}`;
+                    if (!acc[gameKey]) {
+                      acc[gameKey] = {
+                        teamAbbrev: matchup.teamAbbrev,
+                        opponent: matchup.opponent,
+                        gameTime: matchup.gameTime,
+                        isHome: matchup.isHome,
+                        players: []
+                      };
+                    }
+                    acc[gameKey].players.push(matchup);
+                    return acc;
+                  }, {} as Record<string, any>)
+                ).map(([gameKey, game]) => (
                   <div 
-                    key={matchup.playerId} 
+                    key={gameKey} 
                     className="bg-gray-750 p-4 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      {/* Player Headshot */}
+                    {/* Game Header with Team Logos */}
+                    <div className="flex items-center justify-between mb-3">
                       <img
-                        src={`https://assets.nhle.com/mugs/nhl/20242025/${matchup.teamAbbrev}/${matchup.playerId}.png`}
-                        alt={matchup.playerName}
-                        onError={(e) => {
-                          e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
-                        }}
-                        className="w-12 h-12 rounded-full border-2 border-gray-600"
+                        src={`https://assets.nhle.com/logos/nhl/svg/${game.isHome ? game.opponent : game.teamAbbrev}_dark.svg`}
+                        alt={game.isHome ? game.opponent : game.teamAbbrev}
+                        className="w-10 h-10"
                       />
-                      
-                      <div className="flex-1 text-left">
-                        <p className="text-white font-semibold text-sm">{matchup.playerName}</p>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-gray-400">{matchup.teamAbbrev}</span>
-                          <span className="text-blue-400">vs</span>
-                          <span className="text-gray-400">{matchup.opponent}</span>
-                          <span className="text-gray-500">•</span>
-                          <span className="text-green-400">{matchup.gameTime}</span>
-                        </div>
+                      <div className="text-center">
+                        <p className="text-gray-400 text-xs">Game Time</p>
+                        <p className="text-green-400 font-bold text-sm">{game.gameTime}</p>
                       </div>
-                      
-                      {/* Team Logo */}
                       <img
-                        src={`https://assets.nhle.com/logos/nhl/svg/${matchup.teamAbbrev}_dark.svg`}
-                        alt={matchup.teamAbbrev}
-                        className="w-8 h-8 opacity-50"
+                        src={`https://assets.nhle.com/logos/nhl/svg/${game.isHome ? game.teamAbbrev : game.opponent}_dark.svg`}
+                        alt={game.isHome ? game.teamAbbrev : game.opponent}
+                        className="w-10 h-10"
                       />
+                    </div>
+                    
+                    {/* Matchup Text */}
+                    <p className="text-center text-white font-semibold text-sm mb-3">
+                      {game.isHome ? game.opponent : game.teamAbbrev} <span className="text-gray-500">@</span> {game.isHome ? game.teamAbbrev : game.opponent}
+                    </p>
+                    
+                    {/* Your Players */}
+                    <div className="border-t border-gray-700 pt-3">
+                      <p className="text-gray-400 text-xs mb-2">Your Players ({game.players.length}):</p>
+                      <div className="flex flex-wrap gap-2">
+                        {game.players.map((player: any) => (
+                          <div
+                            key={player.playerId}
+                            className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded border border-gray-600"
+                          >
+                            <img
+                              src={`https://assets.nhle.com/mugs/nhl/20242025/${player.teamAbbrev}/${player.playerId}.png`}
+                              alt={player.playerName}
+                              onError={(e) => {
+                                e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
+                              }}
+                              className="w-6 h-6 rounded-full"
+                            />
+                            <span className="text-white text-xs font-medium">{player.playerName}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
