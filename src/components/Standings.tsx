@@ -26,6 +26,7 @@ export default function Standings() {
   const [playerPerformances, setPlayerPerformances] = useState<PlayerPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(true);
+  const [showScoringRules, setShowScoringRules] = useState(false);
   
   // React Query hook for injuries - automatic caching!
   const { data: injuries = [] } = useInjuries();
@@ -87,39 +88,111 @@ export default function Standings() {
     <div className="max-w-4xl mx-auto p-6">
       <h2 className="text-3xl font-bold mb-6 text-white">{league.leagueName} - Standings</h2>
 
-      {/* Scoring Rules Info */}
+      {/* Collapsible Scoring Rules */}
       {league.scoringRules && (
-        <div className="bg-gray-800 p-4 rounded-lg mb-6">
-          <h3 className="text-lg font-semibold text-white mb-2">📊 Scoring Rules</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-300">
-            <div>
-              <p className="font-semibold text-white mb-1">Skaters</p>
-              <p>Goal: {league.scoringRules.goal}pt</p>
-              <p>Assist: {league.scoringRules.assist}pt</p>
-              <p>SH Goal: +{league.scoringRules.shortHandedGoal}pt</p>
-              <p>OT Goal: +{league.scoringRules.overtimeGoal}pt</p>
-              <p>Fight: {league.scoringRules.fight}pts</p>
+        <div className="bg-gray-800/50 rounded-lg mb-6 border border-gray-700">
+          <button
+            onClick={() => setShowScoringRules(!showScoringRules)}
+            className="w-full p-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors rounded-lg"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">📊</span>
+              <h3 className="text-lg font-bold text-white">Scoring Rules</h3>
+              <span className="text-gray-400 text-sm">How points are calculated</span>
             </div>
-            <div>
-              <p className="font-semibold text-white mb-1">Defense</p>
-              <p>Blocked Shot: {league.scoringRules.blockedShot}pt</p>
-              <p>Hit: {league.scoringRules.hit}pt</p>
+            <span className="text-gray-400 text-xl">{showScoringRules ? '▼' : '▶'}</span>
+          </button>
+          
+          {showScoringRules && (
+            <div className="p-4 pt-0 space-y-4">
+              {/* Skaters */}
+              <div>
+                <h4 className="text-sm font-bold text-blue-400 mb-3 uppercase tracking-wide">⚡ Skaters</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">⚽</div>
+                    <div className="text-xs text-gray-400 mb-1">Goal</div>
+                    <div className="text-lg font-bold text-green-400">+{league.scoringRules.goal}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">🎯</div>
+                    <div className="text-xs text-gray-400 mb-1">Assist</div>
+                    <div className="text-lg font-bold text-green-400">+{league.scoringRules.assist}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">⭐</div>
+                    <div className="text-xs text-gray-400 mb-1">SH Goal</div>
+                    <div className="text-lg font-bold text-yellow-400">+{league.scoringRules.shortHandedGoal}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">⏰</div>
+                    <div className="text-xs text-gray-400 mb-1">OT Goal</div>
+                    <div className="text-lg font-bold text-yellow-400">+{league.scoringRules.overtimeGoal}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">🥊</div>
+                    <div className="text-xs text-gray-400 mb-1">Fight</div>
+                    <div className="text-lg font-bold text-red-400">+{league.scoringRules.fight}</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Defense */}
+              <div>
+                <h4 className="text-sm font-bold text-green-400 mb-3 uppercase tracking-wide">🛡️ Defense</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">🛡️</div>
+                    <div className="text-xs text-gray-400 mb-1">Blocked Shot</div>
+                    <div className="text-lg font-bold text-green-400">+{league.scoringRules.blockedShot}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">💥</div>
+                    <div className="text-xs text-gray-400 mb-1">Hit</div>
+                    <div className="text-lg font-bold text-green-400">+{league.scoringRules.hit}</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Goalies */}
+              <div>
+                <h4 className="text-sm font-bold text-purple-400 mb-3 uppercase tracking-wide">🥅 Goalies</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">🏆</div>
+                    <div className="text-xs text-gray-400 mb-1">Win</div>
+                    <div className="text-lg font-bold text-green-400">+{league.scoringRules.win}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">🚫</div>
+                    <div className="text-xs text-gray-400 mb-1">Shutout</div>
+                    <div className="text-lg font-bold text-yellow-400">+{league.scoringRules.shutout}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">🥅</div>
+                    <div className="text-xs text-gray-400 mb-1">Save</div>
+                    <div className="text-lg font-bold text-green-400">+{league.scoringRules.save}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">🎯</div>
+                    <div className="text-xs text-gray-400 mb-1">G Assist</div>
+                    <div className="text-lg font-bold text-green-400">+{league.scoringRules.goalieAssist}</div>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                    <div className="text-2xl mb-1">⚽</div>
+                    <div className="text-xs text-gray-400 mb-1">G Goal</div>
+                    <div className="text-lg font-bold text-yellow-400">+{league.scoringRules.goalieGoal}</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-white mb-1">Goalies</p>
-              <p>Win: {league.scoringRules.win}pt</p>
-              <p>Shutout: {league.scoringRules.shutout}pts</p>
-              <p>Save: {league.scoringRules.save}pt</p>
-              <p>Assist: {league.scoringRules.goalieAssist}pt</p>
-              <p>Goal: {league.scoringRules.goalieGoal}pts!</p>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
       {/* Standings Table */}
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
           <h3 className="text-2xl font-bold text-white flex items-center gap-2">
             🏆 Current Standings
           </h3>
@@ -296,14 +369,6 @@ export default function Standings() {
         </div>
       )}
 
-      {/* Info Box */}
-      <div className="bg-blue-900/30 border border-blue-500 p-4 rounded-lg mt-6">
-        <p className="text-blue-200 text-sm">
-          💡 <strong>How Scoring Works:</strong> Every day, the system automatically checks yesterday's NHL games and 
-          calculates fantasy points for your drafted players based on their real-life performance. Points are added 
-          to your team's total score.
-        </p>
-      </div>
     </div>
   );
 }
