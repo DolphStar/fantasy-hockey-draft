@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { VirtuosoGrid } from 'react-virtuoso';
+import { toast } from 'sonner';
 import { 
   getPlayerFullName,
   getAllPlayers,
@@ -98,12 +99,16 @@ export default function NHLRoster() {
   // Admin: Pick up free agent for a team
   const pickUpFreeAgent = async (rosterPlayer: any) => {
     if (!isAdmin) {
-      alert('❌ Only the league admin can pick up free agents.');
+      toast.error('Admin only', {
+        description: 'Only the league admin can pick up free agents.'
+      });
       return;
     }
 
     if (!pickupTeam) {
-      alert('⚠️ Please select a team to pick up this player for.');
+      toast.warning('Select a team', {
+        description: 'Please choose which team to pick up this player for.'
+      });
       return;
     }
 
@@ -112,7 +117,9 @@ export default function NHLRoster() {
       
       // Check if already drafted
       if (draftedPlayerIds.has(rosterPlayer.person.id)) {
-        alert('This player has already been drafted!');
+        toast.error('Player already drafted!', {
+          description: `${getPlayerFullName(rosterPlayer)} has already been selected.`
+        });
         setDraftingPlayerId(null);
         return;
       }
@@ -146,10 +153,14 @@ export default function NHLRoster() {
       setDraftedPlayerIds(prev => new Set(prev).add(rosterPlayer.person.id));
       
       console.log(`Admin picked up: ${getPlayerFullName(rosterPlayer)} for ${pickupTeam}`);
-      alert(`✅ Successfully picked up ${getPlayerFullName(rosterPlayer)} for ${pickupTeam}!`);
+      toast.success(`Picked up ${getPlayerFullName(rosterPlayer)}!`, {
+        description: `Added to ${pickupTeam}'s active roster as a free agent.`
+      });
     } catch (error) {
       console.error('Error picking up player:', error);
-      alert('Failed to pick up player. Please try again.');
+      toast.error('Failed to pick up player', {
+        description: 'Something went wrong. Please try again.'
+      });
     } finally {
       setDraftingPlayerId(null);
     }
@@ -227,12 +238,16 @@ export default function NHLRoster() {
   // Draft a player to Firebase
   const onDraftPlayer = async (rosterPlayer: RosterPerson, forceReserve: boolean = false) => {
     if (!isMyTurn) {
-      alert("It's not your turn!");
+      toast.error("It's not your turn!", {
+        description: "Wait for your pick to come around."
+      });
       return;
     }
 
     if (!currentPick) {
-      alert('Draft is complete!');
+      toast.error('Draft is complete!', {
+        description: "All picks have been made."
+      });
       return;
     }
 
@@ -241,7 +256,9 @@ export default function NHLRoster() {
       
       // Check if already drafted
       if (draftedPlayerIds.has(rosterPlayer.person.id)) {
-        alert('This player has already been drafted!');
+        toast.error('Player already drafted!', {
+          description: `${getPlayerFullName(rosterPlayer)} has already been selected.`
+        });
         setDraftingPlayerId(null);
         return;
       }
@@ -254,29 +271,25 @@ export default function NHLRoster() {
       if (forceReserve) {
         // User confirmed adding to reserves
         if (!canAddToReserves) {
-          alert('Reserve roster is full (5/5)! Cannot draft more players.');
+          toast.error('Reserve roster full!', {
+            description: 'You have 5/5 reserves. Cannot draft more players.'
+          });
           setDraftingPlayerId(null);
           return;
         }
         rosterSlot = 'reserve';
       } else if (!canAddToActive) {
-        // Active position is full
+        // Active position is full - AUTO-ADD to reserves (no popup!)
         if (canAddToReserves) {
-          // Ask user if they want to add to reserves
-          const posName = rosterPlayer.position.name;
-          const confirmed = window.confirm(
-            `Active ${posName} roster is full (${myTeamPositions.active.F + myTeamPositions.active.D + myTeamPositions.active.G} active players).\n\n` +
-            `Add "${getPlayerFullName(rosterPlayer)}" to RESERVES instead?\n\n` +
-            `Reserves: ${myTeamPositions.reserve}/5`
-          );
-          
-          if (!confirmed) {
-            setDraftingPlayerId(null);
-            return;
-          }
           rosterSlot = 'reserve';
+          // Show info toast that we're adding to reserves
+          toast.info('Adding to reserves', {
+            description: `Active ${rosterPlayer.position.name} roster is full. Adding to bench.`
+          });
         } else {
-          alert(`Cannot draft: Active ${rosterPlayer.position.name} roster is full AND reserves are full (5/5)!`);
+          toast.error('Roster full!', {
+            description: `Active ${rosterPlayer.position.name} roster and reserves (5/5) are both full!`
+          });
           setDraftingPlayerId(null);
           return;
         }
@@ -304,10 +317,17 @@ export default function NHLRoster() {
       // Advance to next pick
       await advancePick();
       
+      // Show success toast
+      toast.success(`Drafted ${getPlayerFullName(rosterPlayer)}!`, {
+        description: `${rosterPlayer.position.code} • ${(rosterPlayer as any).teamAbbrev} • Pick #${currentPick.pick} → ${rosterSlot === 'reserve' ? 'Reserves' : 'Active Roster'}`
+      });
+      
       console.log(`${currentPick.team} drafted: ${getPlayerFullName(rosterPlayer)} (Pick #${currentPick.pick})`);
     } catch (error) {
       console.error('Error drafting player:', error);
-      alert('Failed to draft player. Please try again.');
+      toast.error('Failed to draft player', {
+        description: 'Something went wrong. Please try again.'
+      });
     } finally {
       setDraftingPlayerId(null);
     }

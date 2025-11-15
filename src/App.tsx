@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Toaster } from 'sonner'
 import PlayerList from './components/PlayerList'
 import NHLRoster from './components/NHLRoster'
 import DraftBoardGrid from './components/DraftBoardGrid'
@@ -52,6 +53,9 @@ function App() {
   try {
     return (
       <div className="min-h-screen bg-gray-900 py-8">
+        {/* Toast Notifications */}
+        <Toaster position="top-right" richColors />
+        
         {/* Header with User Info */}
         <div className="max-w-6xl mx-auto px-6 mb-8">
           <div className="flex justify-between items-center">
