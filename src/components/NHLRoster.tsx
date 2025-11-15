@@ -25,7 +25,7 @@ export default function NHLRoster() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
-  const [teamFilter, setTeamFilter] = useState<string>('ALL');
+  const [teamFilter, setTeamFilter] = useState<string>('ANA'); // Default to Anaheim Ducks
   
   // League context for showing user's team
   const { myTeam, league } = useLeague();
@@ -33,6 +33,61 @@ export default function NHLRoster() {
   // Draft context
   const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
 
+  // Fetch single team roster
+  const fetchSingleTeam = async (teamAbbrev: TeamAbbrev) => {
+    const CACHE_KEY = `nhl_team_${teamAbbrev}`;
+    const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+    
+    try {
+      setLoading(true);
+      setError(null);
+      setRoster([]);
+      
+      // Check cache first
+      const cached = localStorage.getItem(CACHE_KEY);
+      const cacheTime = localStorage.getItem(`${CACHE_KEY}_time`);
+      
+      if (cached && cacheTime) {
+        const age = Date.now() - parseInt(cacheTime);
+        if (age < CACHE_DURATION) {
+          console.log(`📦 Loading ${teamAbbrev} from cache (instant!)`);
+          const cachedPlayers = JSON.parse(cached);
+          setRoster(cachedPlayers);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      console.log(`🏒 Loading ${NHL_TEAMS[teamAbbrev]} roster...`);
+      const startTime = Date.now();
+      
+      const rosterData = await getTeamRoster(teamAbbrev);
+      const teamPlayers = getAllPlayers(rosterData);
+      
+      // Add team info to each player
+      teamPlayers.forEach(player => {
+        (player as any).teamAbbrev = teamAbbrev;
+      });
+      
+      const loadTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`✅ Loaded ${teamPlayers.length} players from ${NHL_TEAMS[teamAbbrev]} in ${loadTime}s`);
+      
+      // Cache the results
+      localStorage.setItem(CACHE_KEY, JSON.stringify(teamPlayers));
+      localStorage.setItem(`${CACHE_KEY}_time`, Date.now().toString());
+      
+      setRoster(teamPlayers);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch roster data';
+      setError(errorMessage);
+      console.error(err);
+      setRoster([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch all teams roster
   const fetchAllPlayers = async () => {
     const CACHE_KEY = 'nhl_all_players';
     const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -253,9 +308,14 @@ export default function NHLRoster() {
     }
   };
 
+  // Load roster based on teamFilter selection
   useEffect(() => {
-    fetchAllPlayers();
-  }, []); // Load once on mount
+    if (teamFilter === 'ALL') {
+      fetchAllPlayers();
+    } else {
+      fetchSingleTeam(teamFilter as TeamAbbrev);
+    }
+  }, [teamFilter]); // Reload when teamFilter changes
 
   const getPositionBadgeColor = (positionCode: string) => {
     switch (positionCode) {
