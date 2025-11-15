@@ -109,7 +109,7 @@ export default function DraftBoardGrid() {
               {teams.map((team, idx) => (
                 <th
                   key={team.teamName}
-                  className={`border border-gray-700 p-3 text-center text-white font-bold min-w-[180px] border-t-4 ${teamColors[idx % teamColors.length]}`}
+                  className={`border border-gray-700 p-3 text-center text-white font-bold min-w-[220px] border-t-4 ${teamColors[idx % teamColors.length]}`}
                 >
                   <div className="flex flex-col gap-1">
                     <span className="text-sm font-bold truncate">{team.teamName}</span>
@@ -146,7 +146,7 @@ export default function DraftBoardGrid() {
                     return (
                       <td
                         key={pickNumber}
-                        className={`border border-gray-700 p-2 transition-all ${
+                        className={`border border-gray-700 p-2 transition-all min-h-[140px] ${
                           isCurrentPick
                             ? 'bg-yellow-500/20 border-yellow-500 border-2 animate-pulse'
                             : isPastPick
@@ -157,8 +157,8 @@ export default function DraftBoardGrid() {
                         {player ? (
                           // Drafted Player Cell
                           <div className="group relative">
-                            <div className="flex items-center gap-2 p-2 rounded hover:bg-gray-700/50 transition-colors cursor-pointer">
-                              {/* Player Headshot */}
+                            <div className="flex flex-col items-center gap-2 p-3 rounded hover:bg-gray-700/50 transition-colors cursor-pointer">
+                              {/* Player Headshot with Team Logo */}
                               <div className="relative flex-shrink-0">
                                 <img
                                   src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.teamAbbrev}/${player.playerId}.png`}
@@ -166,11 +166,11 @@ export default function DraftBoardGrid() {
                                   onError={(e) => {
                                     e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
                                   }}
-                                  className="w-10 h-10 rounded-full border-2 border-gray-600 bg-gray-800"
+                                  className="w-16 h-16 rounded-full border-2 border-gray-600 bg-gray-800"
                                 />
                                 {/* Team Logo Badge */}
                                 {player.teamAbbrev && (
-                                  <div className="absolute -bottom-1 -right-1 w-5 h-5">
+                                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gray-900 rounded-full p-0.5">
                                     <img
                                       src={`https://assets.nhle.com/logos/nhl/svg/${player.teamAbbrev}_dark.svg`}
                                       alt={player.teamAbbrev}
@@ -181,13 +181,18 @@ export default function DraftBoardGrid() {
                               </div>
 
                               {/* Player Info */}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-white font-semibold text-sm truncate">
+                              <div className="flex-1 w-full text-center">
+                                <p className="text-white font-bold text-sm truncate mb-1">
                                   {player.playerName}
                                 </p>
-                                <p className="text-gray-400 text-xs">
-                                  {player.position} • {player.teamAbbrev}
-                                </p>
+                                <div className="flex items-center justify-center gap-1 mb-1">
+                                  <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded font-bold">
+                                    {player.position}
+                                  </span>
+                                  <span className="bg-gray-700 text-white text-xs px-2 py-0.5 rounded font-bold">
+                                    {player.teamAbbrev}
+                                  </span>
+                                </div>
                                 <p className="text-gray-500 text-xs">
                                   Pick #{pickNumber}
                                 </p>
@@ -223,17 +228,19 @@ export default function DraftBoardGrid() {
                           </div>
                         ) : isCurrentPick ? (
                           // Current Pick Indicator
-                          <div className="flex flex-col items-center justify-center py-6 text-center">
-                            <div className="text-3xl mb-2 animate-bounce">⏰</div>
-                            <p className="text-yellow-400 font-bold text-sm">ON THE CLOCK</p>
-                            <p className="text-white text-xs mt-1">{team.teamName}</p>
-                            <p className="text-gray-400 text-xs">Pick #{pickNumber}</p>
+                          <div className="flex flex-col items-center justify-center py-8 text-center h-full">
+                            <div className="text-4xl mb-3 animate-bounce">⏰</div>
+                            <p className="text-yellow-400 font-bold text-base mb-2">ON THE CLOCK</p>
+                            <p className="text-white text-sm font-semibold">{team.teamName}</p>
+                            <p className="text-gray-400 text-xs mt-1">Pick #{pickNumber}</p>
                           </div>
                         ) : (
                           // Empty Pick Slot
-                          <div className="flex flex-col items-center justify-center py-6 text-center opacity-50">
+                          <div className="flex flex-col items-center justify-center py-8 text-center h-full opacity-50">
+                            <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center mb-2">
+                              <span className="text-2xl text-gray-700">?</span>
+                            </div>
                             <p className="text-gray-600 text-xs">Pick #{pickNumber}</p>
-                            <p className="text-gray-700 text-xs">—</p>
                           </div>
                         )}
                       </td>
