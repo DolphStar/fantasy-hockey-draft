@@ -37,7 +37,7 @@ interface ESPNTeamResponse {
   };
 }
 
-const ESPN_NHL_TEAMS_API = 'http://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams';
+const ESPN_NHL_TEAMS_API = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams';
 
 // NHL team IDs from ESPN (team ID to abbreviation mapping)
 const ESPN_TEAM_IDS: Record<string, string> = {
