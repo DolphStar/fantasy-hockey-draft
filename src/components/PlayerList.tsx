@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, doc, query, where, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, doc, query, where, orderBy, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 
 interface DraftedPlayer {
@@ -20,7 +20,7 @@ interface DraftedPlayer {
 }
 
 export default function PlayerList() {
-  const { myTeam, league } = useLeague();
+  const { myTeam, league, isAdmin } = useLeague();
   const [players, setPlayers] = useState<DraftedPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [swapping, setSwapping] = useState<string | null>(null);
@@ -139,6 +139,32 @@ export default function PlayerList() {
       });
     } catch (error) {
       console.error('Error canceling swap:', error);
+    } finally {
+      setSwapping(null);
+    }
+  };
+
+  // Drop player (admin only)
+  const dropPlayer = async (playerId: string, playerName: string) => {
+    if (!isAdmin) {
+      alert('❌ Only the league admin can drop players.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `⚠️ DROP PLAYER\n\nAre you sure you want to drop "${playerName}"?\n\nThis will remove them from the roster and they will become a free agent.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSwapping(playerId);
+      const playerRef = doc(db, 'draftedPlayers', playerId);
+      await deleteDoc(playerRef);
+      console.log(`Dropped player: ${playerName}`);
+    } catch (error) {
+      console.error('Error dropping player:', error);
+      alert('Failed to drop player. Please try again.');
     } finally {
       setSwapping(null);
     }
@@ -307,27 +333,39 @@ export default function PlayerList() {
                   <p className="text-white font-medium text-lg">{player.name}</p>
                   <p className="text-gray-400 text-sm">{player.positionName} • Round {player.round}</p>
                 </div>
-                {player.pendingSlot ? (
-                  <button
-                    onClick={() => cancelSwap(player.id)}
-                    disabled={swapping === player.id}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors ml-4"
-                  >
-                    Cancel Swap
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => selectPlayerForSwap(player.id)}
-                    disabled={swapping === player.id}
-                    className={`px-4 py-2 rounded transition-colors ml-4 ${
-                      selectedForSwap?.playerId === player.id
-                        ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
-                  >
-                    {selectedForSwap?.playerId === player.id ? '✓ Selected' : '🔄 Select to Swap'}
-                  </button>
-                )}
+                <div className="flex gap-2 ml-4">
+                  {player.pendingSlot ? (
+                    <button
+                      onClick={() => cancelSwap(player.id)}
+                      disabled={swapping === player.id}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors"
+                    >
+                      Cancel Swap
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => selectPlayerForSwap(player.id)}
+                      disabled={swapping === player.id}
+                      className={`px-4 py-2 rounded transition-colors ${
+                        selectedForSwap?.playerId === player.id
+                          ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      {selectedForSwap?.playerId === player.id ? '✓ Selected' : '🔄 Select to Swap'}
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      onClick={() => dropPlayer(player.id, player.name)}
+                      disabled={swapping === player.id}
+                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+                      title="Admin: Drop this player"
+                    >
+                      🗑️ Drop
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -373,27 +411,39 @@ export default function PlayerList() {
                   <p className="text-white font-medium text-lg">{player.name}</p>
                   <p className="text-gray-400 text-sm">{player.positionName} • Round {player.round}</p>
                 </div>
-                {player.pendingSlot ? (
-                  <button
-                    onClick={() => cancelSwap(player.id)}
-                    disabled={swapping === player.id}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors ml-4"
-                  >
-                    Cancel Swap
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => selectPlayerForSwap(player.id)}
-                    disabled={swapping === player.id}
-                    className={`px-4 py-2 rounded transition-colors ml-4 ${
-                      selectedForSwap?.playerId === player.id
-                        ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
-                  >
-                    {selectedForSwap?.playerId === player.id ? '✓ Selected' : '🔄 Select to Swap'}
-                  </button>
-                )}
+                <div className="flex gap-2 ml-4">
+                  {player.pendingSlot ? (
+                    <button
+                      onClick={() => cancelSwap(player.id)}
+                      disabled={swapping === player.id}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors"
+                    >
+                      Cancel Swap
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => selectPlayerForSwap(player.id)}
+                      disabled={swapping === player.id}
+                      className={`px-4 py-2 rounded transition-colors ${
+                        selectedForSwap?.playerId === player.id
+                          ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      {selectedForSwap?.playerId === player.id ? '✓ Selected' : '🔄 Select to Swap'}
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      onClick={() => dropPlayer(player.id, player.name)}
+                      disabled={swapping === player.id}
+                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+                      title="Admin: Drop this player"
+                    >
+                      🗑️ Drop
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

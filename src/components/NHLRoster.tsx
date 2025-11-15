@@ -26,12 +26,73 @@ export default function NHLRoster() {
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ANA'); // Default to Anaheim Ducks
+  const [pickupTeam, setPickupTeam] = useState<string>(''); // Admin: which team to pick up for
   
   // League context for showing user's team
-  const { myTeam, league } = useLeague();
+  const { myTeam, league, isAdmin } = useLeague();
   
   // Draft context
   const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
+
+  // Admin: Pick up free agent for a team
+  const pickUpFreeAgent = async (rosterPlayer: any) => {
+    if (!isAdmin) {
+      alert('❌ Only the league admin can pick up free agents.');
+      return;
+    }
+
+    if (!pickupTeam) {
+      alert('⚠️ Please select a team to pick up this player for.');
+      return;
+    }
+
+    try {
+      setDraftingPlayerId(rosterPlayer.person.id);
+      
+      // Check if already drafted
+      if (draftedPlayerIds.has(rosterPlayer.person.id)) {
+        alert('This player has already been drafted!');
+        setDraftingPlayerId(null);
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Pick up "${getPlayerFullName(rosterPlayer)}" for team "${pickupTeam}"?\n\nThis will add them to the active roster.`
+      );
+
+      if (!confirmed) {
+        setDraftingPlayerId(null);
+        return;
+      }
+      
+      // Add to active roster by default
+      await addDoc(collection(db, 'draftedPlayers'), {
+        playerId: rosterPlayer.person.id,
+        name: getPlayerFullName(rosterPlayer),
+        position: rosterPlayer.position.code,
+        positionName: rosterPlayer.position.name,
+        jerseyNumber: rosterPlayer.jerseyNumber,
+        nhlTeam: (rosterPlayer as any).teamAbbrev || 'UNK',
+        draftedByTeam: pickupTeam,
+        pickNumber: 0, // Free agent pickup
+        round: 0, // Free agent pickup
+        leagueId: league?.id,
+        draftedAt: new Date().toISOString(),
+        rosterSlot: 'active'
+      });
+
+      // Update local state
+      setDraftedPlayerIds(prev => new Set(prev).add(rosterPlayer.person.id));
+      
+      console.log(`Admin picked up: ${getPlayerFullName(rosterPlayer)} for ${pickupTeam}`);
+      alert(`✅ Successfully picked up ${getPlayerFullName(rosterPlayer)} for ${pickupTeam}!`);
+    } catch (error) {
+      console.error('Error picking up player:', error);
+      alert('Failed to pick up player. Please try again.');
+    } finally {
+      setDraftingPlayerId(null);
+    }
+  };
 
   // Fetch single team roster
   const fetchSingleTeam = async (teamAbbrev: TeamAbbrev) => {
@@ -397,6 +458,37 @@ export default function NHLRoster() {
         </div>
       )}
 
+      {/* Admin: Team Selector for Free Agent Pickups */}
+      {isAdmin && (
+        <div className="bg-purple-900/30 border border-purple-500/30 p-4 rounded-lg mb-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-purple-200 font-semibold mb-1">
+                👑 Admin Mode: Pick Up Free Agents
+              </p>
+              <p className="text-gray-400 text-sm">
+                Select a team below, then click "Pick Up" on any undrafted player to add them to that team's roster.
+              </p>
+            </div>
+            <div className="md:w-64">
+              <label className="block text-white font-semibold mb-2 text-sm">Pick up for team:</label>
+              <select
+                value={pickupTeam}
+                onChange={(e) => setPickupTeam(e.target.value)}
+                className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-purple-500 focus:outline-none"
+              >
+                <option value="">-- Select Team --</option>
+                {league?.teams.map((team) => (
+                  <option key={team.teamName} value={team.teamName}>
+                    {team.teamName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Search and Filters */}
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
         <div className="flex flex-col md:flex-row gap-4">
@@ -541,28 +633,45 @@ export default function NHLRoster() {
                       </p>
                     </div>
 
-                    {/* Draft Button */}
-                    <button
-                      onClick={() => onDraftPlayer(rosterPlayer)}
-                      disabled={isDrafted || isDrafting || !isMyTurn}
-                      className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                        isDrafted
-                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                          : isDrafting
-                          ? 'bg-yellow-600 text-white cursor-wait'
-                          : !isMyTurn
-                          ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    >
-                      {isDrafting 
-                        ? 'Drafting...' 
-                        : isDrafted 
-                        ? 'Already Drafted' 
-                        : !isMyTurn 
-                        ? 'Not Your Turn' 
-                        : 'Draft Player'}
-                    </button>
+                    {/* Draft Button (during draft) */}
+                    {draftState && !draftState.isComplete && (
+                      <button
+                        onClick={() => onDraftPlayer(rosterPlayer)}
+                        disabled={isDrafted || isDrafting || !isMyTurn}
+                        className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                          isDrafted
+                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            : isDrafting
+                            ? 'bg-yellow-600 text-white cursor-wait'
+                            : !isMyTurn
+                            ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        {isDrafting 
+                          ? 'Drafting...' 
+                          : isDrafted 
+                          ? 'Already Drafted' 
+                          : !isMyTurn 
+                          ? 'Not Your Turn' 
+                          : 'Draft Player'}
+                      </button>
+                    )}
+
+                    {/* Admin: Pick Up Button (during season / free agency) */}
+                    {isAdmin && !isDrafted && (
+                      <button
+                        onClick={() => pickUpFreeAgent(rosterPlayer)}
+                        disabled={isDrafting}
+                        className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                          isDrafting
+                            ? 'bg-yellow-600 text-white cursor-wait'
+                            : 'bg-purple-600 hover:bg-purple-700 text-white'
+                        }`}
+                      >
+                        {isDrafting ? 'Picking Up...' : '👑 Pick Up (Admin)'}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
