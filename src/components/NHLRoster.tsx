@@ -348,10 +348,17 @@ export default function NHLRoster() {
   // Use virtualization for large lists (>100 players)
   const useVirtualization = filteredRoster.length > 100;
 
-  // Render a single player card
+  // Render a single player card with headshot and team logo
   const renderPlayerCard = (rosterPlayer: RosterPerson) => {
     const isDrafted = draftedPlayerIds.has(rosterPlayer.person.id);
     const isDrafting = draftingPlayerId === rosterPlayer.person.id;
+    const teamAbbrev = (rosterPlayer as any).teamAbbrev || 'UNK';
+    const injury = isPlayerInjuredByName(getPlayerFullName(rosterPlayer), injuries);
+    
+    // NHL headshot URL (with fallback)
+    const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${rosterPlayer.person.id}.png`;
+    const fallbackHeadshot = "https://assets.nhle.com/mugs/nhl/default-skater.png";
+    const teamLogoUrl = `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_dark.svg`;
 
     return (
       <div
@@ -363,40 +370,63 @@ export default function NHLRoster() {
         }`}
       >
         <div className="flex flex-col gap-3">
-          {/* Player Info */}
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-white font-semibold text-lg">
-                #{rosterPlayer.jerseyNumber}
-              </span>
-              <span
-                className={`${getPositionBadgeColor(rosterPlayer.position.code)} text-white text-xs px-2 py-1 rounded font-bold`}
-              >
-                {rosterPlayer.position.code}
-              </span>
-              <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded font-bold">
-                {(rosterPlayer as any).teamAbbrev || 'UNK'}
-              </span>
-              {isDrafted && (
-                <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">
-                  DRAFTED
+          {/* Player Photo & Info */}
+          <div className="flex gap-3 items-start">
+            {/* Avatar with Team Logo Badge */}
+            <div className="relative flex-shrink-0">
+              <img 
+                src={headshotUrl}
+                alt={getPlayerFullName(rosterPlayer)}
+                onError={(e) => {
+                  e.currentTarget.src = fallbackHeadshot;
+                }}
+                className="w-16 h-16 rounded-full object-cover border-2 border-gray-600 bg-gray-800"
+              />
+              {/* Team Logo Badge */}
+              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 w-6 h-6 flex items-center justify-center border border-gray-300">
+                <img 
+                  src={teamLogoUrl} 
+                  alt={teamAbbrev}
+                  className="w-full h-full"
+                />
+              </div>
+            </div>
+
+            {/* Player Details */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="text-white font-semibold text-lg">
+                  #{rosterPlayer.jerseyNumber}
                 </span>
-              )}
-              {(() => {
-                const injury = isPlayerInjuredByName(getPlayerFullName(rosterPlayer), injuries);
-                return injury && (
-                  <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
+                <span
+                  className={`${getPositionBadgeColor(rosterPlayer.position.code)} text-white text-xs px-2 py-1 rounded font-bold`}
+                >
+                  {rosterPlayer.position.code}
+                </span>
+                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded font-bold">
+                  {teamAbbrev}
+                </span>
+                {isDrafted && (
+                  <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">
+                    DRAFTED
+                  </span>
+                )}
+                {injury && (
+                  <span 
+                    className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1 cursor-help`} 
+                    title={`${injury.injuryType} - ${injury.description}`}
+                  >
                     {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
                   </span>
-                );
-              })()}
+                )}
+              </div>
+              <p className="text-white font-medium text-lg mb-1 truncate">
+                {getPlayerFullName(rosterPlayer)}
+              </p>
+              <p className="text-gray-400 text-sm">
+                {rosterPlayer.position.name}
+              </p>
             </div>
-            <p className="text-white font-medium text-lg mb-1">
-              {getPlayerFullName(rosterPlayer)}
-            </p>
-            <p className="text-gray-400 text-sm">
-              {rosterPlayer.position.name}
-            </p>
           </div>
 
           {/* Draft Button (during draft) */}
