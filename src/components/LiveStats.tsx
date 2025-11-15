@@ -527,9 +527,9 @@ export default function LiveStats() {
       )}
 
       {/* Info Box */}
-      <div className="bg-blue-900/30 border-t border-blue-500/30 p-4">
+      <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mt-6">
         <p className="text-blue-200 text-sm">
-          � <strong>Auto-Refresh:</strong> Stats update automatically every 5 minutes. 
+          💡 <strong>Auto-Refresh:</strong> Stats update automatically every 5 minutes. 
           Click "🔄 Refresh Now" to update immediately. 
           Fantasy points will be calculated at end of day via daily scoring.
         </p>
