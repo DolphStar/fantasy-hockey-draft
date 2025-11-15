@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, doc, query, where, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
+import { fetchAllInjuries, isPlayerInjured, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
 
 interface DraftedPlayer {
   id: string;
@@ -30,6 +31,7 @@ export default function PlayerList() {
     position: string;
     currentSlot: 'active' | 'reserve';
   } | null>(null);
+  const [injuries, setInjuries] = useState<InjuryReport[]>([]);
 
   // Calculate next Saturday at 9 AM ET
   const getNextSaturday = () => {
@@ -172,6 +174,19 @@ export default function PlayerList() {
   // Note: With atomic swaps, we don't need validation functions
   // The swap logic ensures active roster stays at exactly 9F/6D/2G
 
+  // Fetch injuries on mount
+  useEffect(() => {
+    const loadInjuries = async () => {
+      const data = await fetchAllInjuries();
+      setInjuries(data);
+    };
+    loadInjuries();
+    
+    // Refresh injuries every 5 minutes
+    const interval = setInterval(loadInjuries, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Real-time listener for drafted players
   useEffect(() => {
     if (!myTeam) {
@@ -303,6 +318,14 @@ export default function PlayerList() {
                         → {player.pendingSlot === 'reserve' ? 'Moving to Reserve' : 'Staying Active'}
                       </span>
                     )}
+                    {(() => {
+                      const injury = isPlayerInjured(player.playerId, injuries);
+                      return injury && (
+                        <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
+                          {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-white font-medium text-lg">{player.name}</p>
                   <p className="text-gray-400 text-sm">{player.positionName} • Round {player.round}</p>
@@ -369,6 +392,14 @@ export default function PlayerList() {
                         → {player.pendingSlot === 'active' ? 'Moving to Active' : 'Staying Reserve'}
                       </span>
                     )}
+                    {(() => {
+                      const injury = isPlayerInjured(player.playerId, injuries);
+                      return injury && (
+                        <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
+                          {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-white font-medium text-lg">{player.name}</p>
                   <p className="text-gray-400 text-sm">{player.positionName} • Round {player.round}</p>

@@ -4,6 +4,7 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import type { TeamScore } from '../utils/scoringEngine';
 import LiveStats from './LiveStats';
+import { fetchAllInjuries, isPlayerInjured, getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
 // Import utilities for existing leagues
 import '../utils/updateLeague';
 import '../utils/clearScores';
@@ -24,6 +25,20 @@ export default function Standings() {
   const [playerPerformances, setPlayerPerformances] = useState<PlayerPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(true);
+  const [injuries, setInjuries] = useState<InjuryReport[]>([]);
+
+  // Fetch injuries on mount
+  useEffect(() => {
+    const loadInjuries = async () => {
+      const data = await fetchAllInjuries();
+      setInjuries(data);
+    };
+    loadInjuries();
+    
+    // Refresh injuries every 5 minutes
+    const interval = setInterval(loadInjuries, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch standings
   useEffect(() => {
@@ -239,7 +254,17 @@ export default function Standings() {
                             >
                               <td className="p-3">
                                 <div>
-                                  <div className="text-white font-medium">{perf.playerName}</div>
+                                  <div className="text-white font-medium flex items-center gap-2">
+                                    {perf.playerName}
+                                    {(() => {
+                                      const injury = isPlayerInjured(perf.playerId, injuries);
+                                      return injury && (
+                                        <span className={`${getInjuryColor(injury.status)} text-white text-xs px-1.5 py-0.5 rounded text-[10px] font-bold`} title={`${injury.injuryType} - ${injury.description}`}>
+                                          {getInjuryIcon(injury.status)}
+                                        </span>
+                                      );
+                                    })()}
+                                  </div>
                                   <div className="text-gray-500 text-xs">
                                     {new Date(perf.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                   </div>

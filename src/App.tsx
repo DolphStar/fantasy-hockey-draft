@@ -5,14 +5,19 @@ import DraftBoard from './components/DraftBoard'
 import LeagueSettings from './components/LeagueSettings'
 import Standings from './components/Standings'
 import LeagueChat from './components/LeagueChat'
+import Injuries from './components/Injuries'
 import Login from './components/Login'
 import { useAuth } from './context/AuthContext'
+import { useTurnNotification } from './hooks/useTurnNotification'
 
-type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'leagueSettings' | 'chat'
+type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'injuries' | 'leagueSettings' | 'chat'
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('roster')
   const { user, loading: authLoading, signOut } = useAuth()
+  
+  // Turn notifications (sound + browser notification)
+  useTurnNotification()
   
   // Debug logging - MUST be at top before any returns
   useEffect(() => {
@@ -120,6 +125,16 @@ function App() {
             🏆 Standings
           </button>
           <button
+            onClick={() => setActiveTab('injuries')}
+            className={`px-6 py-3 font-semibold transition-colors ${
+              activeTab === 'injuries'
+                ? 'text-blue-400 border-b-2 border-blue-400'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            🏥 Injuries
+          </button>
+          <button
             onClick={() => setActiveTab('chat')}
             className={`px-6 py-3 font-semibold transition-colors ${
               activeTab === 'chat'
@@ -147,6 +162,7 @@ function App() {
       {activeTab === 'draftBoard' && <DraftBoard />}
       {activeTab === 'myPlayers' && <PlayerList />}
       {activeTab === 'standings' && <Standings />}
+      {activeTab === 'injuries' && <Injuries />}
       {activeTab === 'chat' && <LeagueChat />}
       {activeTab === 'leagueSettings' && <LeagueSettings />}
     </div>
