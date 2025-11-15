@@ -54,7 +54,7 @@ export default function Injuries() {
       {/* Info Banner */}
       <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mb-6">
         <p className="text-blue-200 text-sm">
-          <strong>🏒 Real-time injury data</strong> from NHL's official API. Player injury status is checked directly from individual player landing pages.
+          <strong>🏒 Real-time injury data</strong> from ESPN's NHL injury API. All league injuries fetched in one request!
           {lastUpdated && (
             <span className="ml-2 text-gray-400">
               Last updated: {lastUpdated.toLocaleTimeString()}
@@ -62,7 +62,7 @@ export default function Injuries() {
           )}
         </p>
         <p className="text-gray-400 text-xs mt-2">
-          Note: Initial load may take 30-60 seconds as we check ~700 NHL players for injury status. Data refreshes every 5 minutes.
+          Fast loading (~2 seconds) • Auto-refreshes every 5 minutes • Data sorted by team
         </p>
       </div>
 
