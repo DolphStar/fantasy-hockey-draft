@@ -52,14 +52,20 @@ export default function Injuries() {
       <h2 className="text-3xl font-bold mb-6 text-white">🏥 NHL Injury Report</h2>
 
       {/* Info Banner */}
-      <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mb-6">
-        <p className="text-blue-200 text-sm">
-          <strong>Real-time injury data</strong> from ESPN. Injuries are updated regularly throughout the day.
-          {lastUpdated && (
-            <span className="ml-2 text-gray-400">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </span>
-          )}
+      <div className="bg-yellow-900/30 border border-yellow-500/30 p-4 rounded-lg mb-6">
+        <p className="text-yellow-200 text-sm">
+          <strong>⚠️ Injury Data Currently Unavailable</strong>
+        </p>
+        <p className="text-gray-300 text-sm mt-2">
+          Free NHL injury APIs do not exist. To enable injury tracking, you have three options:
+        </p>
+        <ul className="text-gray-400 text-sm mt-2 ml-4 space-y-1">
+          <li>• <strong>Sportradar API</strong> ($500+/month) - Professional injury data</li>
+          <li>• <strong>Web scraping</strong> - Fragile and against NHL.com ToS</li>
+          <li>• <strong>Manual tracking</strong> - Admin updates injuries in Firestore</li>
+        </ul>
+        <p className="text-gray-500 text-xs mt-3">
+          The injury tracking UI is built and ready - just needs a data source.
         </p>
       </div>
 
