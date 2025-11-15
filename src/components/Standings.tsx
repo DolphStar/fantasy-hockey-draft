@@ -118,8 +118,13 @@ export default function Standings() {
       )}
 
       {/* Standings Table */}
-      <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-        <h3 className="text-xl font-semibold p-6 pb-4 text-white">Current Standings</h3>
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6">
+          <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+            🏆 Current Standings
+          </h3>
+          <p className="text-blue-100 text-sm mt-1">League rankings based on total fantasy points</p>
+        </div>
         
         {loading ? (
           <p className="p-6 text-gray-400">Loading standings...</p>
@@ -229,7 +234,6 @@ export default function Standings() {
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">NHL</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">⚽ G</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🎯 A</th>
-                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🏹 S</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">💥 H</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🛡️ BS</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🏆 W</th>
@@ -267,7 +271,6 @@ export default function Standings() {
                               </td>
                               <td className="p-3 text-center text-gray-300">{perf.stats.goals || 0}</td>
                               <td className="p-3 text-center text-gray-300">{perf.stats.assists || 0}</td>
-                              <td className="p-3 text-center text-gray-300">{perf.stats.shots || 0}</td>
                               <td className="p-3 text-center text-gray-300">{perf.stats.hits || 0}</td>
                               <td className="p-3 text-center text-gray-300">{perf.stats.blockedShots || 0}</td>
                               <td className="p-3 text-center text-gray-300">{perf.stats.wins || 0}</td>

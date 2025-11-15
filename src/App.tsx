@@ -96,7 +96,7 @@ function App() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            NHL Rosters
+            🏒 NHL Rosters
           </button>
           <button
             onClick={() => setActiveTab('draftBoard')}
@@ -106,7 +106,7 @@ function App() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            Draft Board
+            📋 Draft Board
           </button>
           <button
             onClick={() => setActiveTab('myPlayers')}
@@ -116,7 +116,7 @@ function App() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            My Players
+            👥 My Players
           </button>
           <button
             onClick={() => setActiveTab('standings')}
