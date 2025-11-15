@@ -4,6 +4,7 @@ import { collection, doc, query, where, orderBy, onSnapshot, updateDoc } from 'f
 import { useLeague } from '../context/LeagueContext';
 import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
+import { toast } from 'sonner';
 
 interface DraftedPlayer {
   id: string;
@@ -76,9 +77,13 @@ export default function PlayerList() {
     if (selectedForSwap.currentSlot !== targetSlot && isSamePositionType(selectedForSwap.position, player.position)) {
       performSwap(selectedForSwap.playerId, playerId);
     } else if (selectedForSwap.currentSlot === targetSlot) {
-      alert(`❌ Both players are in ${targetSlot}. You must select one active and one reserve player to swap.`);
+      toast.error('Same roster slot', {
+        description: `Both players are in ${targetSlot}. Select one active and one reserve player.`
+      });
     } else {
-      alert(`❌ Position mismatch! You can only swap players of the same position type.\n\nSelected: ${selectedForSwap.position} (${getPositionName(selectedForSwap.position)})\nClicked: ${player.position} (${player.positionName})`);
+      toast.error('Position mismatch!', {
+        description: `You can only swap players of the same position type.\n\nSelected: ${selectedForSwap.position} (${getPositionName(selectedForSwap.position)})\nClicked: ${player.position} (${player.positionName})`
+      });
     }
   };
 
@@ -95,6 +100,24 @@ export default function PlayerList() {
     if (pos === 'D') return 'Defense';
     if (pos === 'G') return 'Goalie';
     return pos;
+  };
+
+  // Check if swap button should be disabled for this player
+  const isSwapDisabled = (player: DraftedPlayer): boolean => {
+    if (!selectedForSwap) return false; // No selection, all buttons enabled
+    
+    const currentSlot = (player.rosterSlot || 'active') as 'active' | 'reserve';
+    
+    // Can't swap with yourself
+    if (selectedForSwap.playerId === player.id) return false;
+    
+    // Must be in opposite roster (active ↔ reserve)
+    if (selectedForSwap.currentSlot === currentSlot) return true;
+    
+    // Must be same position type
+    if (!isSamePositionType(selectedForSwap.position, player.position)) return true;
+    
+    return false;
   };
 
   // Perform atomic swap between two players
@@ -353,10 +376,12 @@ export default function PlayerList() {
                 ) : (
                   <button
                     onClick={() => selectPlayerForSwap(player.id)}
-                    disabled={swapping === player.id}
+                    disabled={swapping === player.id || isSwapDisabled(player)}
                     className={`px-4 py-2 rounded transition-colors ml-4 ${
                       selectedForSwap?.playerId === player.id
                         ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
+                        : isSwapDisabled(player)
+                        ? 'bg-gray-600 cursor-not-allowed text-gray-400'
                         : 'bg-blue-600 hover:bg-blue-700 text-white'
                     }`}
                   >
@@ -427,10 +452,12 @@ export default function PlayerList() {
                 ) : (
                   <button
                     onClick={() => selectPlayerForSwap(player.id)}
-                    disabled={swapping === player.id}
+                    disabled={swapping === player.id || isSwapDisabled(player)}
                     className={`px-4 py-2 rounded transition-colors ml-4 ${
                       selectedForSwap?.playerId === player.id
                         ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
+                        : isSwapDisabled(player)
+                        ? 'bg-gray-600 cursor-not-allowed text-gray-400'
                         : 'bg-blue-600 hover:bg-blue-700 text-white'
                     }`}
                   >
