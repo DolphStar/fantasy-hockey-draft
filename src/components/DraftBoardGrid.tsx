@@ -7,14 +7,13 @@ import { useLeague } from '../context/LeagueContext';
 interface DraftedPlayer {
   id: string;
   playerId: number;
-  playerName: string;
+  name: string; // Changed from playerName to match Firebase
   position: string;
-  team: string;
+  nhlTeam: string; // Changed from team to match Firebase
   draftedByTeam: string;
   pickNumber: number;
   round: number;
   headshotUrl?: string;
-  teamAbbrev?: string;
 }
 
 export default function DraftBoardGrid() {
@@ -161,19 +160,19 @@ export default function DraftBoardGrid() {
                               {/* Player Headshot with Team Logo */}
                               <div className="relative flex-shrink-0">
                                 <img
-                                  src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.teamAbbrev}/${player.playerId}.png`}
-                                  alt={player.playerName}
+                                  src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
+                                  alt={player.name}
                                   onError={(e) => {
                                     e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
                                   }}
                                   className="w-16 h-16 rounded-full border-2 border-gray-600 bg-gray-800"
                                 />
                                 {/* Team Logo Badge */}
-                                {player.teamAbbrev && (
+                                {player.nhlTeam && (
                                   <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gray-900 rounded-full p-0.5">
                                     <img
-                                      src={`https://assets.nhle.com/logos/nhl/svg/${player.teamAbbrev}_dark.svg`}
-                                      alt={player.teamAbbrev}
+                                      src={`https://assets.nhle.com/logos/nhl/svg/${player.nhlTeam}_dark.svg`}
+                                      alt={player.nhlTeam}
                                       className="w-full h-full drop-shadow-lg"
                                     />
                                   </div>
@@ -183,14 +182,14 @@ export default function DraftBoardGrid() {
                               {/* Player Info */}
                               <div className="flex-1 w-full text-center">
                                 <p className="text-white font-bold text-sm truncate mb-1">
-                                  {player.playerName}
+                                  {player.name}
                                 </p>
                                 <div className="flex items-center justify-center gap-1 mb-1">
                                   <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded font-bold">
                                     {player.position}
                                   </span>
                                   <span className="bg-gray-700 text-white text-xs px-2 py-0.5 rounded font-bold">
-                                    {player.teamAbbrev}
+                                    {player.nhlTeam}
                                   </span>
                                 </div>
                                 <p className="text-gray-500 text-xs">
@@ -203,17 +202,17 @@ export default function DraftBoardGrid() {
                             <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-3 bg-black border-2 border-gray-600 rounded-lg shadow-2xl z-50">
                               <div className="flex items-center gap-3 mb-2">
                                 <img
-                                  src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.teamAbbrev}/${player.playerId}.png`}
-                                  alt={player.playerName}
+                                  src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
+                                  alt={player.name}
                                   onError={(e) => {
                                     e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
                                   }}
                                   className="w-16 h-16 rounded-full border-2 border-gray-600"
                                 />
                                 <div>
-                                  <p className="text-white font-bold">{player.playerName}</p>
+                                  <p className="text-white font-bold">{player.name}</p>
                                   <p className="text-gray-400 text-sm">{player.position}</p>
-                                  <p className="text-gray-500 text-xs">{player.team}</p>
+                                  <p className="text-gray-500 text-xs">{player.nhlTeam}</p>
                                 </div>
                               </div>
                               <div className="border-t border-gray-700 pt-2 mt-2">
