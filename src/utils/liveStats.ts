@@ -65,22 +65,29 @@ export async function processLiveStats(leagueId: string) {
       playerToTeamMap.set(data.playerId, data.draftedByTeam);
     });
     
-    console.log(`🔴 LIVE STATS: Tracking ${playerToTeamMap.size} drafted players`);
+    console.log(` LIVE STATS: Tracking ${playerToTeamMap.size} drafted players`);
     
-    // 3. Process each game
+    // 3. Process each game (with delay to avoid rate limiting)
     let gamesProcessed = 0;
     let playersUpdated = 0;
     
-    for (const game of games) {
+    for (let i = 0; i < games.length; i++) {
+      const game = games[i];
+      
       try {
         // Only process games that are live or completed today
         // Skip future games (FUT) - no stats yet
         if (game.gameState === 'FUT') {
-          console.log(`🔴 LIVE STATS: Game ${game.id} not started yet (${game.gameState})`);
+          console.log(` LIVE STATS: Game ${game.id} not started yet (${game.gameState})`);
           continue;
         }
         
-        console.log(`🔴 LIVE STATS: Processing game ${game.id} (${game.gameState})`);
+        console.log(` LIVE STATS: Processing game ${game.id} (${game.gameState})`);
+        
+        // Add delay between API calls to avoid rate limiting (500ms)
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
         
         // Fetch boxscore
         const boxscore = await getGameBoxscore(game.id);
