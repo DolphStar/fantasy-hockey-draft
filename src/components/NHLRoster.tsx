@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Virtuoso } from 'react-virtuoso';
 import { 
   getPlayerFullName,
   getAllPlayers,
@@ -344,6 +345,9 @@ export default function NHLRoster() {
     return matchesSearch && matchesPosition && matchesTeam;
   });
 
+  // Use virtualization for large lists (>100 players)
+  const useVirtualization = filteredRoster.length > 100;
+
   // Render a single player card
   const renderPlayerCard = (rosterPlayer: RosterPerson) => {
     const isDrafted = draftedPlayerIds.has(rosterPlayer.person.id);
@@ -621,12 +625,27 @@ export default function NHLRoster() {
               <h3 className="text-xl font-semibold mb-6 text-white">
                 {teamFilter !== 'ALL' ? `${NHL_TEAMS[teamFilter as TeamAbbrev]} - ` : 'All NHL Players - '}
                 {filteredRoster.length} Player{filteredRoster.length !== 1 ? 's' : ''}
+                {useVirtualization && <span className="ml-2 text-green-400 text-sm">⚡ Virtualized</span>}
               </h3>
               
-              {/* Player grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredRoster.map((rosterPlayer) => renderPlayerCard(rosterPlayer))}
-              </div>
+              {/* Virtualized list for large rosters (>100 players) */}
+              {useVirtualization ? (
+                <div style={{ height: '800px', width: '100%' }}>
+                  <Virtuoso
+                    data={filteredRoster}
+                    itemContent={(_index, rosterPlayer) => (
+                      <div className="px-1 pb-4">
+                        {renderPlayerCard(rosterPlayer)}
+                      </div>
+                    )}
+                  />
+                </div>
+              ) : (
+                // Regular grid for small lists (<100 players)
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredRoster.map((rosterPlayer) => renderPlayerCard(rosterPlayer))}
+                </div>
+              )}
         </>
       ) : (
         <div className="text-center py-12">
