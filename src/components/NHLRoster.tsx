@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   getPlayerFullName,
   getAllPlayers,
+  getTeamRoster,
   NHL_TEAMS,
   type RosterPerson,
   type TeamAbbrev 
@@ -35,18 +37,62 @@ export default function NHLRoster() {
   
   // React Query hooks - automatic caching and refetching!
   const { data: injuries = [] } = useInjuries();
-  const { data: rosterData, isLoading: rosterLoading, error: rosterError } = useTeamRoster(
-    teamFilter as TeamAbbrev
+  
+  // Conditionally use different queries based on team filter
+  const isFetchingAllTeams = teamFilter === 'ALL';
+  
+  // Only fetch single team when not fetching all teams
+  const { data: singleTeamData, isLoading: singleTeamLoading, error: singleTeamError } = useTeamRoster(
+    !isFetchingAllTeams ? (teamFilter as TeamAbbrev) : null
   );
   
-  // Extract and flatten roster from query data
-  const roster: RosterPerson[] = rosterData ? getAllPlayers(rosterData).map(player => {
-    // Add team abbreviation to each player
-    (player as any).teamAbbrev = teamFilter;
-    return player;
-  }) : [];
-  const loading = rosterLoading;
-  const error = rosterError ? (rosterError as Error).message : null;
+  // Only fetch all teams when "ALL" is selected (enabled flag prevents unnecessary fetching)
+  const { data: allTeamsData, isLoading: allTeamsLoading, error: allTeamsError } = useQuery({
+    queryKey: ['rosters', 'all'],
+    queryFn: async () => {
+      console.log('🏒 Loading all NHL teams in parallel...');
+      const startTime = Date.now();
+      
+      const teamPromises = (Object.keys(NHL_TEAMS) as TeamAbbrev[]).map(async (abbrev) => {
+        try {
+          const rosterData = await getTeamRoster(abbrev);
+          const teamPlayers = getAllPlayers(rosterData);
+          return teamPlayers.map(player => {
+            (player as any).teamAbbrev = abbrev;
+            return player;
+          });
+        } catch (err) {
+          console.warn(`Failed to load ${abbrev}:`, err);
+          return [];
+        }
+      });
+      
+      const results = await Promise.all(teamPromises);
+      const allPlayers = results.flat();
+      
+      const loadTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`✅ Loaded ${allPlayers.length} players from ${Object.keys(NHL_TEAMS).length} teams in ${loadTime}s`);
+      
+      return allPlayers;
+    },
+    enabled: isFetchingAllTeams, // Only run this query when ALL teams is selected
+    staleTime: 15 * 60 * 1000,
+  });
+  
+  // Extract roster based on which query is active
+  const roster: RosterPerson[] = isFetchingAllTeams 
+    ? (allTeamsData || [])
+    : singleTeamData 
+      ? getAllPlayers(singleTeamData).map(player => {
+          (player as any).teamAbbrev = teamFilter;
+          return player;
+        })
+      : [];
+  
+  const loading = isFetchingAllTeams ? allTeamsLoading : singleTeamLoading;
+  const error = isFetchingAllTeams 
+    ? (allTeamsError ? (allTeamsError as Error).message : null)
+    : (singleTeamError ? (singleTeamError as Error).message : null);
 
   // Admin: Pick up free agent for a team
   const pickUpFreeAgent = async (rosterPlayer: any) => {
