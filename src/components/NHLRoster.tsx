@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import * as ReactWindow from 'react-window';
-
-const List = (ReactWindow as any).FixedSizeList;
+// @ts-expect-error - react-window types are incorrect
+import { FixedSizeList } from 'react-window';
 import { 
   getPlayerFullName,
   getAllPlayers,
@@ -645,7 +644,7 @@ export default function NHLRoster() {
               
               {/* Use virtualization for large lists (>100 players) */}
               {useVirtualization ? (
-                <List
+                <FixedSizeList
                   height={800} // ~4 rows visible
                   itemCount={playerRows.length}
                   itemSize={220} // Height of each row (card height + gap)
@@ -657,7 +656,7 @@ export default function NHLRoster() {
                       {playerRows[index].map((rosterPlayer) => renderPlayerCard(rosterPlayer))}
                     </div>
                   )}
-                </List>
+                </FixedSizeList>
               ) : (
                 // Regular grid for small lists (<100 players)
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
