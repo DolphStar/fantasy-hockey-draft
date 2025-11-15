@@ -228,16 +228,22 @@ export default function LiveStats() {
             
             {upcomingMatchups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
-                {/* Group matchups by game */}
+                {/* Group matchups by game (using sorted team abbrevs to avoid duplicates) */}
                 {Object.entries(
                   upcomingMatchups.reduce((acc, matchup) => {
-                    const gameKey = `${matchup.teamAbbrev}-${matchup.opponent}-${matchup.gameTime}`;
+                    // Create a consistent game key regardless of which team the player is on
+                    const teams = [matchup.teamAbbrev, matchup.opponent].sort();
+                    const gameKey = `${teams[0]}-${teams[1]}-${matchup.gameTime}`;
+                    
                     if (!acc[gameKey]) {
+                      // Determine away/home teams (away team is listed first in NHL format)
+                      const awayTeam = matchup.isHome ? matchup.opponent : matchup.teamAbbrev;
+                      const homeTeam = matchup.isHome ? matchup.teamAbbrev : matchup.opponent;
+                      
                       acc[gameKey] = {
-                        teamAbbrev: matchup.teamAbbrev,
-                        opponent: matchup.opponent,
+                        awayTeam,
+                        homeTeam,
                         gameTime: matchup.gameTime,
-                        isHome: matchup.isHome,
                         players: []
                       };
                     }
@@ -249,27 +255,27 @@ export default function LiveStats() {
                     key={gameKey} 
                     className="bg-gray-750 p-4 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
                   >
-                    {/* Game Header with Team Logos */}
+                    {/* Game Header with Team Logos (LARGER) */}
                     <div className="flex items-center justify-between mb-3">
                       <img
-                        src={`https://assets.nhle.com/logos/nhl/svg/${game.isHome ? game.opponent : game.teamAbbrev}_dark.svg`}
-                        alt={game.isHome ? game.opponent : game.teamAbbrev}
-                        className="w-10 h-10"
+                        src={`https://assets.nhle.com/logos/nhl/svg/${game.awayTeam}_dark.svg`}
+                        alt={game.awayTeam}
+                        className="w-12 h-12"
                       />
                       <div className="text-center">
                         <p className="text-gray-400 text-xs">Game Time</p>
                         <p className="text-green-400 font-bold text-sm">{game.gameTime}</p>
                       </div>
                       <img
-                        src={`https://assets.nhle.com/logos/nhl/svg/${game.isHome ? game.teamAbbrev : game.opponent}_dark.svg`}
-                        alt={game.isHome ? game.teamAbbrev : game.opponent}
-                        className="w-10 h-10"
+                        src={`https://assets.nhle.com/logos/nhl/svg/${game.homeTeam}_dark.svg`}
+                        alt={game.homeTeam}
+                        className="w-12 h-12"
                       />
                     </div>
                     
                     {/* Matchup Text */}
                     <p className="text-center text-white font-semibold text-sm mb-3">
-                      {game.isHome ? game.opponent : game.teamAbbrev} <span className="text-gray-500">@</span> {game.isHome ? game.teamAbbrev : game.opponent}
+                      {game.awayTeam} <span className="text-gray-500">@</span> {game.homeTeam}
                     </p>
                     
                     {/* Your Players */}

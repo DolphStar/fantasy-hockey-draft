@@ -278,7 +278,7 @@ export default function Standings() {
             <h3 className="text-xl font-semibold text-white">🏒 Player Performances</h3>
             <button
               onClick={() => setShowDetails(!showDetails)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors"
+              className="px-4 py-2 border border-gray-600 hover:border-gray-500 hover:bg-gray-700/30 rounded-lg text-gray-300 hover:text-white text-sm transition-colors"
             >
               {showDetails ? 'Hide Details' : 'Show Details'}
             </button>
