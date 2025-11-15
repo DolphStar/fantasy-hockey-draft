@@ -52,9 +52,9 @@ export default function LiveStats() {
     return () => unsubscribe();
   }, [league]);
 
-  // Fetch upcoming matchups when no live stats
+  // Fetch upcoming matchups (always, not just when no live stats)
   useEffect(() => {
-    if (!league || !myTeam || liveStats.length > 0) return;
+    if (!league || !myTeam) return;
 
     const fetchMatchups = async () => {
       try {
@@ -96,7 +96,7 @@ export default function LiveStats() {
     };
 
     fetchMatchups();
-  }, [league, myTeam, liveStats.length]);
+  }, [league, myTeam]);
 
   // Auto-refresh countdown timer
   useEffect(() => {
@@ -218,13 +218,116 @@ export default function LiveStats() {
         <div className="p-6">
           <p className="text-gray-400">Loading live stats...</p>
         </div>
-      ) : liveStats.length === 0 ? (
-        <div className="p-6">
-          <div className="text-center py-4">
-            <h4 className="text-lg font-bold text-white mb-2">🏒 Upcoming Matchups Tonight</h4>
-            <p className="text-gray-400 text-sm mb-6">
-              Your players' games for today
-            </p>
+      ) : (
+        <>
+          {/* Live Stats Section - Only show players with points > 0 */}
+          {liveStats.length > 0 && (
+            <div className="p-6 pt-0 space-y-6">
+              {Object.entries(statsByTeam).map(([teamName, players]) => {
+                // Filter to only show players with points > 0
+                const playersWithPoints = players.filter(p => p.points > 0);
+                
+                if (playersWithPoints.length === 0) return null;
+                
+                const teamTotals = playersWithPoints.reduce(
+                  (acc, p) => ({
+                    goals: acc.goals + p.goals,
+                    assists: acc.assists + p.assists,
+                    points: acc.points + p.points,
+                  }),
+                  { goals: 0, assists: 0, points: 0 }
+                );
+
+                return (
+                  <div key={teamName} className="bg-gray-750 rounded-lg overflow-hidden">
+                    {/* Team Header */}
+                    <div className="bg-gray-700 px-4 py-3 flex items-center justify-between">
+                      <h4 className="text-lg font-bold text-white">{teamName}</h4>
+                      <div className="text-right">
+                        <p className="text-gray-400 text-xs">Today's Totals</p>
+                        <p className="text-green-400 font-bold">
+                          {teamTotals.goals}G + {teamTotals.assists}A = {teamTotals.points} Pts
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Player Stats Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-700/50">
+                          <tr>
+                            <th className="text-left p-3 text-gray-400 font-medium text-sm">Player</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">NHL</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">Status</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">⚽ G</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🎯 A</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">📊 Pts</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🏹 S</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">💥 H</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🛡️ BS</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🏆 W</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">🥅 Sv</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {playersWithPoints.map((player, index) => {
+                            const isLive = player.gameState === 'LIVE' || player.gameState === 'CRIT';
+                            const isFinal = player.gameState === 'FINAL' || player.gameState === 'OFF';
+
+                            return (
+                              <tr
+                                key={`${player.playerId}-${index}`}
+                                className="border-t border-gray-700 hover:bg-gray-700/30"
+                              >
+                                <td className="p-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-white font-medium">{player.playerName}</span>
+                                    {isLive && (
+                                      <span className="text-xs bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">
+                                        LIVE
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-3 text-center text-gray-300">{player.nhlTeam}</td>
+                                <td className="p-3 text-center">
+                                  {isFinal ? (
+                                    <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">FINAL</span>
+                                  ) : isLive ? (
+                                    <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">LIVE</span>
+                                  ) : (
+                                    <span className="text-xs bg-gray-600 text-white px-2 py-1 rounded">-</span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-center text-gray-300">{player.goals}</td>
+                                <td className="p-3 text-center text-gray-300">{player.assists}</td>
+                                <td className="p-3 text-center">
+                                  <span className="text-green-400 font-bold">+{player.points.toFixed(2)}</span>
+                                </td>
+                                <td className="p-3 text-center text-gray-300">{player.shots || 0}</td>
+                                <td className="p-3 text-center text-gray-300">{player.hits || 0}</td>
+                                <td className="p-3 text-center text-gray-300">{player.blockedShots || 0}</td>
+                                <td className="p-3 text-center text-gray-300">{player.wins || 0}</td>
+                                <td className="p-3 text-center text-gray-300">{player.saves || 0}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Upcoming Matchups Section - Always show */}
+          <div className={`p-6 ${liveStats.length > 0 ? 'border-t border-gray-700' : ''}`}>
+            <div className="text-center py-4">
+              <h4 className="text-lg font-bold text-white mb-2">🏒 Upcoming Matchups Tonight</h4>
+              <p className="text-gray-400 text-sm mb-6">
+                Your players' games for today
+              </p>
             
             {upcomingMatchups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
@@ -423,107 +526,7 @@ export default function LiveStats() {
             )}
           </div>
         </div>
-      ) : (
-        <div className="p-6 pt-0 space-y-6">
-          {Object.entries(statsByTeam).map(([teamName, players]) => {
-            const teamTotals = players.reduce(
-              (acc, p) => ({
-                goals: acc.goals + p.goals,
-                assists: acc.assists + p.assists,
-                points: acc.points + p.points,
-              }),
-              { goals: 0, assists: 0, points: 0 }
-            );
-
-            return (
-              <div key={teamName} className="bg-gray-750 rounded-lg overflow-hidden">
-                {/* Team Header */}
-                <div className="bg-gray-700 px-4 py-3 flex items-center justify-between">
-                  <h4 className="text-lg font-bold text-white">{teamName}</h4>
-                  <div className="text-right">
-                    <p className="text-gray-400 text-xs">Today's Totals</p>
-                    <p className="text-green-400 font-bold">
-                      {teamTotals.goals}G + {teamTotals.assists}A = {teamTotals.points} Pts
-                    </p>
-                  </div>
-                </div>
-
-                {/* Player Stats Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-700/50">
-                      <tr>
-                        <th className="text-left p-3 text-gray-400 font-medium text-sm">Player</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">NHL</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">Status</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">⚽ G</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">🎯 A</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">📊 Pts</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">🏹 S</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">💥 H</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">🛡️ BS</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">🏆 W</th>
-                        <th className="text-center p-3 text-gray-400 font-medium text-sm">🥅 Sv</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {players.map((player, index) => {
-                        const isLive = player.gameState === 'LIVE' || player.gameState === 'CRIT';
-                        const isFinal = player.gameState === 'FINAL' || player.gameState === 'OFF';
-
-                        return (
-                          <tr
-                            key={`${player.playerId}-${index}`}
-                            className={`border-t border-gray-700 transition-colors ${
-                              isLive ? 'bg-red-900/10 hover:bg-red-900/20' : 'hover:bg-gray-700/30'
-                            }`}
-                          >
-                            <td className="p-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-white font-medium">{player.playerName}</span>
-                                {isLive && (
-                                  <span className="animate-pulse bg-red-600 text-white text-xs px-1.5 py-0.5 rounded">
-                                    LIVE
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-3 text-center">
-                              <span className="text-gray-400 text-sm font-mono">{player.nhlTeam}</span>
-                            </td>
-                            <td className="p-3 text-center">
-                              <span
-                                className={`text-xs px-2 py-1 rounded ${
-                                  isLive
-                                    ? 'bg-red-600 text-white'
-                                    : isFinal
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-gray-600 text-gray-300'
-                                }`}
-                              >
-                                {isLive ? 'LIVE' : isFinal ? 'FINAL' : player.gameState}
-                              </span>
-                            </td>
-                            <td className="p-3 text-center text-gray-300 font-medium">{player.goals}</td>
-                            <td className="p-3 text-center text-gray-300 font-medium">{player.assists}</td>
-                            <td className="p-3 text-center">
-                              <span className="text-green-400 font-bold">{player.points}</span>
-                            </td>
-                            <td className="p-3 text-center text-gray-300">{player.shots}</td>
-                            <td className="p-3 text-center text-gray-300">{player.hits}</td>
-                            <td className="p-3 text-center text-gray-300">{player.blockedShots}</td>
-                            <td className="p-3 text-center text-gray-300">{player.wins}</td>
-                            <td className="p-3 text-center text-gray-300">{player.saves}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        </>
       )}
 
       {/* Info Box */}
