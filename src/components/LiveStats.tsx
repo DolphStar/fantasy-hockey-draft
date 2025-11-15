@@ -258,60 +258,38 @@ export default function LiveStats() {
                           <tr>
                             <th className="text-left p-3 text-gray-400 font-medium text-sm">Player</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">NHL</th>
-                            <th className="text-center p-3 text-gray-400 font-medium text-sm">Status</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">⚽ G</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🎯 A</th>
-                            <th className="text-center p-3 text-gray-400 font-medium text-sm">📊 Pts</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🏹 S</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">💥 H</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🛡️ BS</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🏆 W</th>
                             <th className="text-center p-3 text-gray-400 font-medium text-sm">🥅 Sv</th>
+                            <th className="text-center p-3 text-gray-400 font-medium text-sm">📊 Pts</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {playersWithPoints.map((player, index) => {
-                            const isLive = player.gameState === 'LIVE' || player.gameState === 'CRIT';
-                            const isFinal = player.gameState === 'FINAL' || player.gameState === 'OFF';
-
-                            return (
+                          {playersWithPoints.map((player, index) => (
                               <tr
                                 key={`${player.playerId}-${index}`}
                                 className="border-t border-gray-700 hover:bg-gray-700/30"
                               >
                                 <td className="p-3">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-white font-medium">{player.playerName}</span>
-                                    {isLive && (
-                                      <span className="text-xs bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">
-                                        LIVE
-                                      </span>
-                                    )}
-                                  </div>
+                                  <span className="text-white font-medium">{player.playerName}</span>
                                 </td>
                                 <td className="p-3 text-center text-gray-300">{player.nhlTeam}</td>
-                                <td className="p-3 text-center">
-                                  {isFinal ? (
-                                    <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">FINAL</span>
-                                  ) : isLive ? (
-                                    <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">LIVE</span>
-                                  ) : (
-                                    <span className="text-xs bg-gray-600 text-white px-2 py-1 rounded">-</span>
-                                  )}
-                                </td>
                                 <td className="p-3 text-center text-gray-300">{player.goals}</td>
                                 <td className="p-3 text-center text-gray-300">{player.assists}</td>
-                                <td className="p-3 text-center">
-                                  <span className="text-green-400 font-bold">+{player.points.toFixed(2)}</span>
-                                </td>
                                 <td className="p-3 text-center text-gray-300">{player.shots || 0}</td>
                                 <td className="p-3 text-center text-gray-300">{player.hits || 0}</td>
                                 <td className="p-3 text-center text-gray-300">{player.blockedShots || 0}</td>
                                 <td className="p-3 text-center text-gray-300">{player.wins || 0}</td>
                                 <td className="p-3 text-center text-gray-300">{player.saves || 0}</td>
+                                <td className="p-3 text-center">
+                                  <span className="text-green-400 font-bold">+{player.points.toFixed(2)}</span>
+                                </td>
                               </tr>
-                            );
-                          })}
+                          ))}
                         </tbody>
                       </table>
                     </div>
