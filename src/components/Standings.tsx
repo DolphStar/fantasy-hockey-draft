@@ -214,6 +214,7 @@ export default function Standings() {
                   <th className="text-left p-4 text-gray-300 font-semibold">Rank</th>
                   <th className="text-left p-4 text-gray-300 font-semibold">Team</th>
                   <th className="text-center p-4 text-gray-300 font-semibold">Points</th>
+                  <th className="text-center p-4 text-gray-300 font-semibold text-xs">Proj. Season</th>
                   <th className="text-center p-4 text-gray-300 font-semibold">W</th>
                   <th className="text-center p-4 text-gray-300 font-semibold">L</th>
                   <th className="text-left p-4 text-gray-300 font-semibold">Last Updated</th>
@@ -224,6 +225,14 @@ export default function Standings() {
                   const isFirst = index === 0;
                   const isLast = index === standings.length - 1;
                   
+                  // Calculate projected season points (assuming 82-game season)
+                  // Rough estimate: current points per day * days in season
+                  const daysElapsed = team.lastUpdated 
+                    ? Math.max(1, Math.floor((new Date().getTime() - new Date(team.lastUpdated).getTime()) / (1000 * 60 * 60 * 24)))
+                    : 1;
+                  const pointsPerDay = team.totalPoints / Math.max(1, daysElapsed);
+                  const projectedPoints = Math.round(pointsPerDay * 180); // ~6 months season
+                  
                   return (
                     <tr
                       key={team.teamName}
@@ -232,24 +241,33 @@ export default function Standings() {
                       } ${isLast ? 'bg-red-900/10' : ''}`}
                     >
                       <td className="p-4">
-                        <span
-                          className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${
-                            isFirst
-                              ? 'bg-yellow-500 text-black'
-                              : isLast
-                              ? 'bg-red-900 text-white'
-                              : 'bg-gray-700 text-white'
-                          }`}
-                        >
-                          {index + 1}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${
+                              isFirst
+                                ? 'bg-yellow-500 text-black'
+                                : isLast
+                                ? 'bg-red-900 text-white'
+                                : 'bg-gray-700 text-white'
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
+                        </div>
                       </td>
                       <td className="p-4">
                         <span className="text-white font-semibold">{team.teamName}</span>
                       </td>
                       <td className="p-4 text-center">
-                        <span className="text-2xl font-bold text-green-400">
-                          {team.totalPoints.toFixed(2)}
+                        <div className="flex flex-col items-center">
+                          <span className="text-2xl font-bold text-green-400">
+                            {team.totalPoints.toFixed(2)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-gray-400 text-sm">
+                          ~{projectedPoints}
                         </span>
                       </td>
                       <td className="p-4 text-center text-gray-300">{team.wins || 0}</td>
