@@ -244,16 +244,51 @@ export default function LiveStats() {
                         awayTeam,
                         homeTeam,
                         gameTime: matchup.gameTime,
+                        gameTimeUTC: matchup.gameTimeUTC,
                         players: []
                       };
                     }
                     acc[gameKey].players.push(matchup);
                     return acc;
                   }, {} as Record<string, any>)
-                ).map(([gameKey, game]) => (
+                )
+                // Sort: LIVE games first, then by time
+                .sort(([, a], [, b]) => {
+                  // Check if games are live by looking at player stats
+                  const aIsLive = a.players.some((p: any) => 
+                    liveStats.some(stat => stat.playerId === p.playerId)
+                  );
+                  const bIsLive = b.players.some((p: any) => 
+                    liveStats.some(stat => stat.playerId === p.playerId)
+                  );
+                  
+                  if (aIsLive && !bIsLive) return -1;
+                  if (!aIsLive && bIsLive) return 1;
+                  
+                  // Both same state, sort by time
+                  return new Date(a.gameTimeUTC).getTime() - new Date(b.gameTimeUTC).getTime();
+                })
+                .map(([gameKey, game]) => {
+                  // Check if this game is live
+                  const gameLiveStats = game.players
+                    .map((p: any) => liveStats.find(stat => stat.playerId === p.playerId))
+                    .filter(Boolean);
+                  const isLive = gameLiveStats.length > 0;
+                  
+                  // Get game state from live stats
+                  const gameState = gameLiveStats[0]?.gameState;
+                  const isFinal = gameState === 'FINAL' || gameState === 'OFF';
+                  
+                  return (
                   <div 
                     key={gameKey} 
-                    className="bg-gray-750 p-4 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+                    className={`bg-gray-750 p-4 rounded-lg border-2 transition-all ${
+                      isLive && !isFinal
+                        ? 'border-red-500 shadow-lg shadow-red-500/20 animate-pulse'
+                        : isFinal
+                        ? 'border-green-500'
+                        : 'border-gray-700 hover:border-blue-500'
+                    }`}
                   >
                     {/* Game Header with Team Logos (LARGER) */}
                     <div className="flex items-center justify-between mb-3">
@@ -263,8 +298,31 @@ export default function LiveStats() {
                         className="w-12 h-12"
                       />
                       <div className="text-center">
-                        <p className="text-gray-400 text-xs">Game Time</p>
-                        <p className="text-green-400 font-bold text-sm">{game.gameTime}</p>
+                        {isLive ? (
+                          <>
+                            {/* LIVE: Show score and period */}
+                            <div className="flex items-center justify-center gap-2 mb-1">
+                              <span className="inline-flex items-center gap-1 bg-red-600 text-white px-2 py-0.5 rounded-full text-xs font-bold animate-pulse">
+                                <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                                {isFinal ? 'FINAL' : 'LIVE'}
+                              </span>
+                            </div>
+                            <p className="text-white font-bold text-base">
+                              {game.awayTeam} {gameLiveStats[0]?.awayScore || 0} - {gameLiveStats[0]?.homeScore || 0} {game.homeTeam}
+                            </p>
+                            {!isFinal && gameLiveStats[0]?.period && (
+                              <p className="text-gray-400 text-xs mt-1">
+                                P{gameLiveStats[0].period} {gameLiveStats[0].clock || ''}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {/* UPCOMING: Show game time */}
+                            <p className="text-gray-400 text-xs">Game Time</p>
+                            <p className="text-green-400 font-bold text-sm">{game.gameTime}</p>
+                          </>
+                        )}
                       </div>
                       <img
                         src={`https://assets.nhle.com/logos/nhl/svg/${game.homeTeam}_dark.svg`}
@@ -273,35 +331,89 @@ export default function LiveStats() {
                       />
                     </div>
                     
-                    {/* Matchup Text */}
-                    <p className="text-center text-white font-semibold text-sm mb-3">
-                      {game.awayTeam} <span className="text-gray-500">@</span> {game.homeTeam}
-                    </p>
+                    {/* Matchup Text (only show if not live) */}
+                    {!isLive && (
+                      <p className="text-center text-white font-semibold text-sm mb-3">
+                        {game.awayTeam} <span className="text-gray-500">@</span> {game.homeTeam}
+                      </p>
+                    )}
                     
                     {/* Your Players */}
                     <div className="border-t border-gray-700 pt-3">
                       <p className="text-gray-400 text-xs mb-2">Your Players ({game.players.length}):</p>
-                      <div className="flex flex-wrap gap-2">
-                        {game.players.map((player: any) => (
-                          <div
-                            key={player.playerId}
-                            className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded border border-gray-600"
-                          >
-                            <img
-                              src={`https://assets.nhle.com/mugs/nhl/20242025/${player.teamAbbrev}/${player.playerId}.png`}
-                              alt={player.playerName}
-                              onError={(e) => {
-                                e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
-                              }}
-                              className="w-6 h-6 rounded-full"
-                            />
-                            <span className="text-white text-xs font-medium">{player.playerName}</span>
-                          </div>
-                        ))}
-                      </div>
+                      
+                      {isLive ? (
+                        /* LIVE: Show stats table */
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead className="bg-gray-800/50">
+                              <tr>
+                                <th className="text-left p-2 text-gray-400 font-medium">Player</th>
+                                <th className="text-center p-2 text-gray-400 font-medium">G</th>
+                                <th className="text-center p-2 text-gray-400 font-medium">A</th>
+                                <th className="text-center p-2 text-gray-400 font-medium">H</th>
+                                <th className="text-center p-2 text-gray-400 font-medium">BS</th>
+                                <th className="text-center p-2 text-gray-400 font-medium">Pts</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {game.players.map((player: any) => {
+                                const stats = gameLiveStats.find((s: any) => s.playerId === player.playerId);
+                                return (
+                                  <tr key={player.playerId} className="border-t border-gray-700">
+                                    <td className="p-2">
+                                      <div className="flex items-center gap-1.5">
+                                        <img
+                                          src={`https://assets.nhle.com/mugs/nhl/20242025/${player.teamAbbrev}/${player.playerId}.png`}
+                                          alt={player.playerName}
+                                          onError={(e) => {
+                                            e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
+                                          }}
+                                          className="w-6 h-6 rounded-full"
+                                        />
+                                        <span className="text-white font-medium">{player.playerName}</span>
+                                      </div>
+                                    </td>
+                                    <td className="p-2 text-center text-gray-300">{stats?.goals || 0}</td>
+                                    <td className="p-2 text-center text-gray-300">{stats?.assists || 0}</td>
+                                    <td className="p-2 text-center text-gray-300">{stats?.hits || 0}</td>
+                                    <td className="p-2 text-center text-gray-300">{stats?.blockedShots || 0}</td>
+                                    <td className="p-2 text-center">
+                                      <span className="text-green-400 font-bold">
+                                        {stats?.points ? `+${stats.points.toFixed(2)}` : '0.00'}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        /* UPCOMING: Show player avatars */
+                        <div className="flex flex-wrap gap-2">
+                          {game.players.map((player: any) => (
+                            <div
+                              key={player.playerId}
+                              className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded border border-gray-600"
+                            >
+                              <img
+                                src={`https://assets.nhle.com/mugs/nhl/20242025/${player.teamAbbrev}/${player.playerId}.png`}
+                                alt={player.playerName}
+                                onError={(e) => {
+                                  e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
+                                }}
+                                className="w-6 h-6 rounded-full"
+                              />
+                              <span className="text-white text-xs font-medium">{player.playerName}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-gray-500">
