@@ -32,7 +32,8 @@ export interface PlayerMatchup {
  */
 export async function fetchTodaySchedule(): Promise<Game[]> {
   try {
-    const response = await fetch('https://api-web.nhle.com/v1/schedule/now');
+    // Use our serverless function to avoid CORS issues
+    const response = await fetch('/api/nhl-schedule');
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
