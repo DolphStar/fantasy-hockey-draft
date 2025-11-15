@@ -34,7 +34,7 @@ export default function NHLRoster() {
   const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
   
   // React Query hooks - automatic caching and refetching!
-  const { data: injuries = [], isLoading: injuriesLoading } = useInjuries();
+  const { data: injuries = [] } = useInjuries();
   const { data: rosterData, isLoading: rosterLoading, error: rosterError } = useTeamRoster(
     teamFilter as TeamAbbrev
   );
