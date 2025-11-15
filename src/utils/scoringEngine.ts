@@ -1,7 +1,7 @@
 // Fantasy scoring engine - calculates points based on player stats and league rules
 
 import { db } from '../firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, increment, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, updateDoc, increment, query, where } from 'firebase/firestore';
 import type { ScoringRules } from '../types/league';
 import type { PlayerGameStats } from './nhlStats';
 import { getCompletedGamesYesterday, getGameBoxscore, getAllPlayersFromBoxscore } from './nhlStats';
@@ -101,6 +101,20 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
   try {
     console.log(`Starting score processing for league: ${leagueId}`);
     
+    // Calculate yesterday's date string
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+    
+    // 0. Check if this date has already been processed (idempotency check)
+    const processedDateRef = doc(db, `leagues/${leagueId}/processedDates`, dateStr);
+    const processedDateSnap = await getDoc(processedDateRef);
+    
+    if (processedDateSnap.exists()) {
+      console.log(`⚠️ Date ${dateStr} has already been processed for league ${leagueId}. Skipping to prevent duplicate scoring.`);
+      throw new Error(`Date ${dateStr} has already been scored. Use "Clear Scores" first if you need to re-calculate.`);
+    }
+    
     // 1. Get league document to fetch scoring rules
     const leagueDoc = await getDocs(query(collection(db, 'leagues'), where('__name__', '==', leagueId)));
     if (leagueDoc.empty) {
@@ -144,10 +158,6 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
     // 4. Track points by team
     const teamPoints = new Map<string, number>();
     const playerScores: PlayerDailyScore[] = [];
-    
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
     
     console.log('DEBUG: Drafted player IDs:', Array.from(playerToTeamMap.keys()).slice(0, 5));
     
@@ -265,6 +275,16 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
       
       await setDoc(scoreRef, playerScore);
     }
+    
+    // 9. Mark this date as processed (prevents duplicate scoring)
+    await setDoc(processedDateRef, {
+      date: dateStr,
+      processedAt: new Date().toISOString(),
+      gamesProcessed: gameIds.length,
+      teamsUpdated: teamPoints.size,
+      playerPerformances: playerScores.length
+    });
+    console.log(`✅ Marked ${dateStr} as processed to prevent duplicate scoring`);
     
     console.log(`Score processing complete! Updated ${teamPoints.size} teams with ${playerScores.length} player performances`);
     

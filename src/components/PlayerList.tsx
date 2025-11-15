@@ -215,8 +215,28 @@ export default function PlayerList() {
     return () => unsubscribe();
   }, [myTeam]);
 
-  const activePlayers = players.filter(p => (p.rosterSlot || 'active') === 'active');
-  const reservePlayers = players.filter(p => p.rosterSlot === 'reserve');
+  // Sort players by position: Forwards (C, L, R) → Defense (D) → Goalies (G)
+  const sortByPosition = (a: DraftedPlayer, b: DraftedPlayer) => {
+    const getPositionOrder = (pos: string) => {
+      if (['C', 'L', 'R'].includes(pos)) return 1; // Forwards first
+      if (pos === 'D') return 2; // Defense second
+      if (pos === 'G') return 3; // Goalies third
+      return 4; // Unknown positions last
+    };
+    
+    const orderDiff = getPositionOrder(a.position) - getPositionOrder(b.position);
+    if (orderDiff !== 0) return orderDiff;
+    
+    // Within same position group, sort by pick number
+    return a.pickNumber - b.pickNumber;
+  };
+
+  const activePlayers = players
+    .filter(p => (p.rosterSlot || 'active') === 'active')
+    .sort(sortByPosition);
+  const reservePlayers = players
+    .filter(p => p.rosterSlot === 'reserve')
+    .sort(sortByPosition);
   const rosterCounts = countActiveRoster();
   const nextSaturday = getNextSaturday();
 
