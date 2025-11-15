@@ -32,18 +32,18 @@ export async function processLiveStats(leagueId: string) {
   try {
     console.log('🔴 LIVE STATS: Starting live stats update...');
     
-    // Get today's date in local timezone (not UTC!)
+    // Get today's date in UTC (consistent across all timezones)
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const localDateStr = `${year}-${month}-${day}`;
+    const year = now.getUTCFullYear();
+    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(now.getUTCDate()).padStart(2, '0');
+    const utcDateStr = `${year}-${month}-${day}`;
     
-    console.log(`🔴 LIVE STATS: Using TODAY's date: ${localDateStr}`);
-    console.log(`🔴 LIVE STATS: Your local time: ${now.toLocaleString()}`);
+    console.log(`🔴 LIVE STATS: Using UTC date: ${utcDateStr}`);
+    console.log(`🔴 LIVE STATS: UTC time: ${now.toUTCString()}`);
     
     // 1. Get all games scheduled for today
-    const games = await getGamesForDate(localDateStr);
+    const games = await getGamesForDate(utcDateStr);
     
     if (games.length === 0) {
       console.log('🔴 LIVE STATS: No games today');
@@ -122,7 +122,7 @@ export async function processLiveStats(leagueId: string) {
             const liveStatsRef = doc(
               db,
               `leagues/${leagueId}/liveStats`,
-              `${localDateStr}_${playerStats.playerId}`
+              `${utcDateStr}_${playerStats.playerId}`
             );
             
             await setDoc(liveStatsRef, liveStats);
