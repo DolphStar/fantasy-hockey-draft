@@ -44,26 +44,27 @@ export async function fetchAllInjuries(): Promise<InjuryReport[]> {
     const data: any = await response.json();
     
     // ESPN returns injuries grouped by team
-    if (data.teams && Array.isArray(data.teams)) {
-      for (const team of data.teams) {
-        const teamAbbrev = team.team?.abbreviation || 'UNK';
-        const teamName = team.team?.displayName || 'Unknown';
+    if (data.injuries && Array.isArray(data.injuries)) {
+      for (const teamData of data.injuries) {
+        const teamAbbrev = teamData.id || 'UNK'; // Team ID (e.g., "25" for ANA)
+        const teamName = teamData.displayName || 'Unknown';
         
         // Each team has an injuries array
-        if (team.injuries && Array.isArray(team.injuries)) {
-          for (const injury of team.injuries) {
+        if (teamData.injuries && Array.isArray(teamData.injuries)) {
+          for (const injury of teamData.injuries) {
             const athlete = injury.athlete || {};
+            const details = injury.details || {};
             
             allInjuries.push({
               playerId: parseInt(athlete.id) || 0,
               playerName: athlete.displayName || 'Unknown Player',
               team: teamName,
-              teamAbbrev: teamAbbrev,
+              teamAbbrev: athlete.team?.abbreviation || teamAbbrev,
               position: athlete.position?.abbreviation || 'N/A',
               status: injury.status || 'Out',
-              injuryType: injury.type || 'Undisclosed',
-              description: injury.details || injury.longComment || 'No details available',
-              returnDate: injury.date,
+              injuryType: details.type || 'Undisclosed',
+              description: injury.longComment || injury.shortComment || details.type || 'No details available',
+              returnDate: details.returnDate,
               lastUpdated: new Date().toISOString()
             });
           }
