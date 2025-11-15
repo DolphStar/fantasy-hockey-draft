@@ -1,7 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-// @ts-expect-error - react-window types are incorrect
-import { FixedSizeList } from 'react-window';
 import { 
   getPlayerFullName,
   getAllPlayers,
@@ -17,7 +15,6 @@ import { useLeague } from '../context/LeagueContext';
 import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
 import { useTeamRoster } from '../queries/useTeamRoster';
-import { useResponsiveColumns } from '../hooks/useResponsiveColumns';
 
 export default function NHLRoster() {
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
@@ -347,22 +344,7 @@ export default function NHLRoster() {
     return matchesSearch && matchesPosition && matchesTeam;
   });
 
-  // Responsive columns for grid layout
-  const columns = useResponsiveColumns();
-  
-  // Only use virtualization for large lists (>100 players)
-  const useVirtualization = filteredRoster.length > 100;
-  
-  // Chunk players into rows for virtualization
-  const playerRows = useMemo(() => {
-    const rows: RosterPerson[][] = [];
-    for (let i = 0; i < filteredRoster.length; i += columns) {
-      rows.push(filteredRoster.slice(i, i + columns));
-    }
-    return rows;
-  }, [filteredRoster, columns]);
-
-  // Render a single player card (extracted for reuse)
+  // Render a single player card
   const renderPlayerCard = (rosterPlayer: RosterPerson) => {
     const isDrafted = draftedPlayerIds.has(rosterPlayer.person.id);
     const isDrafting = draftingPlayerId === rosterPlayer.person.id;
@@ -639,30 +621,12 @@ export default function NHLRoster() {
               <h3 className="text-xl font-semibold mb-6 text-white">
                 {teamFilter !== 'ALL' ? `${NHL_TEAMS[teamFilter as TeamAbbrev]} - ` : 'All NHL Players - '}
                 {filteredRoster.length} Player{filteredRoster.length !== 1 ? 's' : ''}
-                {useVirtualization && <span className="ml-2 text-green-400 text-sm">⚡ Virtualized for performance</span>}
               </h3>
               
-              {/* Use virtualization for large lists (>100 players) */}
-              {useVirtualization ? (
-                <FixedSizeList
-                  height={800} // ~4 rows visible
-                  itemCount={playerRows.length}
-                  itemSize={220} // Height of each row (card height + gap)
-                  width="100%"
-                  overscanCount={2} // Render 2 extra rows above/below viewport
-                >
-                  {({ index, style }: { index: number; style: React.CSSProperties }) => (
-                    <div style={style} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1">
-                      {playerRows[index].map((rosterPlayer) => renderPlayerCard(rosterPlayer))}
-                    </div>
-                  )}
-                </FixedSizeList>
-              ) : (
-                // Regular grid for small lists (<100 players)
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredRoster.map((rosterPlayer) => renderPlayerCard(rosterPlayer))}
-                </div>
-              )}
+              {/* Player grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredRoster.map((rosterPlayer) => renderPlayerCard(rosterPlayer))}
+              </div>
         </>
       ) : (
         <div className="text-center py-12">
