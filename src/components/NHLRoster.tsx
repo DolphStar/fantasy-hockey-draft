@@ -392,6 +392,10 @@ export default function NHLRoster() {
     const teamAbbrev = (rosterPlayer as any).teamAbbrev || 'UNK';
     const injury = isPlayerInjuredByName(getPlayerFullName(rosterPlayer), injuries);
     
+    // Check if player is a superstar (100+ points)
+    const playerStats = lastSeasonStats[rosterPlayer.person.id];
+    const isSuperstar = playerStats && playerStats.points >= 100;
+    
     // NHL headshot URL (with fallback)
     const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${rosterPlayer.person.id}.png`;
     const fallbackHeadshot = "https://assets.nhle.com/mugs/nhl/default-skater.png";
@@ -400,10 +404,12 @@ export default function NHLRoster() {
     return (
       <div
         key={rosterPlayer.person.id}
-        className={`rounded-lg p-4 transition-all ${
+        className={`rounded-xl p-4 transition-all ${
           isDrafted 
-            ? 'bg-gray-900 opacity-60 border-2 border-gray-600' 
-            : 'bg-gray-700 hover:bg-gray-650'
+            ? 'bg-gray-900 opacity-60 border-2 border-gray-600'
+            : isSuperstar
+            ? 'bg-gradient-to-br from-gray-800 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)] hover:shadow-[0_0_25px_rgba(245,158,11,0.2)]'
+            : 'bg-gray-700 hover:bg-gray-650 border border-gray-700'
         }`}
       >
         <div className="flex flex-col gap-3">
@@ -464,42 +470,53 @@ export default function NHLRoster() {
                 {rosterPlayer.position.name}
               </p>
               
-              {/* Last Season Stats */}
-              <div className="mt-2 bg-gray-900/50 p-2 rounded text-sm">
-                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">2023-24 Season</p>
-                {(() => {
-                  const playerStats = lastSeasonStats[rosterPlayer.person.id];
-                  
-                  if (!playerStats) {
-                    return (
-                      <span className="text-gray-500 italic text-xs">No stats (Rookie/Injured)</span>
-                    );
-                  }
-                  
-                  if (rosterPlayer.position.code === 'G') {
-                    // Layout for Goalies
-                    return (
-                      <div className="flex items-center gap-3">
-                        <span className="text-green-400 font-bold">{playerStats.wins || 0} Wins</span>
-                        <span className="text-gray-300 text-xs">{(playerStats.savePct || 0).toFixed(3)} SV%</span>
+              {/* Last Season Stats - Pro Design */}
+              <div className="mt-3 mb-4 flex items-center justify-between px-1">
+                {playerStats ? (
+                  rosterPlayer.position.code === 'G' ? (
+                    // --- GOALIE DESIGN ---
+                    <>
+                      <div className="flex flex-col">
+                        <span className="text-2xl font-black text-emerald-400 leading-none">
+                          {playerStats.wins || 0}
+                        </span>
+                        <span className="text-[10px] uppercase font-bold text-emerald-500/80 tracking-widest">
+                          Wins
+                        </span>
                       </div>
-                    );
-                  } else {
-                    // Layout for Skaters - Color coding based on points
-                    const pointsColor = 
-                      playerStats.points >= 100 ? 'text-yellow-300' : // Star player
-                      playerStats.points >= 60 ? 'text-blue-400' :     // Good player
-                      playerStats.points >= 40 ? 'text-green-400' :    // Solid player
-                      'text-gray-400';                                   // Depth player
-                    
-                    return (
-                      <div className="flex items-center gap-3">
-                        <span className={`${pointsColor} font-bold text-lg`}>{playerStats.points} Pts</span>
-                        <span className="text-gray-400 text-xs">({playerStats.goals}G - {playerStats.assists}A)</span>
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded">
+                        <span className="text-xs font-mono text-emerald-300">
+                          {(playerStats.savePct || 0).toFixed(3)} <span className="opacity-50">SV%</span>
+                        </span>
                       </div>
-                    );
-                  }
-                })()}
+                    </>
+                  ) : (
+                    // --- SKATER DESIGN ---
+                    <>
+                      <div className="flex flex-col">
+                        <span className="text-2xl font-black text-amber-400 leading-none">
+                          {playerStats.points}
+                        </span>
+                        <span className="text-[10px] uppercase font-bold text-amber-500/80 tracking-widest">
+                          Points
+                        </span>
+                      </div>
+                      <div className="flex gap-1 text-xs font-medium text-gray-400">
+                        <span className="bg-gray-700/50 px-2 py-1 rounded border border-gray-600/30">
+                          <span className="text-white">{playerStats.goals}</span> G
+                        </span>
+                        <span className="bg-gray-700/50 px-2 py-1 rounded border border-gray-600/30">
+                          <span className="text-white">{playerStats.assists}</span> A
+                        </span>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  // --- NO STATS DESIGN ---
+                  <div className="w-full text-center py-1 border border-dashed border-gray-700 rounded">
+                    <span className="text-xs text-gray-500 italic">No 23-24 Stats</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
