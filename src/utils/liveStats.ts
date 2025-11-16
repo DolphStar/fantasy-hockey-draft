@@ -90,6 +90,7 @@ export async function processLiveStats(leagueId: string) {
         }
         
         console.log(` LIVE STATS: Processing game ${game.id} (${game.gameState})`);
+        console.log(` LIVE STATS: Game scores - Away: ${game.awayTeam?.score}, Home: ${game.homeTeam?.score}`);
         
         // Add delay between API calls to avoid rate limiting (500ms)
         if (i > 0) {
