@@ -245,8 +245,8 @@ export default function LiveStats() {
                       <h4 className="text-lg font-bold text-white">{teamName}</h4>
                       <div className="text-right">
                         <p className="text-gray-400 text-xs">Today's Totals</p>
-                        <p className="text-green-400 font-bold">
-                          {teamTotals.goals}G + {teamTotals.assists}A = {teamTotals.points} Pts
+                        <p className="text-green-400 font-bold text-xl">
+                          {teamTotals.points.toFixed(2)} Pts
                         </p>
                       </div>
                     </div>
