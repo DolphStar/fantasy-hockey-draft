@@ -150,6 +150,48 @@ export default function LiveStats() {
     }
   };
 
+  // Clear all live stats and refresh
+  const handleClearAndRefresh = async () => {
+    if (!league || refreshing) return;
+    
+    if (!confirm('Clear all live stats and fetch fresh data?')) return;
+    
+    setRefreshing(true);
+    try {
+      // Get today's date for filtering
+      const now = new Date();
+      const etOffset = -5;
+      const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+      const year = etTime.getUTCFullYear();
+      const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(etTime.getUTCDate()).padStart(2, '0');
+      const today = `${year}-${month}-${day}`;
+      
+      // Delete all today's documents
+      const { getDocs, deleteDoc, doc } = await import('firebase/firestore');
+      const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
+      const snapshot = await getDocs(liveStatsRef);
+      
+      let deleted = 0;
+      for (const docSnap of snapshot.docs) {
+        if (docSnap.id.startsWith(today)) {
+          await deleteDoc(doc(db, `leagues/${league.id}/liveStats`, docSnap.id));
+          deleted++;
+        }
+      }
+      
+      console.log(`🗑️ Deleted ${deleted} stale documents`);
+      
+      // Now fetch fresh data
+      await processLiveStats(league.id);
+      setSecondsUntilRefresh(300);
+    } catch (error) {
+      console.error('Clear and refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   // Format countdown timer
   const formatCountdown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -204,6 +246,20 @@ export default function LiveStats() {
               }`}
             >
               {refreshing ? 'Refreshing...' : '🔄 Refresh Now'}
+            </button>
+            
+            {/* Clear Cache Button */}
+            <button
+              onClick={handleClearAndRefresh}
+              disabled={refreshing}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                refreshing
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700 text-white'
+              }`}
+              title="Delete all cached live stats and fetch fresh data"
+            >
+              🗑️ Clear Cache
             </button>
             
             {/* Last Updated */}
