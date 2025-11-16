@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs, query, where } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import { processLiveStats } from '../utils/liveStats';
 import type { LivePlayerStats } from '../utils/liveStats';
@@ -33,26 +33,53 @@ export default function LiveStats() {
     const today = `${year}-${month}-${day}`;
     const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
 
+    // Get active roster player IDs to filter live stats
+    const getActivePlayerIds = async () => {
+      if (!myTeam) return new Set<number>();
+      
+      const draftedSnapshot = await getDocs(
+        query(
+          collection(db, 'draftedPlayers'),
+          where('leagueId', '==', league.id),
+          where('draftedByTeam', '==', myTeam.teamName),
+          where('rosterSlot', '==', 'active')
+        )
+      );
+      return new Set(draftedSnapshot.docs.map((doc: any) => doc.data().playerId));
+    };
+
     // Set up real-time listener
-    const unsubscribe = onSnapshot(liveStatsRef, (snapshot) => {
-      const stats: LivePlayerStats[] = [];
+    const setupListener = async () => {
+      const activePlayerIds = await getActivePlayerIds();
       
-      snapshot.forEach(doc => {
-        // Only include today's stats
-        if (doc.id.startsWith(today)) {
-          stats.push(doc.data() as LivePlayerStats);
-        }
+      const unsubscribe = onSnapshot(liveStatsRef, (snapshot) => {
+        const stats: LivePlayerStats[] = [];
+        
+        snapshot.forEach(doc => {
+          // Only include today's stats for ACTIVE roster players
+          if (doc.id.startsWith(today)) {
+            const stat = doc.data() as LivePlayerStats;
+            if (activePlayerIds.has(stat.playerId)) {
+              stats.push(stat);
+            }
+          }
+        });
+
+        // Sort by points descending
+        stats.sort((a, b) => b.points - a.points);
+        
+        setLiveStats(stats);
+        setLastUpdate(new Date());
+        setLoading(false);
       });
-
-      // Sort by points descending
-      stats.sort((a, b) => b.points - a.points);
       
-      setLiveStats(stats);
-      setLastUpdate(new Date());
-      setLoading(false);
-    });
+      return unsubscribe;
+    };
+    
+    let unsubscribe: (() => void) | null = null;
+    setupListener().then(unsub => { unsubscribe = unsub; });
 
-    return () => unsubscribe();
+    return () => { if (unsubscribe) unsubscribe(); };
   }, [league]);
 
   // Fetch upcoming matchups (always, not just when no live stats)
