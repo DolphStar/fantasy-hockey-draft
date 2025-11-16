@@ -384,7 +384,11 @@ export default function LiveStats() {
                           <>
                             {/* LIVE: Show score and period */}
                             <div className="flex items-center justify-center gap-2 mb-1">
-                              <span className="inline-flex items-center gap-1 bg-red-600 text-white px-2 py-0.5 rounded-full text-xs font-bold animate-pulse">
+                              <span className={`inline-flex items-center gap-1 text-white px-2 py-0.5 rounded-full text-xs font-bold ${
+                                isFinal 
+                                  ? 'bg-green-600' 
+                                  : 'bg-red-600 animate-pulse'
+                              }`}>
                                 <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
                                 {isFinal ? 'FINAL' : 'LIVE'}
                               </span>
