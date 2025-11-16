@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Toaster } from 'sonner'
-import PlayerList from './components/PlayerList'
-import NHLRoster from './components/NHLRoster'
-import DraftBoardGrid from './components/DraftBoardGrid'
-import LeagueSettings from './components/LeagueSettings'
-import Standings from './components/Standings'
-import LeagueChat from './components/LeagueChat'
-import Injuries from './components/Injuries'
 import Login from './components/Login'
 import { useAuth } from './context/AuthContext'
 import { useTurnNotification } from './hooks/useTurnNotification'
+
+const PlayerList = lazy(() => import('./components/PlayerList'))
+const NHLRoster = lazy(() => import('./components/NHLRoster'))
+const DraftBoardGrid = lazy(() => import('./components/DraftBoardGrid'))
+const LeagueSettings = lazy(() => import('./components/LeagueSettings'))
+const Standings = lazy(() => import('./components/Standings'))
+const LeagueChat = lazy(() => import('./components/LeagueChat'))
+const Injuries = lazy(() => import('./components/Injuries'))
 
 type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'injuries' | 'leagueSettings' | 'chat'
 
@@ -178,17 +179,25 @@ function App() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'roster' && <NHLRoster />}
-      {activeTab === 'draftBoard' && (
-        <div className="max-w-6xl mx-auto px-6">
-          <DraftBoardGrid />
-        </div>
-      )}
-      {activeTab === 'myPlayers' && <PlayerList />}
-      {activeTab === 'standings' && <Standings />}
-      {activeTab === 'injuries' && <Injuries />}
-      {activeTab === 'chat' && <LeagueChat />}
-      {activeTab === 'leagueSettings' && <LeagueSettings />}
+      <Suspense
+        fallback={
+          <div className="flex justify-center items-center py-12">
+            <div className="text-center text-gray-400">Loading view...</div>
+          </div>
+        }
+      >
+        {activeTab === 'roster' && <NHLRoster />}
+        {activeTab === 'draftBoard' && (
+          <div className="max-w-6xl mx-auto px-6">
+            <DraftBoardGrid />
+          </div>
+        )}
+        {activeTab === 'myPlayers' && <PlayerList />}
+        {activeTab === 'standings' && <Standings />}
+        {activeTab === 'injuries' && <Injuries />}
+        {activeTab === 'chat' && <LeagueChat />}
+        {activeTab === 'leagueSettings' && <LeagueSettings />}
+      </Suspense>
     </div>
     );
   } catch (error) {
