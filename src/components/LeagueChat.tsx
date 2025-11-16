@@ -13,7 +13,16 @@ interface ChatMessage {
   createdAt: string; // ISO string
 }
 
-export default function LeagueChat() {
+interface LeagueChatProps {
+  /**
+   * Layout variant:
+   * - 'full' (default): full-page chat view used on the Chat tab
+   * - 'embedded': compact panel used alongside the draft board
+   */
+  variant?: 'full' | 'embedded';
+}
+
+export default function LeagueChat({ variant = 'full' }: LeagueChatProps) {
   const { league, isAdmin } = useLeague();
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -61,9 +70,20 @@ export default function LeagueChat() {
 
   if (!league) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <h2 className="text-3xl font-bold mb-6 text-white">League Chat</h2>
-        <p className="text-gray-400">No league loaded. Join or create a league to use chat.</p>
+      <div className={
+        variant === 'embedded'
+          ? 'flex flex-col h-full bg-gray-900/80 rounded-lg border border-gray-700 p-3'
+          : 'max-w-4xl mx-auto p-6'
+      }>
+        <h2 className={
+          variant === 'embedded'
+            ? 'text-sm font-semibold mb-2 text-white'
+            : 'text-3xl font-bold mb-4 text-white'
+        }>
+          
+          League Chat
+        </h2>
+        <p className="text-gray-400 text-sm">No league loaded. Join or create a league to use chat.</p>
       </div>
     );
   }
@@ -143,13 +163,29 @@ export default function LeagueChat() {
     }
   };
 
+  const containerClass =
+    variant === 'embedded'
+      ? 'flex flex-col h-full bg-gray-900/80 rounded-lg border border-gray-700 p-3'
+      : 'max-w-4xl mx-auto p-6 flex flex-col h-[70vh]';
+
   return (
-    <div className="max-w-4xl mx-auto p-6 flex flex-col h-[70vh]">
-      <h2 className="text-3xl font-bold mb-4 text-white">💬 League Chat</h2>
-      <p className="text-gray-400 text-sm mb-4">
-        Chat with everyone in <span className="font-semibold text-blue-300">{league.leagueName}</span>.
-        Messages are visible to all league members.
-      </p>
+    <div className={containerClass}>
+      <h2
+        className={
+          variant === 'embedded'
+            ? 'text-sm font-semibold mb-2 text-white flex items-center gap-2'
+            : 'text-3xl font-bold mb-4 text-white'
+        }
+      >
+        <span>💬</span>
+        <span>{variant === 'embedded' ? 'League Chat' : 'League Chat'}</span>
+      </h2>
+      {variant === 'full' && (
+        <p className="text-gray-400 text-sm mb-4">
+          Chat with everyone in <span className="font-semibold text-blue-300">{league.leagueName}</span>.
+          Messages are visible to all league members.
+        </p>
+      )}
 
       {isBanned && (
         <div className="bg-red-900/40 border border-red-600 text-red-100 text-sm px-4 py-2 rounded mb-3">
@@ -158,7 +194,7 @@ export default function LeagueChat() {
       )}
 
       {/* Messages list */}
-      <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-y-auto border border-gray-700">
+      <div className="flex-1 bg-gray-800 rounded-lg p-3 overflow-y-auto border border-gray-700">
         {messages.length === 0 ? (
           <p className="text-gray-500 text-sm">No messages yet. Start the conversation!</p>
         ) : (

@@ -162,6 +162,7 @@ export default function DraftBoardGrid() {
                                 <img
                                   src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
                                   alt={player.name}
+                                  loading="lazy"
                                   onError={(e) => {
                                     e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
                                   }}
@@ -204,6 +205,7 @@ export default function DraftBoardGrid() {
                                 <img
                                   src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
                                   alt={player.name}
+                                  loading="lazy"
                                   onError={(e) => {
                                     e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
                                   }}

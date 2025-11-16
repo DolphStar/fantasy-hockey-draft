@@ -163,7 +163,11 @@ function App() {
 
       {/* Tab Content */}
       {activeTab === 'roster' && <NHLRoster />}
-      {activeTab === 'draftBoard' && <DraftBoardGrid />}
+      {activeTab === 'draftBoard' && (
+        <div className="max-w-6xl mx-auto px-6">
+          <DraftBoardGrid />
+        </div>
+      )}
       {activeTab === 'myPlayers' && <PlayerList />}
       {activeTab === 'standings' && <Standings />}
       {activeTab === 'injuries' && <Injuries />}

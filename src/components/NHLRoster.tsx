@@ -404,7 +404,7 @@ export default function NHLRoster() {
     return (
       <div
         key={rosterPlayer.person.id}
-        className={`relative rounded-xl p-4 transition-all ${
+        className={`relative rounded-xl p-4 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 hover:-translate-y-0.5 ${
           isDrafted 
             ? isSuperstar
               ? 'bg-gray-900 opacity-60 border-2 border-amber-500/40'  // Drafted superstar - hint of gold
@@ -441,10 +441,11 @@ export default function NHLRoster() {
               <img 
                 src={headshotUrl}
                 alt={getPlayerFullName(rosterPlayer)}
+                loading="lazy"
                 onError={(e) => {
                   e.currentTarget.src = fallbackHeadshot;
                 }}
-                className="w-16 h-16 rounded-full object-cover border-2 border-gray-600 bg-gray-800"
+                className="w-20 h-20 rounded-full object-cover border-2 border-gray-600 bg-gray-800"
               />
               {/* Team Logo Badge */}
               <div className="absolute -bottom-1 -right-1 w-8 h-8">
