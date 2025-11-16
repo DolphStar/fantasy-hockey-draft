@@ -392,7 +392,7 @@ export default function LiveStats() {
                             <p className="text-white font-bold text-base">
                               {game.awayTeam} {gameLiveStats[0]?.awayScore || 0} - {gameLiveStats[0]?.homeScore || 0} {game.homeTeam}
                             </p>
-                            {!isFinal && gameLiveStats[0]?.period && (
+                            {!isFinal && gameLiveStats[0]?.period > 0 && (
                               <p className="text-gray-400 text-xs mt-1">
                                 P{gameLiveStats[0].period} {gameLiveStats[0].clock || ''}
                               </p>
