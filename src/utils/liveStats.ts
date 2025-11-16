@@ -2,7 +2,7 @@
 // Updates multiple times per day to show real-time performance
 
 import { db } from '../firebase';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getGamesForDate, getGameBoxscore, getAllPlayersFromBoxscore } from './nhlStats';
 
 export interface LivePlayerStats {
@@ -122,13 +122,15 @@ export async function processLiveStats(leagueId: string) {
         
         console.log(` LIVE STATS: Scores for game ${game.id}: ${awayScore}-${homeScore}`);
         
-        // 4. Update live stats for drafted players in this game
+        // 4. Prepare batch writes for all players in this game
+        const { writeBatch } = await import('firebase/firestore');
+        const batch = writeBatch(db);
+        let batchCount = 0;
+        
         for (const playerStats of allPlayers) {
           const fantasyTeam = playerToTeamMap.get(playerStats.playerId);
           
           if (fantasyTeam) {
-            
-            // This player is on someone's fantasy team!
             const liveStats: LivePlayerStats = {
               playerId: playerStats.playerId,
               playerName: playerStats.name.default,
@@ -138,8 +140,8 @@ export async function processLiveStats(leagueId: string) {
               gameState: game.gameState,
               awayScore,
               homeScore,
-              period: 0, // Period info not available in GameScore API
-              clock: '', // Clock info not available in GameScore API
+              period: 0,
+              clock: '',
               goals: playerStats.goals || 0,
               assists: playerStats.assists || 0,
               points: (playerStats.goals || 0) + (playerStats.assists || 0),
@@ -152,18 +154,19 @@ export async function processLiveStats(leagueId: string) {
               lastUpdated: serverTimestamp(),
             };
             
-            // Save to Firestore (upsert)
-            const liveStatsRef = doc(
-              db,
-              `leagues/${leagueId}/liveStats`,
-              `${etDateStr}_${playerStats.playerId}`
-            );
-            
-            await setDoc(liveStatsRef, liveStats);
-            playersUpdated++;
+            const liveStatsRef = doc(db, `leagues/${leagueId}/liveStats`, `${etDateStr}_${playerStats.playerId}`);
+            batch.set(liveStatsRef, liveStats);
+            batchCount++;
             
             console.log(`🔴 ${playerStats.name.default} (${fantasyTeam}): ${liveStats.goals}G ${liveStats.assists}A [${game.gameState}]`);
           }
+        }
+        
+        // Commit all players for this game at once
+        if (batchCount > 0) {
+          await batch.commit();
+          playersUpdated += batchCount;
+          console.log(` LIVE STATS: Batch committed ${batchCount} players for game ${game.id}`);
         }
         
         gamesProcessed++;
