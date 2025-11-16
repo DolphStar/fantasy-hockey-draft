@@ -14,7 +14,7 @@ import { useTurnNotification } from './hooks/useTurnNotification'
 type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'injuries' | 'leagueSettings' | 'chat'
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('roster')
+  const [activeTab, setActiveTab] = useState<Tab>('standings')
   const { user, loading: authLoading, signOut } = useAuth()
   
   // Turn notifications (sound + browser notification)
