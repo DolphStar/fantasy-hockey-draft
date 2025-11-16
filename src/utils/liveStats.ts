@@ -8,10 +8,14 @@ import { getGamesForDate, getGameBoxscore, getAllPlayersFromBoxscore } from './n
 export interface LivePlayerStats {
   playerId: number;
   playerName: string;
-  teamName: string;
+  teamName: string; // Fantasy team name
   nhlTeam: string;
   gameId: number;
-  gameState: string; // LIVE, FINAL, FUT
+  gameState: string;
+  awayScore: number;
+  homeScore: number;
+  period: number;
+  clock: string;
   goals: number;
   assists: number;
   points: number;
@@ -109,6 +113,10 @@ export async function processLiveStats(leagueId: string) {
               nhlTeam: playerStats.teamAbbrev || 'UNK',
               gameId: game.id,
               gameState: game.gameState,
+              awayScore: game.awayTeam.score || 0,
+              homeScore: game.homeTeam.score || 0,
+              period: 0, // Period info not available in GameScore API
+              clock: '', // Clock info not available in GameScore API
               goals: playerStats.goals || 0,
               assists: playerStats.assists || 0,
               points: (playerStats.goals || 0) + (playerStats.assists || 0),
