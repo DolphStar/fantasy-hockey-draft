@@ -163,8 +163,8 @@ export const NHL_TEAMS = {
 
 export type TeamAbbrev = keyof typeof NHL_TEAMS;
 
-// Stats API base URL (uses /api/stats proxy in production, Vite proxy in dev)
-const BASE_URL_STATS = import.meta.env.PROD ? '/api/stats' : '/stats';
+// Stats API base URL - use the stats.api subdomain (different from api.nhle.com)
+const BASE_URL_STATS = import.meta.env.PROD ? 'https://api.nhle.com/stats' : '/stats';
 
 // Define the shape of the stats we want
 export interface LastSeasonStats {
