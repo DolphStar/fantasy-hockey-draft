@@ -88,11 +88,20 @@ export async function processLiveStats(leagueId: string) {
           continue;
         }
         
-        // Skip FINAL games - scores already captured when game was LIVE
-        // This prevents overwriting good scores with 0-0 from API
+        // For FINAL games, only process if we don't have data yet
         if (game.gameState === 'FINAL' || game.gameState === 'OFF') {
-          console.log(` LIVE STATS: Game ${game.id} already finished (${game.gameState}) - skipping`);
-          continue;
+          // Check if we already have data for this game
+          const { getDocs, query, where } = await import('firebase/firestore');
+          const liveStatsRef = collection(db, `leagues/${leagueId}/liveStats`);
+          const gameQuery = query(liveStatsRef, where('gameId', '==', game.id));
+          const existingSnapshot = await getDocs(gameQuery);
+          
+          if (!existingSnapshot.empty) {
+            console.log(` LIVE STATS: Game ${game.id} already has data (${game.gameState}) - skipping`);
+            continue;
+          } else {
+            console.log(` LIVE STATS: Game ${game.id} is FINAL but no data yet - processing once`);
+          }
         }
         
         console.log(` LIVE STATS: Processing game ${game.id} (${game.gameState})`);
