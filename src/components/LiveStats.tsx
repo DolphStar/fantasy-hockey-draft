@@ -430,24 +430,32 @@ export default function LiveStats() {
                     
                     {/* Your Players */}
                     <div className="border-t border-gray-700 pt-3">
-                      <p className="text-gray-400 text-xs mb-2">Your Players ({
-                        isFinal 
+                      {/* Calculate scoring players count */}
+                      {(() => {
+                        const scoringPlayersCount = isFinal 
                           ? game.players.filter((p: any) => {
                               const stats = gameLiveStats.find((s: any) => s.playerId === p.playerId);
                               return stats && stats.points > 0;
                             }).length
-                          : game.players.length
-                      }):</p>
-                      
-                      {/* Show message if FINAL game with 0 scoring players */}
-                      {isFinal && game.players.filter((p: any) => {
-                        const stats = gameLiveStats.find((s: any) => s.playerId === p.playerId);
-                        return stats && stats.points > 0;
-                      }).length === 0 ? (
-                        <div className="text-center py-4">
-                          <p className="text-gray-500 text-sm">😔 No points scored by your players</p>
-                        </div>
-                      ) : isLive ? (
+                          : game.players.length;
+                        
+                        const hasNoScorers = isFinal && scoringPlayersCount === 0;
+                        
+                        return (
+                          <>
+                            {/* Only show "Your Players" header if there are scorers OR game isn't final */}
+                            {!hasNoScorers && (
+                              <p className="text-gray-400 text-xs mb-2">
+                                Your Players ({scoringPlayersCount}):
+                              </p>
+                            )}
+                            
+                            {/* Show message if FINAL game with 0 scoring players */}
+                            {hasNoScorers ? (
+                              <div className="text-center py-4">
+                                <p className="text-gray-500 text-sm">😔 No points scored by your players</p>
+                              </div>
+                            ) : isLive ? (
                         /* LIVE: Show stats table */
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
@@ -524,6 +532,9 @@ export default function LiveStats() {
                           ))}
                         </div>
                       )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                   );
