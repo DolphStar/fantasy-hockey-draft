@@ -406,7 +406,9 @@ export default function NHLRoster() {
         key={rosterPlayer.person.id}
         className={`rounded-xl p-4 transition-all ${
           isDrafted 
-            ? 'bg-gray-900 opacity-60 border-2 border-gray-600'
+            ? isSuperstar
+              ? 'bg-gray-900 opacity-60 border-2 border-amber-500/40'  // Drafted superstar - hint of gold
+              : 'bg-gray-900 opacity-60 border-2 border-gray-600'      // Regular drafted player
             : isSuperstar
             ? 'bg-gradient-to-br from-gray-800 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)] hover:shadow-[0_0_25px_rgba(245,158,11,0.2)]'
             : 'bg-gray-700 hover:bg-gray-650 border border-gray-700'
