@@ -410,14 +410,16 @@ export default function NHLRoster() {
               ? 'bg-gray-900 opacity-60 border-2 border-amber-500/40'  // Drafted superstar - hint of gold
               : 'bg-gray-900 opacity-60 border-2 border-gray-600'      // Regular drafted player
             : isSuperstar
-            ? 'bg-gradient-to-br from-gray-800 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)] hover:shadow-[0_0_25px_rgba(245,158,11,0.2)]'
-            : 'bg-gray-700 hover:bg-gray-650 border border-gray-700'
+            ? 'bg-gradient-to-br from-gray-800 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)] hover:shadow-[0_0_25px_rgba(245,158,11,0.2)]'  // Gold tier (100+)
+            : playerStats && playerStats.points >= 80
+            ? 'bg-gray-800 border border-gray-400/40 shadow-[0_0_10px_rgba(192,192,192,0.05)] hover:border-gray-400/60'  // Silver tier (80-99)
+            : 'bg-gray-700 hover:bg-gray-650 border border-gray-700'  // Standard
         }`}
       >
         {/* Injury Badge - Top Right Corner (Abbreviated) */}
         {injury && (
           <div 
-            className="absolute top-2 right-2 z-10 cursor-help"
+            className="absolute top-3 right-3 z-10 cursor-help"
             title={`${injury.status}: ${injury.injuryType} - ${injury.description}`}
           >
             <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1 shadow-lg whitespace-nowrap`}>
@@ -539,7 +541,7 @@ export default function NHLRoster() {
                   )
                 ) : (
                   // --- NO STATS DESIGN - Large dash placeholder ---
-                  <div className="flex flex-col">
+                  <div className="flex flex-col items-start justify-center">
                     <span className="text-3xl font-black text-gray-600 leading-none">
                       —
                     </span>
@@ -563,7 +565,7 @@ export default function NHLRoster() {
                   : isDrafting
                   ? 'bg-yellow-600 text-white cursor-wait'
                   : !isMyTurn
-                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  ? 'border border-gray-700 text-gray-500 bg-transparent cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
             >
