@@ -15,6 +15,16 @@ export default defineConfig({
           'Accept': 'application/json',
           'User-Agent': 'Mozilla/5.0'
         }
+      },
+      '/stats': {
+        target: 'https://api.nhle.com',
+        changeOrigin: true,
+        secure: false,
+        followRedirects: true,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0'
+        }
       }
     }
   }

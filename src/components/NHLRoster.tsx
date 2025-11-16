@@ -7,8 +7,10 @@ import {
   getAllPlayers,
   getTeamRoster,
   NHL_TEAMS,
+  getLastSeasonStats,
   type RosterPerson,
-  type TeamAbbrev 
+  type TeamAbbrev,
+  type StatsMap
 } from '../utils/nhlApi';
 import { db } from '../firebase';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
@@ -30,6 +32,7 @@ export default function NHLRoster() {
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ANA'); // Default to Anaheim Ducks
   const [pickupTeam, setPickupTeam] = useState<string>(''); // Admin: which team to pick up for
+  const [lastSeasonStats, setLastSeasonStats] = useState<StatsMap>({}); // Last season stats
   
   // League context for showing user's team
   const { myTeam, league, isAdmin } = useLeague();
@@ -168,6 +171,20 @@ export default function NHLRoster() {
 
   // Note: React Query now handles all data fetching and caching!
   // No more manual fetch functions needed.
+
+  // Fetch last season stats on mount
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        console.log('📊 Loading last season stats...');
+        const stats = await getLastSeasonStats();
+        setLastSeasonStats(stats);
+      } catch (err) {
+        console.error('Failed to load last season stats:', err);
+      }
+    };
+    loadStats();
+  }, []);
 
   // Set up real-time listener for drafted players
   useEffect(() => {
@@ -443,9 +460,47 @@ export default function NHLRoster() {
               <p className="text-white font-medium text-lg mb-1 truncate">
                 {getPlayerFullName(rosterPlayer)}
               </p>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-sm mb-2">
                 {rosterPlayer.position.name}
               </p>
+              
+              {/* Last Season Stats */}
+              <div className="mt-2 bg-gray-900/50 p-2 rounded text-sm">
+                <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">2023-24 Season</p>
+                {(() => {
+                  const playerStats = lastSeasonStats[rosterPlayer.person.id];
+                  
+                  if (!playerStats) {
+                    return (
+                      <span className="text-gray-500 italic text-xs">No stats (Rookie/Injured)</span>
+                    );
+                  }
+                  
+                  if (rosterPlayer.position.code === 'G') {
+                    // Layout for Goalies
+                    return (
+                      <div className="flex items-center gap-3">
+                        <span className="text-green-400 font-bold">{playerStats.wins || 0} Wins</span>
+                        <span className="text-gray-300 text-xs">{(playerStats.savePct || 0).toFixed(3)} SV%</span>
+                      </div>
+                    );
+                  } else {
+                    // Layout for Skaters - Color coding based on points
+                    const pointsColor = 
+                      playerStats.points >= 100 ? 'text-yellow-300' : // Star player
+                      playerStats.points >= 60 ? 'text-blue-400' :     // Good player
+                      playerStats.points >= 40 ? 'text-green-400' :    // Solid player
+                      'text-gray-400';                                   // Depth player
+                    
+                    return (
+                      <div className="flex items-center gap-3">
+                        <span className={`${pointsColor} font-bold text-lg`}>{playerStats.points} Pts</span>
+                        <span className="text-gray-400 text-xs">({playerStats.goals}G - {playerStats.assists}A)</span>
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
             </div>
           </div>
 
