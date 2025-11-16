@@ -414,14 +414,19 @@ export default function NHLRoster() {
             : 'bg-gray-700 hover:bg-gray-650 border border-gray-700'
         }`}
       >
-        {/* Injury Badge - Top Right Corner */}
+        {/* Injury Badge - Top Right Corner (Abbreviated) */}
         {injury && (
           <div 
             className="absolute top-2 right-2 z-10 cursor-help"
-            title={`${injury.injuryType} - ${injury.description}`}
+            title={`${injury.status}: ${injury.injuryType} - ${injury.description}`}
           >
-            <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1 shadow-lg`}>
-              {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
+            <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1 shadow-lg whitespace-nowrap`}>
+              {getInjuryIcon(injury.status)} {
+                injury.status === 'Injured Reserve' ? 'IR' :
+                injury.status === 'Day To Day' ? 'DTD' :
+                injury.status === 'Out' ? 'OUT' :
+                injury.status.toUpperCase().substring(0, 3)
+              }
             </span>
           </div>
         )}
