@@ -3,8 +3,8 @@
 interface Game {
   id: number;
   startTimeUTC: string;
-  awayTeam: { abbrev: string; placeName: { default: string } };
-  homeTeam: { abbrev: string; placeName: { default: string } };
+  awayTeam: { abbrev: string; placeName: { default: string }; score?: number };
+  homeTeam: { abbrev: string; placeName: { default: string }; score?: number };
   gameState: string;
 }
 
@@ -25,6 +25,10 @@ export interface PlayerMatchup {
   isHome: boolean;
   gameTime: string;
   gameTimeUTC: string;
+  gameState: string;
+  gameId: number;
+  awayScore?: number;
+  homeScore?: number;
 }
 
 /**
@@ -95,10 +99,14 @@ export function getUpcomingMatchups(
         opponent,
         isHome,
         gameTime,
-        gameTimeUTC: game.startTimeUTC
+        gameTimeUTC: game.startTimeUTC,
+        gameState: game.gameState,
+        gameId: game.id,
+        awayScore: game.awayTeam.score,
+        homeScore: game.homeTeam.score
       };
     })
-    .filter((m): m is PlayerMatchup => m !== null);
+    .filter(m => m !== null) as PlayerMatchup[];
 
   // Sort by game time
   matchups.sort((a, b) => 

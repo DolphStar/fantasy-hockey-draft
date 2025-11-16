@@ -383,6 +383,10 @@ export default function LiveStats() {
                         homeTeam,
                         gameTime: matchup.gameTime,
                         gameTimeUTC: matchup.gameTimeUTC,
+                        gameState: matchup.gameState,
+                        gameId: matchup.gameId,
+                        awayScore: matchup.awayScore,
+                        homeScore: matchup.homeScore,
                         players: []
                       };
                     }
@@ -407,15 +411,15 @@ export default function LiveStats() {
                   return new Date(a.gameTimeUTC).getTime() - new Date(b.gameTimeUTC).getTime();
                 })
                 .map(([gameKey, game]) => {
-                  // Check if this game is live
+                  // Check if this game is live or final
                   const gameLiveStats = game.players
                     .map((p: any) => liveStats.find(stat => stat.playerId === p.playerId))
                     .filter(Boolean);
-                  const isLive = gameLiveStats.length > 0;
                   
-                  // Get game state from live stats
-                  const gameState = gameLiveStats[0]?.gameState;
+                  // Use gameState from schedule API (always available) or fall back to liveStats
+                  const gameState = game.gameState || gameLiveStats[0]?.gameState;
                   const isFinal = gameState === 'FINAL' || gameState === 'OFF';
+                  const isLive = gameLiveStats.length > 0 || gameState === 'LIVE' || isFinal;
                   
                   return (
                   <div 
@@ -450,7 +454,7 @@ export default function LiveStats() {
                               </span>
                             </div>
                             <p className="text-white font-bold text-base">
-                              {game.awayTeam} {gameLiveStats[0]?.awayScore || 0} - {gameLiveStats[0]?.homeScore || 0} {game.homeTeam}
+                              {game.awayTeam} {gameLiveStats[0]?.awayScore || game.awayScore || 0} - {gameLiveStats[0]?.homeScore || game.homeScore || 0} {game.homeTeam}
                             </p>
                             {!isFinal && gameLiveStats[0]?.period > 0 && (
                               <p className="text-gray-400 text-xs mt-1">
