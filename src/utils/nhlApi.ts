@@ -163,9 +163,6 @@ export const NHL_TEAMS = {
 
 export type TeamAbbrev = keyof typeof NHL_TEAMS;
 
-// Stats API base URL - use the stats.api subdomain (different from api.nhle.com)
-const BASE_URL_STATS = import.meta.env.PROD ? 'https://api.nhle.com/stats' : '/stats';
-
 // Define the shape of the stats we want
 export interface LastSeasonStats {
   playerId: number;
@@ -181,62 +178,50 @@ export type StatsMap = Record<number, LastSeasonStats>;
 
 /**
  * Fetch last season's stats for all players (skaters and goalies)
+ * Uses Vercel serverless function to bypass CORS
  * @returns A map of playerId -> LastSeasonStats
  */
 export const getLastSeasonStats = async (): Promise<StatsMap> => {
-  const seasonId = "20232024"; // The 2023-2024 season
-  const gameTypeId = "2";      // 2 = Regular Season
-
   try {
-    // 1. Fetch Skaters and Goalies in parallel
-    const skatersUrl = `${BASE_URL_STATS}/rest/en/skater/summary?limit=-1&cayenneExp=seasonId=${seasonId}%20and%20gameTypeId=${gameTypeId}`;
-    const goaliesUrl = `${BASE_URL_STATS}/rest/en/goalie/summary?limit=-1&cayenneExp=seasonId=${seasonId}%20and%20gameTypeId=${gameTypeId}`;
+    // Call our Vercel serverless function which handles the NHL API call server-side
+    const response = await fetch('/api/last-season-stats');
 
-    const [skatersRes, goaliesRes] = await Promise.all([
-      fetch(skatersUrl),
-      fetch(goaliesUrl)
-    ]);
-
-    if (!skatersRes.ok || !goaliesRes.ok) {
-      console.error('❌ Stats API Error:', {
-        skatersStatus: skatersRes.status,
-        skatersStatusText: skatersRes.statusText,
-        skatersUrl,
-        goaliesStatus: goaliesRes.status,
-        goaliesStatusText: goaliesRes.statusText,
-        goaliesUrl
-      });
-      throw new Error(`Failed to fetch last season stats: Skaters ${skatersRes.status}, Goalies ${goaliesRes.status}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Stats API Error:', errorData);
+      throw new Error(`Failed to fetch last season stats: ${response.status}`);
     }
 
-    const skatersData = await skatersRes.json();
-    const goaliesData = await goaliesRes.json();
-
+    const data = await response.json();
     const statsMap: StatsMap = {};
 
-    // 2. Process Skaters
-    skatersData.data.forEach((player: any) => {
-      statsMap[player.playerId] = {
-        playerId: player.playerId,
-        points: player.points,
-        goals: player.goals,
-        assists: player.assists
-      };
-    });
+    // Process Skaters
+    if (data.skaters) {
+      data.skaters.forEach((player: any) => {
+        statsMap[player.playerId] = {
+          playerId: player.playerId,
+          points: player.points,
+          goals: player.goals,
+          assists: player.assists
+        };
+      });
+    }
 
-    // 3. Process Goalies (Goalies don't usually have "points" so we show Wins/Sv%)
-    goaliesData.data.forEach((player: any) => {
-      statsMap[player.playerId] = {
-        playerId: player.playerId,
-        points: 0, // Goalies technically have 0 points usually
-        goals: 0,
-        assists: 0,
-        wins: player.wins,
-        savePct: player.savePct
-      };
-    });
+    // Process Goalies (Goalies don't usually have "points" so we show Wins/Sv%)
+    if (data.goalies) {
+      data.goalies.forEach((player: any) => {
+        statsMap[player.playerId] = {
+          playerId: player.playerId,
+          points: 0, // Goalies technically have 0 points usually
+          goals: 0,
+          assists: 0,
+          wins: player.wins,
+          savePct: player.savePct
+        };
+      });
+    }
 
-    console.log(`✅ Loaded last season stats for ${Object.keys(statsMap).length} players`);
+    console.log(`✅ Loaded last season stats for ${data.totalPlayers || Object.keys(statsMap).length} players`);
     return statsMap;
   } catch (error) {
     console.error('Error fetching last season stats:', error);
