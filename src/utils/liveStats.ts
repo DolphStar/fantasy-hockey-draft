@@ -78,6 +78,9 @@ export async function processLiveStats(leagueId: string) {
     let gamesProcessed = 0;
     let playersUpdated = 0;
     
+    // Cache scores per game to preserve them across players
+    const gameScores = new Map<number, { away: number; home: number }>();
+    
     for (let i = 0; i < games.length; i++) {
       const game = games[i];
       
@@ -101,12 +104,13 @@ export async function processLiveStats(leagueId: string) {
         const boxscore = await getGameBoxscore(game.id);
         const allPlayers = getAllPlayersFromBoxscore(boxscore);
         
-        // For FINAL games with 0-0, preserve scores from existing data
+        // Determine scores for this game
         let awayScore = game.awayTeam.score || 0;
         let homeScore = game.homeTeam.score || 0;
         
+        // For FINAL games, preserve scores if API returns 0-0
         if ((game.gameState === 'FINAL' || game.gameState === 'OFF') && awayScore === 0 && homeScore === 0) {
-          // Find any existing player from this game to get preserved scores
+          // Check if we have cached scores from a previous run
           const { getDocs, query, where } = await import('firebase/firestore');
           const liveStatsRef = collection(db, `leagues/${leagueId}/liveStats`);
           const gameQuery = query(
@@ -117,11 +121,17 @@ export async function processLiveStats(leagueId: string) {
           
           if (!gameSnapshot.empty) {
             const firstDoc = gameSnapshot.docs[0].data() as LivePlayerStats;
-            awayScore = firstDoc.awayScore || 0;
-            homeScore = firstDoc.homeScore || 0;
-            console.log(` LIVE STATS: Preserved scores for FINAL game ${game.id}: ${awayScore}-${homeScore}`);
+            // Only use preserved scores if they're non-zero
+            if (firstDoc.awayScore > 0 || firstDoc.homeScore > 0) {
+              awayScore = firstDoc.awayScore || 0;
+              homeScore = firstDoc.homeScore || 0;
+              console.log(` LIVE STATS: Preserved scores for FINAL game ${game.id}: ${awayScore}-${homeScore}`);
+            }
           }
         }
+        
+        // Cache scores for this game
+        gameScores.set(game.id, { away: awayScore, home: homeScore });
         
         // 4. Update live stats for drafted players in this game
         for (const playerStats of allPlayers) {
