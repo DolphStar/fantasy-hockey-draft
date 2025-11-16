@@ -105,12 +105,14 @@ export async function processLiveStats(leagueId: string) {
         console.log(` LIVE STATS: API scores - Away: ${game.awayTeam?.score}, Home: ${game.homeTeam?.score}`);
         
         // 1. Start with what the API gave us
-        let awayScore = game.awayTeam.score || 0;
-        let homeScore = game.homeTeam.score || 0;
+        const apiAwayScore = game.awayTeam.score || 0;
+        const apiHomeScore = game.homeTeam.score || 0;
+        let awayScore = apiAwayScore;
+        let homeScore = apiHomeScore;
         
         // 2. THE FIX: If API says 0-0, check if we have better data in Firestore
         // This prevents the "blip" from overwriting real scores
-        if (awayScore === 0 && homeScore === 0) {
+        if (apiAwayScore === 0 && apiHomeScore === 0) {
           try {
             const { getDocs, query, where, limit } = await import('firebase/firestore');
             const existingQuery = query(
@@ -152,18 +154,18 @@ export async function processLiveStats(leagueId: string) {
               const existingData = existingDocs.docs[0].data() as LivePlayerStats;
               
               // If API has different scores (e.g., 4-3 vs stored 3-3), we MUST update
-              if (game.awayTeam.score !== existingData.awayScore || game.homeTeam.score !== existingData.homeScore) {
-                console.warn(`🔄 FINAL game ${game.id} score changed: ${existingData.awayScore}-${existingData.homeScore} → ${game.awayTeam.score}-${game.homeTeam.score} (OT goal?)`);
-                // Use the API scores (they're more recent)
-                awayScore = game.awayTeam.score || 0;
-                homeScore = game.homeTeam.score || 0;
+              if (apiAwayScore !== existingData.awayScore || apiHomeScore !== existingData.homeScore) {
+                console.warn(`🔄 FINAL game ${game.id} score changed: ${existingData.awayScore}-${existingData.homeScore} → ${apiAwayScore}-${apiHomeScore} (OT goal?)`);
+                // Use the NEW API scores (not the preserved ones)
+                awayScore = apiAwayScore;
+                homeScore = apiHomeScore;
                 // Continue processing to update
-              } else if (awayScore > 0 || homeScore > 0) {
+              } else if (apiAwayScore > 0 || apiHomeScore > 0) {
                 // Scores match and are valid, skip
-                console.log(`✓ LIVE STATS: Skipping FINAL game ${game.id} with unchanged scores: ${awayScore}-${homeScore}`);
+                console.log(`✓ LIVE STATS: Skipping FINAL game ${game.id} with unchanged scores: ${apiAwayScore}-${apiHomeScore}`);
                 continue;
               }
-            } else if (awayScore === 0 && homeScore === 0) {
+            } else if (apiAwayScore === 0 && apiHomeScore === 0) {
               // FINAL game with 0-0 and no existing data
               console.log(`⚠️ LIVE STATS: FINAL game ${game.id} has 0-0, will attempt to fetch real scores`);
             }
