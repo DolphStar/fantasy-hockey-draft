@@ -49,11 +49,24 @@ export async function processLiveStats(leagueId: string) {
     console.log(`🔴 LIVE STATS: Using ET date: ${etDateStr}`);
     console.log(`🔴 LIVE STATS: ET time: ${etTime.toUTCString()}`);
     
-    // 1. Get all games scheduled for today
-    const games = await getGamesForDate(etDateStr);
+    // 1. Get today's games
+    const todayGames = await getGamesForDate(etDateStr);
+    
+    // Also get yesterday's games (in case some FINAL games are still there)
+    const yesterday = new Date(etTime.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = `${yesterday.getUTCFullYear()}-${String(yesterday.getUTCMonth() + 1).padStart(2, '0')}-${String(yesterday.getUTCDate()).padStart(2, '0')}`;
+    const yesterdayGames = await getGamesForDate(yesterdayStr);
+    
+    // Combine and filter: today's all games + yesterday's FINAL only
+    const games = [
+      ...todayGames,
+      ...yesterdayGames.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF')
+    ];
+    
+    console.log(`🔴 LIVE STATS: Found ${todayGames.length} today's games + ${yesterdayGames.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF').length} yesterday's FINAL games`);
     
     if (games.length === 0) {
-      console.log('🔴 LIVE STATS: No games today');
+      console.log('🔴 LIVE STATS: No games to process');
       return { success: true, gamesProcessed: 0, playersUpdated: 0 };
     }
     
