@@ -40,8 +40,11 @@ export async function fetchTodaySchedule(): Promise<Game[]> {
     
     const data: ScheduleResponse = await response.json();
     
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split('T')[0];
+    // Get today's date in Eastern Time (NHL's timezone)
+    const now = new Date();
+    const etOffset = -5; // EST is UTC-5
+    const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+    const today = etTime.toISOString().split('T')[0];
     
     // Find today's games
     const todaySchedule = data.gameWeek.find(day => day.date === today);
