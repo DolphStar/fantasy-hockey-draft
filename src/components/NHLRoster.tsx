@@ -566,7 +566,7 @@ export default function NHLRoster() {
                   : isDrafting
                   ? 'bg-yellow-600 text-white cursor-wait'
                   : !isMyTurn
-                  ? 'border border-gray-700 text-gray-500 bg-transparent cursor-not-allowed'
+                  ? 'border border-transparent text-gray-500 bg-transparent cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
             >
