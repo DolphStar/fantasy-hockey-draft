@@ -22,11 +22,14 @@ export default function LiveStats() {
       return;
     }
 
-    // Get today's date in UTC (consistent across all timezones)
+    // Get today's date in Eastern Time (NHL's timezone)
+    // Convert current time to ET (UTC-5 or UTC-4 depending on DST)
     const now = new Date();
-    const year = now.getUTCFullYear();
-    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(now.getUTCDate()).padStart(2, '0');
+    const etOffset = -5; // EST is UTC-5 (adjust to -4 for EDT if needed)
+    const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+    const year = etTime.getUTCFullYear();
+    const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(etTime.getUTCDate()).padStart(2, '0');
     const today = `${year}-${month}-${day}`;
     const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
 

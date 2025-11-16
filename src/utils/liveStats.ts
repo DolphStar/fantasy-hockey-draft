@@ -32,18 +32,21 @@ export async function processLiveStats(leagueId: string) {
   try {
     console.log('🔴 LIVE STATS: Starting live stats update...');
     
-    // Get today's date in UTC (consistent across all timezones)
+    // Get today's date in Eastern Time (NHL's timezone)
+    // Convert current time to ET (UTC-5 or UTC-4 depending on DST)
     const now = new Date();
-    const year = now.getUTCFullYear();
-    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(now.getUTCDate()).padStart(2, '0');
-    const utcDateStr = `${year}-${month}-${day}`;
+    const etOffset = -5; // EST is UTC-5 (adjust to -4 for EDT if needed)
+    const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+    const year = etTime.getUTCFullYear();
+    const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(etTime.getUTCDate()).padStart(2, '0');
+    const etDateStr = `${year}-${month}-${day}`;
     
-    console.log(`🔴 LIVE STATS: Using UTC date: ${utcDateStr}`);
-    console.log(`🔴 LIVE STATS: UTC time: ${now.toUTCString()}`);
+    console.log(`🔴 LIVE STATS: Using ET date: ${etDateStr}`);
+    console.log(`🔴 LIVE STATS: ET time: ${etTime.toUTCString()}`);
     
     // 1. Get all games scheduled for today
-    const games = await getGamesForDate(utcDateStr);
+    const games = await getGamesForDate(etDateStr);
     
     if (games.length === 0) {
       console.log('🔴 LIVE STATS: No games today');
@@ -122,7 +125,7 @@ export async function processLiveStats(leagueId: string) {
             const liveStatsRef = doc(
               db,
               `leagues/${leagueId}/liveStats`,
-              `${utcDateStr}_${playerStats.playerId}`
+              `${etDateStr}_${playerStats.playerId}`
             );
             
             await setDoc(liveStatsRef, liveStats);
