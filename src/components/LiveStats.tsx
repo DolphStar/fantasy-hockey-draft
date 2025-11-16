@@ -439,7 +439,15 @@ export default function LiveStats() {
                           : game.players.length
                       }):</p>
                       
-                      {isLive ? (
+                      {/* Show message if FINAL game with 0 scoring players */}
+                      {isFinal && game.players.filter((p: any) => {
+                        const stats = gameLiveStats.find((s: any) => s.playerId === p.playerId);
+                        return stats && stats.points > 0;
+                      }).length === 0 ? (
+                        <div className="text-center py-4">
+                          <p className="text-gray-500 text-sm">😔 No points scored by your players</p>
+                        </div>
+                      ) : isLive ? (
                         /* LIVE: Show stats table */
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
