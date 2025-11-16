@@ -198,7 +198,15 @@ export const getLastSeasonStats = async (): Promise<StatsMap> => {
     ]);
 
     if (!skatersRes.ok || !goaliesRes.ok) {
-      throw new Error('Failed to fetch last season stats');
+      console.error('❌ Stats API Error:', {
+        skatersStatus: skatersRes.status,
+        skatersStatusText: skatersRes.statusText,
+        skatersUrl,
+        goaliesStatus: goaliesRes.status,
+        goaliesStatusText: goaliesRes.statusText,
+        goaliesUrl
+      });
+      throw new Error(`Failed to fetch last season stats: Skaters ${skatersRes.status}, Goalies ${goaliesRes.status}`);
     }
 
     const skatersData = await skatersRes.json();
