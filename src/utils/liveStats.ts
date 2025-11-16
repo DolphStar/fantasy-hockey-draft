@@ -101,29 +101,33 @@ export async function processLiveStats(leagueId: string) {
         const boxscore = await getGameBoxscore(game.id);
         const allPlayers = getAllPlayersFromBoxscore(boxscore);
         
+        // For FINAL games with 0-0, preserve scores from existing data
+        let awayScore = game.awayTeam.score || 0;
+        let homeScore = game.homeTeam.score || 0;
+        
+        if ((game.gameState === 'FINAL' || game.gameState === 'OFF') && awayScore === 0 && homeScore === 0) {
+          // Find any existing player from this game to get preserved scores
+          const { getDocs, query, where } = await import('firebase/firestore');
+          const liveStatsRef = collection(db, `leagues/${leagueId}/liveStats`);
+          const gameQuery = query(
+            liveStatsRef,
+            where('gameId', '==', game.id)
+          );
+          const gameSnapshot = await getDocs(gameQuery);
+          
+          if (!gameSnapshot.empty) {
+            const firstDoc = gameSnapshot.docs[0].data() as LivePlayerStats;
+            awayScore = firstDoc.awayScore || 0;
+            homeScore = firstDoc.homeScore || 0;
+            console.log(` LIVE STATS: Preserved scores for FINAL game ${game.id}: ${awayScore}-${homeScore}`);
+          }
+        }
+        
         // 4. Update live stats for drafted players in this game
         for (const playerStats of allPlayers) {
           const fantasyTeam = playerToTeamMap.get(playerStats.playerId);
           
           if (fantasyTeam) {
-            // For FINAL games, preserve scores if API returns 0
-            let awayScore = game.awayTeam.score || 0;
-            let homeScore = game.homeTeam.score || 0;
-            
-            if (game.gameState === 'FINAL' || game.gameState === 'OFF') {
-              // Game is over but API returned 0-0, fetch existing score
-              if (awayScore === 0 && homeScore === 0) {
-                const existingDocRef = doc(db, `leagues/${leagueId}/liveStats`, `${etDateStr}_${playerStats.playerId}`);
-                const { getDoc } = await import('firebase/firestore');
-                const existingDoc = await getDoc(existingDocRef);
-                if (existingDoc.exists()) {
-                  const existingData = existingDoc.data() as LivePlayerStats;
-                  awayScore = existingData.awayScore || 0;
-                  homeScore = existingData.homeScore || 0;
-                  console.log(` LIVE STATS: Preserved scores for FINAL game: ${awayScore}-${homeScore}`);
-                }
-              }
-            }
             
             // This player is on someone's fantasy team!
             const liveStats: LivePlayerStats = {
