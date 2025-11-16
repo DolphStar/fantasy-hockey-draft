@@ -6,7 +6,11 @@ import { processLiveStats } from '../utils/liveStats';
 import type { LivePlayerStats } from '../utils/liveStats';
 import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 
-export default function LiveStats() {
+interface LiveStatsProps {
+  showAllTeams?: boolean; // If true, show all teams' stats (for Standings page)
+}
+
+export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {}) {
   const { league, myTeam } = useLeague();
   const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
   const [upcomingMatchups, setUpcomingMatchups] = useState<PlayerMatchup[]>([]);
@@ -35,15 +39,21 @@ export default function LiveStats() {
 
     // Get active roster player IDs to filter live stats
     const getActivePlayerIds = async () => {
-      if (!myTeam) return new Set<number>();
+      if (!myTeam && !showAllTeams) return new Set<number>();
+      
+      // If showAllTeams, get ALL active players from ALL teams
+      // Otherwise, just get the current user's active roster
+      const constraints = [
+        where('leagueId', '==', league.id),
+        where('rosterSlot', '==', 'active')
+      ];
+      
+      if (!showAllTeams && myTeam) {
+        constraints.push(where('draftedByTeam', '==', myTeam.teamName));
+      }
       
       const draftedSnapshot = await getDocs(
-        query(
-          collection(db, 'draftedPlayers'),
-          where('leagueId', '==', league.id),
-          where('draftedByTeam', '==', myTeam.teamName),
-          where('rosterSlot', '==', 'active')
-        )
+        query(collection(db, 'draftedPlayers'), ...constraints)
       );
       return new Set(draftedSnapshot.docs.map((doc: any) => doc.data().playerId));
     };

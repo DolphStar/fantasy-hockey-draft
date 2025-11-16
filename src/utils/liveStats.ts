@@ -135,17 +135,40 @@ export async function processLiveStats(leagueId: string) {
         }
         
         // 3. Handle the "Stuck FINAL Game" (The TBL vs FLA issue)
-        // If the game is FINAL, usually we skip processing to save writes.
-        // BUT, if it's FINAL and we have 0-0, we must process it to try and fix it.
+        // If the game is FINAL, check if we need to update it
         const isFinal = game.gameState === 'FINAL' || game.gameState === 'OFF';
         if (isFinal) {
-          // If we have a valid score (3-2), we can skip updates.
-          // If we have 0-0, we allow the code to proceed to try and find stats.
-          if (awayScore > 0 || homeScore > 0) {
-            console.log(` LIVE STATS: Skipping FINAL game ${game.id} with valid scores: ${awayScore}-${homeScore}`);
-            continue;
-          } else {
-            console.log(` LIVE STATS: FINAL game ${game.id} has 0-0, will attempt to fetch real scores`);
+          // Check if API has DIFFERENT scores than what we stored (e.g., OT goal)
+          try {
+            const { getDocs, query, where, limit } = await import('firebase/firestore');
+            const existingQuery = query(
+              collection(db, `leagues/${leagueId}/liveStats`),
+              where('gameId', '==', game.id),
+              limit(1)
+            );
+            const existingDocs = await getDocs(existingQuery);
+            
+            if (!existingDocs.empty) {
+              const existingData = existingDocs.docs[0].data() as LivePlayerStats;
+              
+              // If API has different scores (e.g., 4-3 vs stored 3-3), we MUST update
+              if (game.awayTeam.score !== existingData.awayScore || game.homeTeam.score !== existingData.homeScore) {
+                console.warn(`🔄 FINAL game ${game.id} score changed: ${existingData.awayScore}-${existingData.homeScore} → ${game.awayTeam.score}-${game.homeTeam.score} (OT goal?)`);
+                // Use the API scores (they're more recent)
+                awayScore = game.awayTeam.score || 0;
+                homeScore = game.homeTeam.score || 0;
+                // Continue processing to update
+              } else if (awayScore > 0 || homeScore > 0) {
+                // Scores match and are valid, skip
+                console.log(`✓ LIVE STATS: Skipping FINAL game ${game.id} with unchanged scores: ${awayScore}-${homeScore}`);
+                continue;
+              }
+            } else if (awayScore === 0 && homeScore === 0) {
+              // FINAL game with 0-0 and no existing data
+              console.log(`⚠️ LIVE STATS: FINAL game ${game.id} has 0-0, will attempt to fetch real scores`);
+            }
+          } catch (err) {
+            console.error("Error checking FINAL game scores:", err);
           }
         }
         

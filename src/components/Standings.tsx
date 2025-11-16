@@ -268,8 +268,8 @@ export default function Standings() {
         )}
       </div>
 
-      {/* Live Stats Section */}
-      <LiveStats />
+      {/* Live Stats Section - Show all teams' stats on Standings page */}
+      <LiveStats showAllTeams={true} />
 
       {/* Player Performance Details - Grouped by Team */}
       {playerPerformances.length > 0 && (
