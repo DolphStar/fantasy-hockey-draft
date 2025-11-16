@@ -426,7 +426,14 @@ export default function LiveStats() {
                     
                     {/* Your Players */}
                     <div className="border-t border-gray-700 pt-3">
-                      <p className="text-gray-400 text-xs mb-2">Your Players ({game.players.length}):</p>
+                      <p className="text-gray-400 text-xs mb-2">Your Players ({
+                        isFinal 
+                          ? game.players.filter((p: any) => {
+                              const stats = gameLiveStats.find((s: any) => s.playerId === p.playerId);
+                              return stats && stats.points > 0;
+                            }).length
+                          : game.players.length
+                      }):</p>
                       
                       {isLive ? (
                         /* LIVE: Show stats table */
@@ -443,7 +450,16 @@ export default function LiveStats() {
                               </tr>
                             </thead>
                             <tbody>
-                              {game.players.map((player: any) => {
+                              {game.players
+                                .filter((player: any) => {
+                                  // For FINAL games, only show players with points
+                                  if (isFinal) {
+                                    const stats = gameLiveStats.find((s: any) => s.playerId === player.playerId);
+                                    return stats && stats.points > 0;
+                                  }
+                                  return true; // Show all players for live games
+                                })
+                                .map((player: any) => {
                                 const stats = gameLiveStats.find((s: any) => s.playerId === player.playerId);
                                 return (
                                   <tr key={player.playerId} className="border-t border-gray-700">
