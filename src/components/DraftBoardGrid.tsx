@@ -83,6 +83,21 @@ export default function DraftBoardGrid() {
     'border-cyan-500',
   ];
 
+  const mobilePicks = draftGrid.flatMap((roundPicks, roundIdx) => {
+    const round = roundIdx + 1;
+    const isSnakeRound = round % 2 === 0;
+
+    return roundPicks.map((pickNumber, idx) => {
+      const actualTeamIdx = isSnakeRound ? teams.length - 1 - idx : idx;
+      const team = teams[actualTeamIdx];
+      const player = pickMap.get(pickNumber);
+      const isCurrentPick = pickNumber === draftState.currentPickNumber;
+      const isPastPick = pickNumber < draftState.currentPickNumber;
+
+      return { pickNumber, round, team, player, isCurrentPick, isPastPick };
+    });
+  });
+
   return (
     <div className="bg-gray-900 rounded-lg shadow-2xl overflow-hidden">
       {/* Header */}
@@ -96,8 +111,43 @@ export default function DraftBoardGrid() {
         </h2>
       </div>
 
+      {/* Mobile: vertical list of picks */}
+      <div className="md:hidden p-3 space-y-2">
+        {mobilePicks.map(({ pickNumber, round, team, player, isCurrentPick, isPastPick }) => {
+          const baseClasses = 'flex items-center justify-between gap-3 p-3 rounded-lg border';
+          const stateClasses = isCurrentPick
+            ? 'bg-yellow-500/10 border-yellow-500'
+            : isPastPick
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-900 border-gray-800';
+
+          return (
+            <div key={pickNumber} className={`${baseClasses} ${stateClasses}`}>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-400">
+                  Pick #{pickNumber} • Round {round}
+                </p>
+                <p className="text-white font-semibold truncate">
+                  {player ? player.name : 'Pending Pick'}
+                </p>
+                <p className="text-gray-400 text-xs truncate">
+                  {player ? `${player.position} • ${player.nhlTeam}` : team.teamName}
+                </p>
+                {isCurrentPick && (
+                  <p className="text-yellow-400 text-[11px] font-bold mt-1">ON THE CLOCK</p>
+                )}
+              </div>
+              <div className="text-right">
+                <p className="text-gray-300 text-xs font-semibold truncate">{team.teamName}</p>
+                <p className="text-gray-500 text-[11px] truncate">{team.ownerEmail}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Scrollable Grid Container - Increased height */}
-      <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+      <div className="hidden md:block overflow-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         <table className="w-full border-collapse">
           {/* Sticky Header Row */}
           <thead className="sticky top-0 bg-gray-800 z-20">

@@ -789,12 +789,12 @@ export default function NHLRoster() {
                 <VirtuosoGrid
                   style={{ height: '800px' }}
                   totalCount={filteredRoster.length}
-                  listClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                  listClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
                   itemContent={(index) => renderPlayerCard(filteredRoster[index])}
                 />
               ) : (
                 // Regular grid for small lists (<100 players)
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredRoster.map((rosterPlayer) => renderPlayerCard(rosterPlayer))}
                 </div>
               )}

@@ -15,6 +15,7 @@ type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'injuries' | 'l
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('standings')
+  const [isNavOpen, setIsNavOpen] = useState(false)
   const { user, loading: authLoading, signOut } = useAuth()
   
   // Turn notifications (sound + browser notification)
@@ -87,7 +88,22 @@ function App() {
 
       {/* Tab Navigation */}
       <div className="max-w-6xl mx-auto px-6 mb-8">
-        <div className="flex gap-4 border-b border-gray-700">
+        <div className="flex items-center justify-between md:hidden mb-2">
+          <span className="text-gray-300 text-sm font-semibold">Navigation</span>
+          <button
+            onClick={() => setIsNavOpen((open) => !open)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 text-gray-200 text-sm"
+          >
+            <span>{isNavOpen ? 'Close' : 'Menu'}</span>
+            <span className="text-lg">☰</span>
+          </button>
+        </div>
+
+        <div
+          className={`border-b border-gray-700 ${
+            isNavOpen ? 'flex' : 'hidden'
+          } md:flex flex-col md:flex-row gap-2 md:gap-4`}
+        >
           <button
             onClick={() => setActiveTab('roster')}
             className={`px-6 py-3 font-semibold transition-colors ${
