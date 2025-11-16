@@ -88,24 +88,53 @@ export async function processLiveStats(leagueId: string) {
           continue;
         }
         
-        // For FINAL games, only process if we don't have data yet
-        if (game.gameState === 'FINAL' || game.gameState === 'OFF') {
-          // Check if we already have data for this game
-          const { getDocs, query, where } = await import('firebase/firestore');
-          const liveStatsRef = collection(db, `leagues/${leagueId}/liveStats`);
-          const gameQuery = query(liveStatsRef, where('gameId', '==', game.id));
-          const existingSnapshot = await getDocs(gameQuery);
-          
-          if (!existingSnapshot.empty) {
-            console.log(` LIVE STATS: Game ${game.id} already has data (${game.gameState}) - skipping`);
-            continue;
-          } else {
-            console.log(` LIVE STATS: Game ${game.id} is FINAL but no data yet - processing once`);
+        console.log(` LIVE STATS: Processing game ${game.id} (${game.gameState})`);
+        console.log(` LIVE STATS: API scores - Away: ${game.awayTeam?.score}, Home: ${game.homeTeam?.score}`);
+        
+        // 1. Start with what the API gave us
+        let awayScore = game.awayTeam.score || 0;
+        let homeScore = game.homeTeam.score || 0;
+        
+        // 2. THE FIX: If API says 0-0, check if we have better data in Firestore
+        // This prevents the "blip" from overwriting real scores
+        if (awayScore === 0 && homeScore === 0) {
+          try {
+            const { getDocs, query, where, limit } = await import('firebase/firestore');
+            const existingQuery = query(
+              collection(db, `leagues/${leagueId}/liveStats`),
+              where('gameId', '==', game.id),
+              limit(1)
+            );
+            const existingDocs = await getDocs(existingQuery);
+            
+            if (!existingDocs.empty) {
+              const existingData = existingDocs.docs[0].data() as LivePlayerStats;
+              // If our DB has a real score, IGNORE the API and keep our DB score
+              if (existingData.awayScore > 0 || existingData.homeScore > 0) {
+                console.warn(`⚠️ API returned 0-0 for Game ${game.id}, preserving existing score: ${existingData.awayScore}-${existingData.homeScore}`);
+                awayScore = existingData.awayScore;
+                homeScore = existingData.homeScore;
+              }
+            }
+          } catch (err) {
+            console.error("Error checking existing scores:", err);
           }
         }
         
-        console.log(` LIVE STATS: Processing game ${game.id} (${game.gameState})`);
-        console.log(` LIVE STATS: Game scores - Away: ${game.awayTeam?.score}, Home: ${game.awayTeam?.score}`);
+        // 3. Handle the "Stuck FINAL Game" (The TBL vs FLA issue)
+        // If the game is FINAL, usually we skip processing to save writes.
+        // BUT, if it's FINAL and we have 0-0, we must process it to try and fix it.
+        const isFinal = game.gameState === 'FINAL' || game.gameState === 'OFF';
+        if (isFinal) {
+          // If we have a valid score (3-2), we can skip updates.
+          // If we have 0-0, we allow the code to proceed to try and find stats.
+          if (awayScore > 0 || homeScore > 0) {
+            console.log(` LIVE STATS: Skipping FINAL game ${game.id} with valid scores: ${awayScore}-${homeScore}`);
+            continue;
+          } else {
+            console.log(` LIVE STATS: FINAL game ${game.id} has 0-0, will attempt to fetch real scores`);
+          }
+        }
         
         // Add delay between API calls to avoid rate limiting (500ms)
         if (i > 0) {
@@ -116,11 +145,7 @@ export async function processLiveStats(leagueId: string) {
         const boxscore = await getGameBoxscore(game.id);
         const allPlayers = getAllPlayersFromBoxscore(boxscore);
         
-        // Use scores from game API
-        const awayScore = game.awayTeam.score || 0;
-        const homeScore = game.homeTeam.score || 0;
-        
-        console.log(` LIVE STATS: Scores for game ${game.id}: ${awayScore}-${homeScore}`);
+        console.log(` LIVE STATS: Using scores for game ${game.id}: ${awayScore}-${homeScore}`);
         
         // 4. Prepare batch writes for all players in this game
         const { writeBatch } = await import('firebase/firestore');
