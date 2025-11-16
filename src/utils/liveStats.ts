@@ -106,6 +106,25 @@ export async function processLiveStats(leagueId: string) {
           const fantasyTeam = playerToTeamMap.get(playerStats.playerId);
           
           if (fantasyTeam) {
+            // For FINAL games, preserve scores if API returns 0
+            let awayScore = game.awayTeam.score || 0;
+            let homeScore = game.homeTeam.score || 0;
+            
+            if (game.gameState === 'FINAL' || game.gameState === 'OFF') {
+              // Game is over but API returned 0-0, fetch existing score
+              if (awayScore === 0 && homeScore === 0) {
+                const existingDocRef = doc(db, `leagues/${leagueId}/liveStats`, `${etDateStr}_${playerStats.playerId}`);
+                const { getDoc } = await import('firebase/firestore');
+                const existingDoc = await getDoc(existingDocRef);
+                if (existingDoc.exists()) {
+                  const existingData = existingDoc.data() as LivePlayerStats;
+                  awayScore = existingData.awayScore || 0;
+                  homeScore = existingData.homeScore || 0;
+                  console.log(` LIVE STATS: Preserved scores for FINAL game: ${awayScore}-${homeScore}`);
+                }
+              }
+            }
+            
             // This player is on someone's fantasy team!
             const liveStats: LivePlayerStats = {
               playerId: playerStats.playerId,
@@ -114,8 +133,8 @@ export async function processLiveStats(leagueId: string) {
               nhlTeam: playerStats.teamAbbrev || 'UNK',
               gameId: game.id,
               gameState: game.gameState,
-              awayScore: game.awayTeam.score || 0,
-              homeScore: game.homeTeam.score || 0,
+              awayScore,
+              homeScore,
               period: 0, // Period info not available in GameScore API
               clock: '', // Clock info not available in GameScore API
               goals: playerStats.goals || 0,
