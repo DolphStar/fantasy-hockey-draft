@@ -404,7 +404,7 @@ export default function NHLRoster() {
     return (
       <div
         key={rosterPlayer.person.id}
-        className={`rounded-xl p-4 transition-all ${
+        className={`relative rounded-xl p-4 transition-all ${
           isDrafted 
             ? isSuperstar
               ? 'bg-gray-900 opacity-60 border-2 border-amber-500/40'  // Drafted superstar - hint of gold
@@ -414,6 +414,18 @@ export default function NHLRoster() {
             : 'bg-gray-700 hover:bg-gray-650 border border-gray-700'
         }`}
       >
+        {/* Injury Badge - Top Right Corner */}
+        {injury && (
+          <div 
+            className="absolute top-2 right-2 z-10 cursor-help"
+            title={`${injury.injuryType} - ${injury.description}`}
+          >
+            <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1 shadow-lg`}>
+              {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
+            </span>
+          </div>
+        )}
+        
         <div className="flex flex-col gap-3">
           {/* Player Photo & Info */}
           <div className="flex gap-3 items-start">
@@ -456,14 +468,6 @@ export default function NHLRoster() {
                     DRAFTED
                   </span>
                 )}
-                {injury && (
-                  <span 
-                    className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1 cursor-help`} 
-                    title={`${injury.injuryType} - ${injury.description}`}
-                  >
-                    {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
-                  </span>
-                )}
               </div>
               <p className="text-white font-medium text-lg mb-1 truncate">
                 {getPlayerFullName(rosterPlayer)}
@@ -496,27 +500,47 @@ export default function NHLRoster() {
                     // --- SKATER DESIGN ---
                     <>
                       <div className="flex flex-col">
-                        <span className="text-2xl font-black text-amber-400 leading-none">
+                        {/* Color-coded points based on production level */}
+                        <span className={`text-2xl font-black leading-none ${
+                          playerStats.points >= 100 ? 'text-yellow-300' :     // Elite (100+)
+                          playerStats.points >= 80 ? 'text-amber-400' :       // Star (80-99)
+                          playerStats.points >= 60 ? 'text-blue-400' :        // Good (60-79)
+                          playerStats.points >= 40 ? 'text-green-400' :       // Solid (40-59)
+                          playerStats.points >= 20 ? 'text-gray-300' :        // Role player (20-39)
+                          'text-gray-400'                                       // Depth (<20)
+                        }`}>
                           {playerStats.points}
                         </span>
-                        <span className="text-[10px] uppercase font-bold text-amber-500/80 tracking-widest">
+                        <span className={`text-[10px] uppercase font-bold tracking-widest ${
+                          playerStats.points >= 100 ? 'text-yellow-500/80' :
+                          playerStats.points >= 80 ? 'text-amber-500/80' :
+                          playerStats.points >= 60 ? 'text-blue-500/80' :
+                          playerStats.points >= 40 ? 'text-green-500/80' :
+                          'text-gray-500/80'
+                        }`}>
                           Points
                         </span>
                       </div>
-                      <div className="flex gap-1 text-xs font-medium text-gray-400">
-                        <span className="bg-gray-700/50 px-2 py-1 rounded border border-gray-600/30">
-                          <span className="text-white">{playerStats.goals}</span> G
+                      {/* Better contrast pills */}
+                      <div className="flex gap-1.5 text-xs font-medium">
+                        <span className="bg-white/10 border border-gray-600 px-2 py-1 rounded">
+                          <span className="text-white font-bold">{playerStats.goals}</span> <span className="text-gray-300">G</span>
                         </span>
-                        <span className="bg-gray-700/50 px-2 py-1 rounded border border-gray-600/30">
-                          <span className="text-white">{playerStats.assists}</span> A
+                        <span className="bg-white/10 border border-gray-600 px-2 py-1 rounded">
+                          <span className="text-white font-bold">{playerStats.assists}</span> <span className="text-gray-300">A</span>
                         </span>
                       </div>
                     </>
                   )
                 ) : (
-                  // --- NO STATS DESIGN ---
-                  <div className="w-full text-center py-1 border border-dashed border-gray-700 rounded">
-                    <span className="text-xs text-gray-500 italic">No 23-24 Stats</span>
+                  // --- NO STATS DESIGN - Large dash placeholder ---
+                  <div className="flex flex-col">
+                    <span className="text-3xl font-black text-gray-600 leading-none">
+                      —
+                    </span>
+                    <span className="text-[10px] uppercase font-bold text-gray-600/80 tracking-widest">
+                      No Data
+                    </span>
                   </div>
                 )}
               </div>
