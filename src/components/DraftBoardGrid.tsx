@@ -200,22 +200,14 @@ export default function DraftBoardGrid() {
                     const isPastPick = pickNumber < draftState.currentPickNumber;
                     const team = teams[teamIdx];
                     
-                    // Smart tooltip positioning: horizontal (edge columns) + vertical (first row)
+                    // Smart tooltip positioning for edge columns
                     const isFirstColumn = teamIdx === 0;
                     const isLastColumn = teamIdx === teams.length - 1;
-                    const isFirstRow = round === 1;
-                    
-                    const horizontalPosition = isFirstColumn
+                    const tooltipPositionClasses = isFirstColumn
                       ? 'left-0'
                       : isLastColumn
                       ? 'right-0'
                       : 'left-1/2 -translate-x-1/2';
-                    
-                    const verticalPosition = isFirstRow
-                      ? 'top-full mt-2'  // Below for first row
-                      : 'bottom-full mb-2';  // Above for other rows
-                    
-                    const tooltipPositionClasses = `${horizontalPosition} ${verticalPosition}`;
 
                     return (
                       <td
@@ -277,7 +269,7 @@ export default function DraftBoardGrid() {
                             </div>
 
                             {/* Hover Tooltip */}
-                            <div className={`absolute bottom-full mb-2 hidden group-hover:block w-64 p-3 bg-black border-2 border-gray-600 rounded-lg shadow-2xl z-50 ${tooltipPositionClasses}`}>
+                            <div className={`absolute bottom-full mb-2 hidden group-hover:block w-64 p-3 bg-black border-2 border-gray-600 rounded-lg shadow-2xl z-[9999] ${tooltipPositionClasses}`}>
                               <div className="flex items-center gap-3 mb-2">
                                 <img
                                   src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
