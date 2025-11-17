@@ -200,14 +200,22 @@ export default function DraftBoardGrid() {
                     const isPastPick = pickNumber < draftState.currentPickNumber;
                     const team = teams[teamIdx];
                     
-                    // Smart tooltip positioning for edge columns
+                    // Smart tooltip positioning: horizontal (edge columns) + vertical (first row)
                     const isFirstColumn = teamIdx === 0;
                     const isLastColumn = teamIdx === teams.length - 1;
-                    const tooltipPositionClasses = isFirstColumn
+                    const isFirstRow = round === 1;
+                    
+                    const horizontalPosition = isFirstColumn
                       ? 'left-0'
                       : isLastColumn
                       ? 'right-0'
                       : 'left-1/2 -translate-x-1/2';
+                    
+                    const verticalPosition = isFirstRow
+                      ? 'top-full mt-2'  // Below for first row
+                      : 'bottom-full mb-2';  // Above for other rows
+                    
+                    const tooltipPositionClasses = `${horizontalPosition} ${verticalPosition}`;
 
                     return (
                       <td
