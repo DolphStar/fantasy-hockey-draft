@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { CSSProperties } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useDraft } from '../context/DraftContext';
@@ -15,6 +16,15 @@ interface DraftedPlayer {
   round: number;
   headshotUrl?: string;
 }
+
+const addAlpha = (hex: string, alpha: number) => {
+  const sanitized = hex.replace('#', '');
+  const bigint = parseInt(sanitized, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 export default function DraftBoardGrid() {
   const { draftState } = useDraft();
@@ -83,16 +93,16 @@ export default function DraftBoardGrid() {
     draftGrid.push(roundPicks);
   }
 
-  // Get team colors for visual distinction
-  const teamColors = [
-    'border-green-500',
-    'border-blue-500',
-    'border-yellow-500',
-    'border-red-500',
-    'border-purple-500',
-    'border-pink-500',
-    'border-orange-500',
-    'border-cyan-500',
+  // Vibrant accent palette (loops if more teams)
+  const teamAccents = [
+    '#22c55e', // emerald
+    '#3b82f6', // blue
+    '#f97316', // orange
+    '#ec4899', // pink
+    '#a855f7', // violet
+    '#0ea5e9', // sky
+    '#facc15', // amber
+    '#14b8a6', // teal
   ];
 
   const mobilePicks = draftGrid.flatMap((roundPicks, roundIdx) => {
@@ -166,14 +176,33 @@ export default function DraftBoardGrid() {
               <th className="sticky left-0 bg-gray-800 border border-gray-700 p-3 text-left text-white font-bold z-30 min-w-[100px]">
                 Round
               </th>
-              {teams.map((team, idx) => (
-                <th
-                  key={team.teamName}
-                  className={`border border-gray-700 p-3 text-center text-white font-bold min-w-[220px] border-t-4 ${teamColors[idx % teamColors.length]}`}
-                >
-                  <span className="text-sm font-bold truncate">{team.teamName}</span>
-                </th>
-              ))}
+              {teams.map((team, idx) => {
+                const accent = teamAccents[idx % teamAccents.length];
+                return (
+                  <th
+                    key={team.teamName}
+                    className="border border-gray-700 p-3 text-center text-white font-bold min-w-[220px] border-t-4"
+                    style={{ borderTopColor: accent }}
+                  >
+                    <div
+                      className="flex flex-col items-center gap-1"
+                      style={{
+                        background: `linear-gradient(140deg, ${addAlpha(accent, 0.18)}, ${addAlpha(accent, 0.03)})`,
+                        borderRadius: '0.5rem',
+                        padding: '0.35rem 0.5rem',
+                      }}
+                    >
+                      <span className="text-sm font-bold truncate">{team.teamName}</span>
+                      <span
+                        className="block h-1 w-12 rounded-full"
+                        style={{
+                          background: `linear-gradient(90deg, ${addAlpha(accent, 0.8)}, ${addAlpha(accent, 0.25)})`,
+                        }}
+                      ></span>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
@@ -182,7 +211,7 @@ export default function DraftBoardGrid() {
             {draftGrid.map((roundPicks, roundIdx) => {
               const round = roundIdx + 1;
               const isSnakeRound = round % 2 === 0;
-              
+
               return (
                 <tr key={round}>
                   {/* Round Number - Sticky Left Column */}
@@ -199,7 +228,8 @@ export default function DraftBoardGrid() {
                     const isCurrentPick = pickNumber === draftState.currentPickNumber;
                     const isPastPick = pickNumber < draftState.currentPickNumber;
                     const team = teams[teamIdx];
-                    
+                    const accent = teamAccents[teamIdx % teamAccents.length];
+
                     // Smart tooltip positioning for edge columns
                     const isFirstColumn = teamIdx === 0;
                     const isLastColumn = teamIdx === teams.length - 1;
@@ -208,6 +238,13 @@ export default function DraftBoardGrid() {
                       : isLastColumn
                       ? 'right-0'
                       : 'left-1/2 -translate-x-1/2';
+
+                    const cellStyle: CSSProperties = {};
+                    if (!isCurrentPick) {
+                      cellStyle.boxShadow = `inset 4px 0 0 ${accent}`;
+                      const intensity = player ? 0.2 : isPastPick ? 0.12 : 0.04;
+                      cellStyle.background = `linear-gradient(135deg, ${addAlpha(accent, intensity)}, rgba(15,23,42,0.92))`;
+                    }
 
                     return (
                       <td
@@ -218,9 +255,10 @@ export default function DraftBoardGrid() {
                             : isPastPick
                             ? 'bg-gray-800'
                             : 'bg-gray-900'
-                        } ${teamColors[teamIdx % teamColors.length].replace('border-', 'border-l-4 border-l-')} ${
+                        } ${
                           animatingPick === pickNumber ? 'animate-lock-in' : ''
                         }`}
+                        style={cellStyle}
                       >
                         {player ? (
                           // Drafted Player Cell
