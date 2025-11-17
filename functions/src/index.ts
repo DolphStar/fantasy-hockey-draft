@@ -1,6 +1,5 @@
 import {onDocumentUpdated} from "firebase-functions/v2/firestore";
 import {setGlobalOptions} from "firebase-functions/v2/options";
-import * as legacyFunctions from "firebase-functions";
 import * as admin from "firebase-admin";
 import axios from "axios";
 
@@ -117,11 +116,10 @@ export const onDraftPick = onDocumentUpdated("drafts/{leagueId}", async (event: 
   // NOTE: functions.config() is deprecated long-term, but still works and
   // matches how you already configured your webhook URL via
   // `firebase functions:config:set discord.webhook_url=...`.
-  const webhookUrl = (process.env.DISCORD_WEBHOOK_URL ||
-    legacyFunctions.config().discord?.webhook_url) as string | undefined;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
   if (!webhookUrl) {
-    console.error("discord.webhook_url is not configured in env or functions config");
+    console.error("DISCORD_WEBHOOK_URL environment variable is not set");
     return;
   }
 
