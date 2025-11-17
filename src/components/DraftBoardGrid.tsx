@@ -20,6 +20,7 @@ export default function DraftBoardGrid() {
   const { draftState } = useDraft();
   const { league } = useLeague();
   const [draftedPlayers, setDraftedPlayers] = useState<DraftedPlayer[]>([]);
+  const [animatingPick, setAnimatingPick] = useState<number | null>(null);
 
   // Listen to drafted players in real-time
   useEffect(() => {
@@ -33,11 +34,22 @@ export default function DraftBoardGrid() {
       snapshot.forEach((doc) => {
         players.push({ id: doc.id, ...doc.data() } as DraftedPlayer);
       });
+      
+      // Detect newly drafted players for animation
+      const newPlayers = players.filter(
+        p => !draftedPlayers.find(dp => dp.pickNumber === p.pickNumber)
+      );
+      if (newPlayers.length > 0) {
+        const latestPick = newPlayers[newPlayers.length - 1];
+        setAnimatingPick(latestPick.pickNumber);
+        setTimeout(() => setAnimatingPick(null), 1000);
+      }
+      
       setDraftedPlayers(players);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [draftedPlayers]);
 
   if (!league || !draftState) {
     return (
@@ -139,7 +151,6 @@ export default function DraftBoardGrid() {
               </div>
               <div className="text-right">
                 <p className="text-gray-300 text-xs font-semibold truncate">{team.teamName}</p>
-                <p className="text-gray-500 text-[11px] truncate">{team.ownerEmail}</p>
               </div>
             </div>
           );
@@ -160,10 +171,7 @@ export default function DraftBoardGrid() {
                   key={team.teamName}
                   className={`border border-gray-700 p-3 text-center text-white font-bold min-w-[220px] border-t-4 ${teamColors[idx % teamColors.length]}`}
                 >
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm font-bold truncate">{team.teamName}</span>
-                    <span className="text-xs text-gray-400 truncate">{team.ownerEmail}</span>
-                  </div>
+                  <span className="text-sm font-bold truncate">{team.teamName}</span>
                 </th>
               ))}
             </tr>
@@ -191,6 +199,15 @@ export default function DraftBoardGrid() {
                     const isCurrentPick = pickNumber === draftState.currentPickNumber;
                     const isPastPick = pickNumber < draftState.currentPickNumber;
                     const team = teams[teamIdx];
+                    
+                    // Smart tooltip positioning for edge columns
+                    const isFirstColumn = teamIdx === 0;
+                    const isLastColumn = teamIdx === teams.length - 1;
+                    const tooltipPositionClasses = isFirstColumn
+                      ? 'left-0'
+                      : isLastColumn
+                      ? 'right-0'
+                      : 'left-1/2 -translate-x-1/2';
 
                     return (
                       <td
@@ -201,11 +218,13 @@ export default function DraftBoardGrid() {
                             : isPastPick
                             ? 'bg-gray-800'
                             : 'bg-gray-900'
-                        } ${teamColors[teamIdx % teamColors.length].replace('border-', 'border-l-4 border-l-')}`}
+                        } ${teamColors[teamIdx % teamColors.length].replace('border-', 'border-l-4 border-l-')} ${
+                          animatingPick === pickNumber ? 'animate-lock-in' : ''
+                        }`}
                       >
                         {player ? (
                           // Drafted Player Cell
-                          <div className="group relative">
+                          <div className="group relative" data-column-index={teamIdx}>
                             <div className="flex flex-col items-center gap-2 p-3 rounded hover:bg-gray-700/50 transition-colors cursor-pointer">
                               {/* Player Headshot with Team Logo */}
                               <div className="relative flex-shrink-0">
@@ -250,7 +269,7 @@ export default function DraftBoardGrid() {
                             </div>
 
                             {/* Hover Tooltip */}
-                            <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-3 bg-black border-2 border-gray-600 rounded-lg shadow-2xl z-50">
+                            <div className={`absolute bottom-full mb-2 hidden group-hover:block w-64 p-3 bg-black border-2 border-gray-600 rounded-lg shadow-2xl z-50 ${tooltipPositionClasses}`}>
                               <div className="flex items-center gap-3 mb-2">
                                 <img
                                   src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
