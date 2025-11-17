@@ -124,6 +124,12 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
     const leagueData = leagueDoc.docs[0].data();
     const scoringRules = leagueData.scoringRules as ScoringRules;
     
+    // Check if league is active (not still drafting)
+    if (leagueData.status !== 'live') {
+      console.log(`⚠️ League is not active yet (status: ${leagueData.status}). Skipping scoring.`);
+      throw new Error(`League is not active (status: ${leagueData.status}). Complete the draft first before scoring begins.`);
+    }
+    
     if (!scoringRules) {
       throw new Error(`League ${leagueId} does not have scoring rules configured. Please update the league with scoring rules first.`);
     }

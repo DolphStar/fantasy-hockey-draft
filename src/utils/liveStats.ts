@@ -36,6 +36,16 @@ export async function processLiveStats(leagueId: string) {
   try {
     console.log('🔴 LIVE STATS: Starting live stats update...');
     
+    // Check if league is active (not still drafting)
+    const { doc: firestoreDoc, getDoc } = await import('firebase/firestore');
+    const leagueDoc = await getDoc(firestoreDoc(db, 'leagues', leagueId));
+    const league = leagueDoc.data();
+    
+    if (!league || league.status !== 'live') {
+      console.log(`🔴 LIVE STATS: League is not active yet (status: ${league?.status}). Skipping live stats.`);
+      return { success: false, gamesProcessed: 0, playersUpdated: 0, message: 'League not active' };
+    }
+    
     // Get today's date in Eastern Time (NHL's timezone)
     // Convert current time to ET (UTC-5 or UTC-4 depending on DST)
     const now = new Date();

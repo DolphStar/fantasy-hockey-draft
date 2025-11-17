@@ -207,6 +207,12 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     return null;
   }
 
+  // Only show live stats when the league is active (draft complete)
+  // Don't show during draft ('pending') or after season ends ('complete')
+  if (league.status !== 'live') {
+    return null;
+  }
+
   return (
     <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden mt-6">
       <div className="p-6 pb-4 border-b border-gray-700">
