@@ -105,19 +105,20 @@ export default function DraftBoardGrid() {
     '#14b8a6', // teal
   ];
 
-  const mobilePicks = draftGrid.flatMap((roundPicks, roundIdx) => {
-    const round = roundIdx + 1;
-    const isSnakeRound = round % 2 === 0;
+  const mobilePicks = draftState.draftOrder.map((pick) => {
+    const team = teams.find((t) => t.teamName === pick.team) || teams[0];
+    const player = pickMap.get(pick.pick);
+    const isCurrentPick = pick.pick === draftState.currentPickNumber;
+    const isPastPick = pick.pick < draftState.currentPickNumber;
 
-    return roundPicks.map((pickNumber, idx) => {
-      const actualTeamIdx = isSnakeRound ? teams.length - 1 - idx : idx;
-      const team = teams[actualTeamIdx];
-      const player = pickMap.get(pickNumber);
-      const isCurrentPick = pickNumber === draftState.currentPickNumber;
-      const isPastPick = pickNumber < draftState.currentPickNumber;
-
-      return { pickNumber, round, team, player, isCurrentPick, isPastPick };
-    });
+    return {
+      pickNumber: pick.pick,
+      round: pick.round,
+      team,
+      player,
+      isCurrentPick,
+      isPastPick,
+    };
   });
 
   return (
