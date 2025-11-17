@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, getDocs, query, where } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
+import { useDraft } from '../context/DraftContext';
 import { processLiveStats } from '../utils/liveStats';
 import type { LivePlayerStats } from '../utils/liveStats';
 import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
@@ -12,6 +13,7 @@ interface LiveStatsProps {
 
 export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {}) {
   const { league, myTeam } = useLeague();
+  const { draftState } = useDraft();
   const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
   const [upcomingMatchups, setUpcomingMatchups] = useState<PlayerMatchup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,7 +211,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
 
   // Only show live stats when the league is active (draft complete)
   // Don't show during draft ('pending') or after season ends ('complete')
-  if (league.status !== 'live') {
+  if (league.status !== 'live' || !draftState?.isComplete) {
     return null;
   }
 
