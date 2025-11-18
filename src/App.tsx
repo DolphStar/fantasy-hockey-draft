@@ -1,16 +1,17 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Toaster } from 'sonner'
 import Login from './components/Login'
 import { useAuth } from './context/AuthContext'
 import { useTurnNotification } from './hooks/useTurnNotification'
+import { lazyWithRetry } from './utils/lazyWithRetry'
 
-const PlayerList = lazy(() => import('./components/PlayerList'))
-const NHLRoster = lazy(() => import('./components/NHLRoster'))
-const DraftBoardGrid = lazy(() => import('./components/DraftBoardGrid'))
-const LeagueSettings = lazy(() => import('./components/LeagueSettings'))
-const Standings = lazy(() => import('./components/Standings'))
-const LeagueChat = lazy(() => import('./components/LeagueChat'))
-const Injuries = lazy(() => import('./components/Injuries'))
+const PlayerList = lazyWithRetry(() => import('./components/PlayerList'))
+const NHLRoster = lazyWithRetry(() => import('./components/NHLRoster'))
+const DraftBoardGrid = lazyWithRetry(() => import('./components/DraftBoardGrid'))
+const LeagueSettings = lazyWithRetry(() => import('./components/LeagueSettings'))
+const Standings = lazyWithRetry(() => import('./components/Standings'))
+const LeagueChat = lazyWithRetry(() => import('./components/LeagueChat'))
+const Injuries = lazyWithRetry(() => import('./components/Injuries'))
 
 type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'injuries' | 'leagueSettings' | 'chat'
 
