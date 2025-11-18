@@ -13,7 +13,7 @@ import {
   type StatsMap
 } from '../utils/nhlApi';
 import { db } from '../firebase';
-import { collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, runTransaction, doc } from 'firebase/firestore';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
 import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
@@ -38,7 +38,7 @@ export default function NHLRoster() {
   const { myTeam, league, isAdmin } = useLeague();
   
   // Draft context
-  const { draftState, currentPick, isMyTurn, advancePick } = useDraft();
+  const { draftState, currentPick, isMyTurn } = useDraft();
   
   // React Query hooks - automatic caching and refetching!
   const { data: injuries = [] } = useInjuries();
@@ -268,6 +268,13 @@ export default function NHLRoster() {
       return;
     }
 
+    if (!league || !myTeam) {
+      toast.error('No league/team found', {
+        description: 'Join a league with an assigned team before drafting.'
+      });
+      return;
+    }
+
     try {
       setDraftingPlayerId(rosterPlayer.person.id);
       
@@ -312,34 +319,62 @@ export default function NHLRoster() {
         }
       }
 
-      // Save to Firebase with team assignment and pick info
-      await addDoc(collection(db, 'draftedPlayers'), {
-        playerId: rosterPlayer.person.id,
-        name: getPlayerFullName(rosterPlayer),
-        position: rosterPlayer.position.code,
-        positionName: rosterPlayer.position.name,
-        jerseyNumber: rosterPlayer.jerseyNumber,
-        nhlTeam: (rosterPlayer as any).teamAbbrev || 'UNK',
-        draftedByTeam: currentPick.team,
-        pickNumber: currentPick.pick,
-        round: currentPick.round,
-        leagueId: league?.id,
-        draftedAt: new Date().toISOString(),
-        rosterSlot: rosterSlot // 'active' or 'reserve'
+      // Transactionally draft player and advance pick
+      const { pickInfo } = await runTransaction(db, async (transaction) => {
+        const draftRef = doc(db, 'drafts', league.id);
+        const draftSnap = await transaction.get(draftRef);
+
+        if (!draftSnap.exists()) {
+          throw new Error('Draft state missing');
+        }
+
+        const draftData = draftSnap.data();
+        const pickIndex = draftData.currentPickNumber - 1;
+
+        if (!draftData.draftOrder?.[pickIndex]) {
+          throw new Error('Invalid draft state');
+        }
+
+        const pickInfo = draftData.draftOrder[pickIndex];
+
+        if (pickInfo.team !== myTeam.teamName) {
+          throw new Error('Pick already made or not your turn');
+        }
+
+        const draftedPlayerRef = doc(collection(db, 'draftedPlayers'));
+        transaction.set(draftedPlayerRef, {
+          playerId: rosterPlayer.person.id,
+          name: getPlayerFullName(rosterPlayer),
+          position: rosterPlayer.position.code,
+          positionName: rosterPlayer.position.name,
+          jerseyNumber: rosterPlayer.jerseyNumber,
+          nhlTeam: (rosterPlayer as any).teamAbbrev || 'UNK',
+          draftedByTeam: pickInfo.team,
+          pickNumber: pickInfo.pick,
+          round: pickInfo.round,
+          leagueId: league.id,
+          draftedAt: new Date().toISOString(),
+          rosterSlot: rosterSlot
+        });
+
+        const nextPickNumber = draftData.currentPickNumber + 1;
+        transaction.update(draftRef, {
+          currentPickNumber: nextPickNumber,
+          isComplete: nextPickNumber > draftData.totalPicks
+        });
+
+        return { pickInfo };
       });
 
       // Update local state
       setDraftedPlayerIds(prev => new Set(prev).add(rosterPlayer.person.id));
       
-      // Advance to next pick
-      await advancePick();
-      
       // Show success toast
       toast.success(`Drafted ${getPlayerFullName(rosterPlayer)}!`, {
-        description: `${rosterPlayer.position.code} • ${(rosterPlayer as any).teamAbbrev} • Pick #${currentPick.pick} → ${rosterSlot === 'reserve' ? 'Reserves' : 'Active Roster'}`
+        description: `${rosterPlayer.position.code} • ${(rosterPlayer as any).teamAbbrev} • Pick #${pickInfo.pick} → ${rosterSlot === 'reserve' ? 'Reserves' : 'Active Roster'}`
       });
       
-      console.log(`${currentPick.team} drafted: ${getPlayerFullName(rosterPlayer)} (Pick #${currentPick.pick})`);
+      console.log(`${pickInfo.team} drafted: ${getPlayerFullName(rosterPlayer)} (Pick #${pickInfo.pick})`);
     } catch (error) {
       console.error('Error drafting player:', error);
       toast.error('Failed to draft player', {
