@@ -384,6 +384,7 @@ export default function NHLRoster() {
 
   // Use virtualization for large lists (>100 players)
   const useVirtualization = filteredRoster.length > 100;
+  const VIRTUAL_CARD_HEIGHT = 320; // px
 
   // Render a single player card with headshot and team logo
   const renderPlayerCard = (rosterPlayer: RosterPerson) => {
@@ -404,7 +405,7 @@ export default function NHLRoster() {
     return (
       <div
         key={rosterPlayer.person.id}
-        className={`relative rounded-xl p-4 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 hover:-translate-y-0.5 ${
+        className={`relative flex h-full flex-col rounded-xl p-4 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 hover:-translate-y-0.5 ${
           isDrafted 
             ? isSuperstar
               ? 'bg-gray-900 opacity-60 border-2 border-amber-500/40'  // Drafted superstar - hint of gold
@@ -433,7 +434,7 @@ export default function NHLRoster() {
           </div>
         )}
         
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-1 flex-col gap-3 overflow-hidden">
           {/* Player Photo & Info */}
           <div className="flex gap-3 items-start">
             {/* Avatar with Team Logo Badge */}
@@ -555,45 +556,47 @@ export default function NHLRoster() {
             </div>
           </div>
 
-          {/* Draft Button (during draft) */}
-          {draftState && !draftState.isComplete && (
-            <button
-              onClick={() => onDraftPlayer(rosterPlayer)}
-              disabled={isDrafted || isDrafting || !isMyTurn}
-              className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                isDrafted
-                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  : isDrafting
-                  ? 'bg-yellow-600 text-white cursor-wait'
-                  : !isMyTurn
-                  ? 'border border-transparent text-gray-500 bg-transparent cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-            >
-              {isDrafting 
-                ? 'Drafting...' 
-                : isDrafted 
-                ? 'Already Drafted' 
-                : !isMyTurn 
-                ? 'Not Your Turn' 
-                : 'Draft Player'}
-            </button>
-          )}
+          <div className="mt-auto space-y-2">
+            {/* Draft Button (during draft) */}
+            {draftState && !draftState.isComplete && (
+              <button
+                onClick={() => onDraftPlayer(rosterPlayer)}
+                disabled={isDrafted || isDrafting || !isMyTurn}
+                className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                  isDrafted
+                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    : isDrafting
+                    ? 'bg-yellow-600 text-white cursor-wait'
+                    : !isMyTurn
+                    ? 'border border-transparent text-gray-500 bg-transparent cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {isDrafting 
+                  ? 'Drafting...' 
+                  : isDrafted 
+                  ? 'Already Drafted' 
+                  : !isMyTurn 
+                  ? 'Not Your Turn' 
+                  : 'Draft Player'}
+              </button>
+            )}
 
-          {/* Admin: Pick Up Button (during season / free agency) */}
-          {isAdmin && !isDrafted && (
-            <button
-              onClick={() => pickUpFreeAgent(rosterPlayer)}
-              disabled={isDrafting}
-              className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                isDrafting
-                  ? 'bg-yellow-600 text-white cursor-wait'
-                  : 'bg-purple-600 hover:bg-purple-700 text-white'
-              }`}
-            >
-              {isDrafting ? 'Picking Up...' : '👑 Pick Up (Admin)'}
-            </button>
-          )}
+            {/* Admin: Pick Up Button (during season / free agency) */}
+            {isAdmin && !isDrafted && (
+              <button
+                onClick={() => pickUpFreeAgent(rosterPlayer)}
+                disabled={isDrafting}
+                className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                  isDrafting
+                    ? 'bg-yellow-600 text-white cursor-wait'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                }`}
+              >
+                {isDrafting ? 'Picking Up...' : '👑 Pick Up (Admin)'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -789,8 +792,16 @@ export default function NHLRoster() {
                 <VirtuosoGrid
                   style={{ height: '800px' }}
                   totalCount={filteredRoster.length}
+                  overscan={200}
                   listClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                  itemContent={(index) => renderPlayerCard(filteredRoster[index])}
+                  itemContent={(index) => (
+                    <div
+                      className="w-full"
+                      style={{ height: `${VIRTUAL_CARD_HEIGHT}px`, contain: 'strict' }}
+                    >
+                      {renderPlayerCard(filteredRoster[index])}
+                    </div>
+                  )}
                 />
               ) : (
                 // Regular grid for small lists (<100 players)
