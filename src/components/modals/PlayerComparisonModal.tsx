@@ -75,8 +75,6 @@ export default function PlayerComparisonModal() {
                                                         <StatRow label="Goals" value={player.stats?.goals} />
                                                         <StatRow label="Assists" value={player.stats?.assists} />
                                                         <StatRow label="Points" value={player.stats?.points} />
-                                                        <StatRow label="+/-" value={player.stats?.plusMinus} />
-                                                        <StatRow label="PIM" value={player.stats?.pim} />
                                                     </>
                                                 )}
                                             </div>

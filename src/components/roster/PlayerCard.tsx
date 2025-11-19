@@ -34,9 +34,47 @@ export default function PlayerCard({
     const { addPlayerToCompare } = useComparison();
     const teamAbbrev = (player as any).teamAbbrev || 'UNK';
 
-    // Check if player is a superstar (100+ points)
-    const isSuperstar = playerStats && playerStats.points >= 100;
-    const isStar = playerStats && playerStats.points >= 80;
+    // Determine Card Tier based on points
+    const points = playerStats?.points || 0;
+    const tier = points >= 100 ? 'superstar' : points >= 80 ? 'star' : points >= 60 ? 'pro' : 'regular';
+
+    // Tier Styles Configuration
+    const tierStyles = {
+        superstar: {
+            card: "border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.2)] bg-gradient-to-br from-slate-900/90 via-amber-900/20 to-slate-900/90",
+            foil: "absolute inset-0 opacity-30 bg-[linear-gradient(110deg,transparent_25%,rgba(251,191,36,0.3)_45%,rgba(245,158,11,0.5)_50%,rgba(251,191,36,0.3)_55%,transparent_75%)] bg-[length:250%_100%] animate-shimmer pointer-events-none mix-blend-overlay",
+            text: "text-amber-400",
+            subtext: "text-amber-500/70",
+            badge: "from-amber-400 to-orange-600",
+            pointsBox: "bg-amber-500/10 border-amber-500/20"
+        },
+        star: {
+            card: "border-slate-300/40 shadow-[0_0_15px_rgba(203,213,225,0.15)] bg-gradient-to-br from-slate-900/90 via-slate-700/20 to-slate-900/90",
+            foil: "absolute inset-0 opacity-20 bg-[linear-gradient(110deg,transparent_25%,rgba(255,255,255,0.3)_45%,rgba(255,255,255,0.5)_50%,rgba(255,255,255,0.3)_55%,transparent_75%)] bg-[length:250%_100%] animate-shimmer pointer-events-none mix-blend-overlay",
+            text: "text-slate-200",
+            subtext: "text-slate-400",
+            badge: "from-slate-300 to-slate-500",
+            pointsBox: "bg-slate-200/10 border-slate-300/20"
+        },
+        pro: {
+            card: "border-orange-400/40 shadow-[0_0_15px_rgba(251,146,60,0.1)] bg-gradient-to-br from-slate-900/90 via-orange-900/10 to-slate-900/90",
+            foil: "absolute inset-0 opacity-15 bg-[linear-gradient(110deg,transparent_25%,rgba(251,146,60,0.2)_45%,rgba(251,146,60,0.4)_50%,rgba(251,146,60,0.2)_55%,transparent_75%)] bg-[length:250%_100%] animate-shimmer pointer-events-none mix-blend-overlay",
+            text: "text-orange-300",
+            subtext: "text-orange-400/70",
+            badge: "from-orange-400 to-orange-700",
+            pointsBox: "bg-orange-500/10 border-orange-400/20"
+        },
+        regular: {
+            card: "",
+            foil: "",
+            text: "text-white",
+            subtext: "text-slate-500",
+            badge: "from-slate-600 to-slate-800",
+            pointsBox: "bg-slate-800/50 border-slate-700/50"
+        }
+    };
+
+    const currentStyle = tierStyles[tier];
 
     // NHL headshot URL (with fallback)
     const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.person.id}.png`;
@@ -62,16 +100,15 @@ export default function PlayerCard({
         <GlassCard
             hoverEffect={!isDrafted}
             className={cn(
-                "relative flex h-full flex-col p-4 transition-all",
-                isDrafted
-                    ? "opacity-60 grayscale-[0.5]"
-                    : isSuperstar
-                        ? "border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.15)] bg-gradient-to-br from-slate-900/80 to-amber-900/20"
-                        : isStar
-                            ? "border-slate-400/40 shadow-[0_0_15px_rgba(148,163,184,0.1)]"
-                            : ""
+                "relative flex h-full flex-col p-4 transition-all overflow-hidden group/card",
+                isDrafted ? "opacity-60 grayscale-[0.5]" : currentStyle.card
             )}
         >
+            {/* Foil Effect Overlay */}
+            {!isDrafted && tier !== 'regular' && (
+                <div className={currentStyle.foil} />
+            )}
+
             {/* Injury Badge - Top Right Corner */}
             {injury && (
                 <div
@@ -95,8 +132,8 @@ export default function PlayerCard({
                     {/* Avatar with Team Logo Badge */}
                     <div className="relative flex-shrink-0 group">
                         <div className={cn(
-                            "w-20 h-20 rounded-full p-0.5 bg-gradient-to-br",
-                            isSuperstar ? "from-amber-400 to-orange-600" : "from-slate-600 to-slate-800"
+                            "w-20 h-20 rounded-full p-0.5 bg-gradient-to-br relative z-10",
+                            currentStyle.badge
                         )}>
                             <img
                                 src={headshotUrl}
@@ -165,16 +202,16 @@ export default function PlayerCard({
                             ) : (
                                 <>
                                     <div className={cn(
-                                        "col-span-1 rounded-lg p-2 text-center border",
-                                        isSuperstar ? "bg-amber-500/10 border-amber-500/20" : "bg-slate-800/50 border-slate-700/50"
+                                        "col-span-1 rounded-lg p-2 text-center border relative z-10",
+                                        currentStyle.pointsBox
                                     )}>
                                         <div className={cn(
                                             "font-black text-xl",
-                                            isSuperstar ? "text-amber-400" : "text-white"
+                                            currentStyle.text
                                         )}>{playerStats.points}</div>
                                         <div className={cn(
                                             "text-[10px] uppercase tracking-wider font-bold",
-                                            isSuperstar ? "text-amber-500/70" : "text-slate-500"
+                                            currentStyle.subtext
                                         )}>Points</div>
                                     </div>
                                     <div className="col-span-1 bg-slate-800/50 rounded-lg p-2 text-center border border-slate-700/50">
