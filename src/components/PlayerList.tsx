@@ -65,11 +65,23 @@ export default function PlayerList() {
     }
   };
 
-  // Check if swap is valid (must be same position)
+  // Check if swap is valid (forwards can swap with any forward, D with D, G with G)
   const isSwapDisabled = (player: DraftedPlayer) => {
     if (!selectedForSwap) return false;
-    // Must be same position
-    if (player.position !== selectedForSwap.position) return true;
+
+    // Check if positions are compatible
+    const forwardPositions = ['C', 'L', 'R'];
+    const isPlayerForward = forwardPositions.includes(player.position);
+    const isSelectedForward = forwardPositions.includes(selectedForSwap.position);
+
+    // Forwards can swap with any forward, but D and G must match exactly
+    if (isPlayerForward && isSelectedForward) {
+      // Both are forwards, swap is allowed
+    } else if (player.position !== selectedForSwap.position) {
+      // Not both forwards and positions don't match
+      return true;
+    }
+
     // Must be different roster slot
     if (player.rosterSlot === selectedForSwap.currentSlot) return true;
     return false;
@@ -281,7 +293,8 @@ export default function PlayerList() {
         <div className="bg-gray-700/50 border border-gray-600 p-4 rounded-lg mb-6">
           <p className="text-gray-300 text-sm">
             <strong>💡 How to Swap Players:</strong> Click "🔄 Select to Swap" on a player,
-            then select another player of the same position from the opposite roster (active ↔ reserve) to swap them.
+            then select another player from the opposite roster (active ↔ reserve) to swap them.
+            Forwards (C/L/R) can swap with any forward. D and G must swap with same position.
           </p>
         </div>
       )}
