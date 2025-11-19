@@ -141,7 +141,7 @@ export default function PlayerCard({
             className={
                 cn(
                     "relative flex h-full flex-col p-0 transition-all overflow-hidden group/card",
-                    isDrafted ? "opacity-60 grayscale-[0.5] bg-gray-800/50 border-gray-700" : currentStyle.card
+                    isDrafted ? "opacity-80 grayscale-[0.6] bg-gray-800/50 border-gray-700" : currentStyle.card
                 )
             }
         >
@@ -152,27 +152,30 @@ export default function PlayerCard({
                 )
             }
 
-            {/* Top Right Badges (IR/OUT) */}
-            {
-                injury && (
-                    <div className="absolute top-2 right-2 z-20">
-                        <Badge variant="danger" className="shadow-md">
-                            {getInjuryIcon(injury.status)} {
-                                injury.status === 'Injured Reserve' ? 'IR' :
-                                    injury.status === 'Day To Day' ? 'DTD' :
-                                        injury.status === 'Out' ? 'OUT' :
-                                            injury.status.toUpperCase().substring(0, 3)
-                            }
-                        </Badge>
+            {/* Top Right Badges (IR/OUT/Lock) */}
+            <div className="absolute top-2 right-2 z-20 flex flex-col gap-1 items-end">
+                {isDrafted && (
+                    <div className="bg-gray-900/90 p-1.5 rounded-full border border-gray-700 shadow-sm">
+                        <span className="text-xs leading-none">🔒</span>
                     </div>
-                )
-            }
+                )}
+                {injury && (
+                    <Badge variant="danger" className="shadow-md">
+                        {getInjuryIcon(injury.status)} {
+                            injury.status === 'Injured Reserve' ? 'IR' :
+                                injury.status === 'Day To Day' ? 'DTD' :
+                                    injury.status === 'Out' ? 'OUT' :
+                                        injury.status.toUpperCase().substring(0, 3)
+                        }
+                    </Badge>
+                )}
+            </div>
 
             {/* --- Card Content --- */}
             <div className="flex flex-col h-full">
 
                 {/* 1. Header Section: Headshot & Info */}
-                <div className="flex items-center p-4 pb-2 gap-4">
+                <div className="flex items-center p-3 pb-1.5 gap-4">
                     {/* Avatar with Overlapping Team Logo */}
                     <div className="relative flex-shrink-0">
                         <div className={cn(
@@ -217,7 +220,7 @@ export default function PlayerCard({
                 </div>
 
                 {/* 2. Stat Block (Horizontal) */}
-                <div className="px-0 py-2 mt-1 mb-auto">
+                <div className="px-0 py-1.5 mt-0.5 mb-auto">
                     {playerStats ? (
                         <div className="bg-gray-900/40 border-y border-gray-700/50 py-2 px-4">
                             {player.position.code === 'G' ? (
@@ -263,7 +266,7 @@ export default function PlayerCard({
                             )}
                         </div>
                     ) : (
-                        <div className="bg-gray-900/40 border-y border-gray-700/50 py-3 px-4 flex flex-col items-center justify-center">
+                        <div className="bg-gray-900/40 border-y border-gray-700/50 py-2.5 px-4 flex flex-col items-center justify-center">
                             <div className="w-8 h-0.5 bg-gray-600 mb-1 rounded-full" />
                             <span className="text-[10px] text-gray-500 uppercase font-medium">No 23-24 Stats</span>
                         </div>
@@ -271,27 +274,28 @@ export default function PlayerCard({
                 </div>
 
                 {/* 3. Actions Footer */}
-                <div className="p-4 pt-2 space-y-2">
+                <div className="p-3 pt-1.5 space-y-1.5">
                     {/* Draft Button */}
                     {draftState && !draftState.isComplete && (
-                        <button
-                            onClick={() => onDraft(player)}
-                            disabled={isDrafted || isDrafting || !isMyTurn}
-                            className={cn(
-                                "w-full py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 shadow-sm",
-                                isDrafted
-                                    ? "bg-gray-700/50 text-gray-500 cursor-not-allowed"
-                                    : !isMyTurn
-                                        ? "bg-gray-800 border border-gray-700 text-gray-500 hover:bg-gray-700 hover:text-gray-400"
-                                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-900/20"
+                        <>
+                            {isDrafted ? (
+                                <div className="w-full text-center py-1.5 text-xs text-gray-600 font-medium">
+                                    Already Drafted
+                                </div>
+                            ) : !isMyTurn ? (
+                                <div className="w-full text-center py-1.5 text-xs text-gray-600 font-medium opacity-40">
+                                    Not your turn
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => onDraft(player)}
+                                    disabled={isDrafting}
+                                    className="w-full py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 shadow-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-900/20"
+                                >
+                                    {isDrafting ? 'Drafting...' : 'Draft Player'}
+                                </button>
                             )}
-                        >
-                            {isDrafted
-                                ? 'Already Drafted'
-                                : !isMyTurn
-                                    ? 'Not Your Turn'
-                                    : isDrafting && !isDrafted ? 'Drafting...' : 'Draft Player'}
-                        </button>
+                        </>
                     )}
 
                     {/* Admin Pick Up */}
