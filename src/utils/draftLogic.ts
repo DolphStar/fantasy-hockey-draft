@@ -6,11 +6,19 @@ export interface DraftPick {
   team: string;
 }
 
+export interface LastPickInfo {
+  playerName: string;
+  timestamp: string;
+  team: string;
+  pickNumber: number;
+}
+
 export interface DraftState {
   totalPicks: number;
   currentPickNumber: number;
   draftOrder: DraftPick[];
   isComplete: boolean;
+  lastPick?: LastPickInfo;
 }
 
 /**
@@ -73,7 +81,7 @@ export function getNextPick(draftState: DraftState): DraftPick | null {
  */
 export function createInitialDraftState(teams: string[], rounds: number): DraftState {
   const draftOrder = generateSnakeDraftOrder(teams, rounds);
-  
+
   return {
     totalPicks: draftOrder.length,
     currentPickNumber: 1,

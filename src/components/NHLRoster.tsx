@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { toast } from 'sonner';
-import { 
+import {
   getPlayerFullName,
   getAllPlayers,
   getTeamRoster,
@@ -16,48 +16,55 @@ import { db } from '../firebase';
 import { collection, addDoc, onSnapshot, runTransaction, doc } from 'firebase/firestore';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
-import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
+import { useSound } from '../context/SoundContext';
+import { isPlayerInjuredByName } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
 import { useTeamRoster } from '../queries/useTeamRoster';
+import PlayerCard from './roster/PlayerCard';
+import RosterFilters from './roster/RosterFilters';
+import DraftStatus from './draft/DraftStatus';
+import PositionScarcity from './draft/PositionScarcity';
+import BestAvailable from './draft/BestAvailable';
 
 export default function NHLRoster() {
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
-  const [myTeamPositions, setMyTeamPositions] = useState({ 
+  const [myTeamPositions, setMyTeamPositions] = useState({
     active: { F: 0, D: 0, G: 0 },
     reserve: 0,
-    total: 0 
+    total: 0
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ANA'); // Default to Anaheim Ducks
   const [pickupTeam, setPickupTeam] = useState<string>(''); // Admin: which team to pick up for
   const [lastSeasonStats, setLastSeasonStats] = useState<StatsMap>({}); // Last season stats
-  
+
   // League context for showing user's team
   const { myTeam, league, isAdmin } = useLeague();
-  
+
   // Draft context
   const { draftState, currentPick, isMyTurn } = useDraft();
-  
+  const { playSound } = useSound();
+
   // React Query hooks - automatic caching and refetching!
   const { data: injuries = [] } = useInjuries();
-  
+
   // Conditionally use different queries based on team filter
   const isFetchingAllTeams = teamFilter === 'ALL';
-  
+
   // Only fetch single team when not fetching all teams
   const { data: singleTeamData, isLoading: singleTeamLoading, error: singleTeamError } = useTeamRoster(
     !isFetchingAllTeams ? (teamFilter as TeamAbbrev) : null
   );
-  
+
   // Only fetch all teams when "ALL" is selected (enabled flag prevents unnecessary fetching)
   const { data: allTeamsData, isLoading: allTeamsLoading, error: allTeamsError } = useQuery({
     queryKey: ['rosters', 'all'],
     queryFn: async () => {
       console.log('🏒 Loading all NHL teams in parallel...');
       const startTime = Date.now();
-      
+
       const teamPromises = (Object.keys(NHL_TEAMS) as TeamAbbrev[]).map(async (abbrev) => {
         try {
           const rosterData = await getTeamRoster(abbrev);
@@ -71,31 +78,31 @@ export default function NHLRoster() {
           return [];
         }
       });
-      
+
       const results = await Promise.all(teamPromises);
       const allPlayers = results.flat();
-      
+
       const loadTime = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(`✅ Loaded ${allPlayers.length} players from ${Object.keys(NHL_TEAMS).length} teams in ${loadTime}s`);
-      
+
       return allPlayers;
     },
     enabled: isFetchingAllTeams, // Only run this query when ALL teams is selected
     staleTime: 15 * 60 * 1000,
   });
-  
+
   // Extract roster based on which query is active
-  const roster: RosterPerson[] = isFetchingAllTeams 
+  const roster: RosterPerson[] = isFetchingAllTeams
     ? (allTeamsData || [])
-    : singleTeamData 
+    : singleTeamData
       ? getAllPlayers(singleTeamData).map(player => {
-          (player as any).teamAbbrev = teamFilter;
-          return player;
-        })
+        (player as any).teamAbbrev = teamFilter;
+        return player;
+      })
       : [];
-  
+
   const loading = isFetchingAllTeams ? allTeamsLoading : singleTeamLoading;
-  const error = isFetchingAllTeams 
+  const error = isFetchingAllTeams
     ? (allTeamsError ? (allTeamsError as Error).message : null)
     : (singleTeamError ? (singleTeamError as Error).message : null);
 
@@ -117,7 +124,7 @@ export default function NHLRoster() {
 
     try {
       setDraftingPlayerId(rosterPlayer.person.id);
-      
+
       // Check if already drafted
       if (draftedPlayerIds.has(rosterPlayer.person.id)) {
         toast.error('Player already drafted!', {
@@ -135,7 +142,7 @@ export default function NHLRoster() {
         setDraftingPlayerId(null);
         return;
       }
-      
+
       // Add to active roster by default
       await addDoc(collection(db, 'draftedPlayers'), {
         playerId: rosterPlayer.person.id,
@@ -154,7 +161,7 @@ export default function NHLRoster() {
 
       // Update local state
       setDraftedPlayerIds(prev => new Set(prev).add(rosterPlayer.person.id));
-      
+
       console.log(`Admin picked up: ${getPlayerFullName(rosterPlayer)} for ${pickupTeam}`);
       toast.success(`Picked up ${getPlayerFullName(rosterPlayer)}!`, {
         description: `Added to ${pickupTeam}'s active roster as a free agent.`
@@ -168,9 +175,6 @@ export default function NHLRoster() {
       setDraftingPlayerId(null);
     }
   };
-
-  // Note: React Query now handles all data fetching and caching!
-  // No more manual fetch functions needed.
 
   // Fetch last season stats on mount
   useEffect(() => {
@@ -192,17 +196,17 @@ export default function NHLRoster() {
       const draftedIds = new Set<number>();
       let activeForwards = 0, activeDefense = 0, activeGoalies = 0;
       let reserveCount = 0, myTotal = 0;
-      
+
       snapshot.docs.forEach(doc => {
         const data = doc.data();
         draftedIds.add(data.playerId);
-        
+
         // Count positions for my team
         if (myTeam && data.draftedByTeam === myTeam.teamName) {
           myTotal++;
           const pos = data.position;
           const slot = data.rosterSlot || 'active';
-          
+
           if (slot === 'reserve') {
             reserveCount++;
           } else {
@@ -217,25 +221,25 @@ export default function NHLRoster() {
           }
         }
       });
-      
+
       setDraftedPlayerIds(draftedIds);
-      setMyTeamPositions({ 
+      setMyTeamPositions({
         active: { F: activeForwards, D: activeDefense, G: activeGoalies },
         reserve: reserveCount,
-        total: myTotal 
+        total: myTotal
       });
     });
-    
+
     return () => unsubscribe();
   }, [myTeam]);
 
   // Check if we can draft a player to active roster
   const canDraftToActive = (position: string): boolean => {
     if (!league?.rosterSettings) return true;
-    
+
     const { F, D, G } = myTeamPositions.active;
     const { forwards, defensemen, goalies } = league.rosterSettings;
-    
+
     if (['C', 'L', 'R'].includes(position)) {
       return F < forwards;
     } else if (position === 'D') {
@@ -243,10 +247,10 @@ export default function NHLRoster() {
     } else if (position === 'G') {
       return G < goalies;
     }
-    
+
     return false;
   };
-  
+
   // Check if we can add to reserves (max 5)
   const canDraftToReserve = (): boolean => {
     return myTeamPositions.reserve < 5;
@@ -277,7 +281,7 @@ export default function NHLRoster() {
 
     try {
       setDraftingPlayerId(rosterPlayer.person.id);
-      
+
       // Check if already drafted
       if (draftedPlayerIds.has(rosterPlayer.person.id)) {
         toast.error('Player already drafted!', {
@@ -286,12 +290,12 @@ export default function NHLRoster() {
         setDraftingPlayerId(null);
         return;
       }
-      
+
       // Determine roster slot
       let rosterSlot: 'active' | 'reserve' = 'active';
       const canAddToActive = canDraftToActive(rosterPlayer.position.code);
       const canAddToReserves = canDraftToReserve();
-      
+
       if (forceReserve) {
         // User confirmed adding to reserves
         if (!canAddToReserves) {
@@ -368,12 +372,15 @@ export default function NHLRoster() {
 
       // Update local state
       setDraftedPlayerIds(prev => new Set(prev).add(rosterPlayer.person.id));
-      
+
       // Show success toast
       toast.success(`Drafted ${getPlayerFullName(rosterPlayer)}!`, {
         description: `${rosterPlayer.position.code} • ${(rosterPlayer as any).teamAbbrev} • Pick #${pickInfo.pick} → ${rosterSlot === 'reserve' ? 'Reserves' : 'Active Roster'}`
       });
-      
+
+      // Play sound
+      playSound('draft-pick');
+
       console.log(`${pickInfo.team} drafted: ${getPlayerFullName(rosterPlayer)} (Pick #${pickInfo.pick})`);
     } catch (error) {
       console.error('Error drafting player:', error);
@@ -385,35 +392,17 @@ export default function NHLRoster() {
     }
   };
 
-  // React Query automatically handles data fetching and caching based on teamFilter
-  // No manual useEffects needed!
-
-  const getPositionBadgeColor = (positionCode: string) => {
-    switch (positionCode) {
-      case 'C':
-      case 'L':
-      case 'R':
-        return 'bg-blue-600';
-      case 'D':
-        return 'bg-green-600';
-      case 'G':
-        return 'bg-purple-600';
-      default:
-        return 'bg-gray-600';
-    }
-  };
-
   // Filter roster based on search, position, and team
   const filteredRoster = roster.filter(player => {
     const playerName = getPlayerFullName(player).toLowerCase();
     const matchesSearch = searchQuery === '' || playerName.includes(searchQuery.toLowerCase());
-    
-    const matchesPosition = positionFilter === 'ALL' || 
+
+    const matchesPosition = positionFilter === 'ALL' ||
       (positionFilter === 'F' && ['C', 'L', 'R'].includes(player.position.code)) ||
       (positionFilter === player.position.code);
-    
+
     const matchesTeam = teamFilter === 'ALL' || (player as any).teamAbbrev === teamFilter;
-    
+
     return matchesSearch && matchesPosition && matchesTeam;
   });
 
@@ -421,270 +410,31 @@ export default function NHLRoster() {
   const useVirtualization = filteredRoster.length > 100;
   const VIRTUAL_CARD_HEIGHT = 320; // px
 
-  // Render a single player card with headshot and team logo
-  const renderPlayerCard = (rosterPlayer: RosterPerson) => {
-    const isDrafted = draftedPlayerIds.has(rosterPlayer.person.id);
-    const isDrafting = draftingPlayerId === rosterPlayer.person.id;
-    const teamAbbrev = (rosterPlayer as any).teamAbbrev || 'UNK';
-    const injury = isPlayerInjuredByName(getPlayerFullName(rosterPlayer), injuries);
-    
-    // Check if player is a superstar (100+ points)
-    const playerStats = lastSeasonStats[rosterPlayer.person.id];
-    const isSuperstar = playerStats && playerStats.points >= 100;
-    
-    // NHL headshot URL (with fallback)
-    const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${rosterPlayer.person.id}.png`;
-    const fallbackHeadshot = "https://assets.nhle.com/mugs/nhl/default-skater.png";
-    const teamLogoUrl = `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_dark.svg`;
-
-    return (
-      <div
-        key={rosterPlayer.person.id}
-        className={`relative flex h-full flex-col rounded-xl p-4 transition-all shadow-sm hover:shadow-xl hover:shadow-black/40 hover:-translate-y-0.5 ${
-          isDrafted 
-            ? isSuperstar
-              ? 'bg-gray-900 opacity-60 border-2 border-amber-500/40'  // Drafted superstar - hint of gold
-              : 'bg-gray-900 opacity-60 border-2 border-gray-600'      // Regular drafted player
-            : isSuperstar
-            ? 'bg-gradient-to-br from-gray-800 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)] hover:shadow-[0_0_25px_rgba(245,158,11,0.2)]'  // Gold tier (100+)
-            : playerStats && playerStats.points >= 80
-            ? 'bg-gray-800 border border-gray-400/40 shadow-[0_0_10px_rgba(192,192,192,0.05)] hover:border-gray-400/60'  // Silver tier (80-99)
-            : 'bg-gray-700 hover:bg-gray-650 border border-gray-700'  // Standard
-        }`}
-      >
-        {/* Injury Badge - Top Right Corner (Abbreviated) */}
-        {injury && (
-          <div 
-            className="absolute top-3 right-3 z-10 cursor-help"
-            title={`${injury.status}: ${injury.injuryType} - ${injury.description}`}
-          >
-            <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1 shadow-lg whitespace-nowrap`}>
-              {getInjuryIcon(injury.status)} {
-                injury.status === 'Injured Reserve' ? 'IR' :
-                injury.status === 'Day To Day' ? 'DTD' :
-                injury.status === 'Out' ? 'OUT' :
-                injury.status.toUpperCase().substring(0, 3)
-              }
-            </span>
-          </div>
-        )}
-        
-        <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-          {/* Player Photo & Info */}
-          <div className="flex gap-3 items-start">
-            {/* Avatar with Team Logo Badge */}
-            <div className="relative flex-shrink-0">
-              <img 
-                src={headshotUrl}
-                alt={getPlayerFullName(rosterPlayer)}
-                loading="lazy"
-                onError={(e) => {
-                  e.currentTarget.src = fallbackHeadshot;
-                }}
-                className="w-20 h-20 rounded-full object-cover border-2 border-gray-600 bg-gray-800"
-              />
-              {/* Team Logo Badge */}
-              <div className="absolute -bottom-1 -right-1 w-8 h-8">
-                <img 
-                  src={teamLogoUrl} 
-                  alt={teamAbbrev}
-                  className="w-full h-full drop-shadow-lg"
-                />
-              </div>
-            </div>
-
-            {/* Player Details */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="text-white font-semibold text-lg">
-                  #{rosterPlayer.jerseyNumber}
-                </span>
-                <span
-                  className={`${getPositionBadgeColor(rosterPlayer.position.code)} text-white text-xs px-2 py-1 rounded font-bold`}
-                >
-                  {rosterPlayer.position.code}
-                </span>
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded font-bold">
-                  {teamAbbrev}
-                </span>
-                {isDrafted && (
-                  <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">
-                    DRAFTED
-                  </span>
-                )}
-              </div>
-              <p className="text-white font-medium text-lg mb-1 truncate">
-                {getPlayerFullName(rosterPlayer)}
-              </p>
-              <p className="text-gray-400 text-sm mb-2">
-                {rosterPlayer.position.name}
-              </p>
-              
-              {/* Last Season Stats - Pro Design */}
-              <div className="mt-3 mb-4 flex items-center justify-between px-1">
-                {playerStats ? (
-                  rosterPlayer.position.code === 'G' ? (
-                    // --- GOALIE DESIGN ---
-                    <>
-                      <div className="flex flex-col">
-                        <span className="text-2xl font-black text-emerald-400 leading-none">
-                          {playerStats.wins || 0}
-                        </span>
-                        <span className="text-[10px] uppercase font-bold text-emerald-500/80 tracking-widest">
-                          Wins
-                        </span>
-                      </div>
-                      <div className="bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded">
-                        <span className="text-xs font-mono text-emerald-300">
-                          {(playerStats.savePct || 0).toFixed(3)} <span className="opacity-50">SV%</span>
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    // --- SKATER DESIGN ---
-                    <>
-                      <div className="flex flex-col">
-                        {/* Color-coded points based on production level */}
-                        <span className={`text-2xl font-black leading-none ${
-                          playerStats.points >= 100 ? 'text-yellow-300' :     // Elite (100+)
-                          playerStats.points >= 80 ? 'text-amber-400' :       // Star (80-99)
-                          playerStats.points >= 60 ? 'text-blue-400' :        // Good (60-79)
-                          playerStats.points >= 40 ? 'text-green-400' :       // Solid (40-59)
-                          playerStats.points >= 20 ? 'text-gray-300' :        // Role player (20-39)
-                          'text-gray-400'                                       // Depth (<20)
-                        }`}>
-                          {playerStats.points}
-                        </span>
-                        <span className={`text-[10px] uppercase font-bold tracking-widest ${
-                          playerStats.points >= 100 ? 'text-yellow-500/80' :
-                          playerStats.points >= 80 ? 'text-amber-500/80' :
-                          playerStats.points >= 60 ? 'text-blue-500/80' :
-                          playerStats.points >= 40 ? 'text-green-500/80' :
-                          'text-gray-500/80'
-                        }`}>
-                          Points
-                        </span>
-                      </div>
-                      {/* Better contrast pills */}
-                      <div className="flex gap-1.5 text-xs font-medium">
-                        <span className="bg-white/10 border border-gray-600 px-2 py-1 rounded">
-                          <span className="text-white font-bold">{playerStats.goals}</span> <span className="text-gray-300">G</span>
-                        </span>
-                        <span className="bg-white/10 border border-gray-600 px-2 py-1 rounded">
-                          <span className="text-white font-bold">{playerStats.assists}</span> <span className="text-gray-300">A</span>
-                        </span>
-                      </div>
-                    </>
-                  )
-                ) : (
-                  // --- NO STATS DESIGN - Large dash placeholder ---
-                  <div className="flex flex-col items-start justify-center">
-                    <span className="text-3xl font-black text-gray-600 leading-none">
-                      —
-                    </span>
-                    <span className="text-[10px] uppercase font-bold text-gray-600/80 tracking-widest">
-                      No Data
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-auto space-y-2">
-            {/* Draft Button (during draft) */}
-            {draftState && !draftState.isComplete && (
-              <button
-                onClick={() => onDraftPlayer(rosterPlayer)}
-                disabled={isDrafted || isDrafting || !isMyTurn}
-                className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                  isDrafted
-                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                    : isDrafting
-                    ? 'bg-yellow-600 text-white cursor-wait'
-                    : !isMyTurn
-                    ? 'border border-transparent text-gray-500 bg-transparent cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
-              >
-                {isDrafting 
-                  ? 'Drafting...' 
-                  : isDrafted 
-                  ? 'Already Drafted' 
-                  : !isMyTurn 
-                  ? 'Not Your Turn' 
-                  : 'Draft Player'}
-              </button>
-            )}
-
-            {/* Admin: Pick Up Button (during season / free agency) */}
-            {isAdmin && !isDrafted && (
-              <button
-                onClick={() => pickUpFreeAgent(rosterPlayer)}
-                disabled={isDrafting}
-                className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                  isDrafting
-                    ? 'bg-yellow-600 text-white cursor-wait'
-                    : 'bg-purple-600 hover:bg-purple-700 text-white'
-                }`}
-              >
-                {isDrafting ? 'Picking Up...' : '👑 Pick Up (Admin)'}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h2 className="text-3xl font-bold mb-6 text-white">NHL Team Roster</h2>
 
       {/* Draft Status Banner */}
-      {draftState && currentPick && (
-        <div className={`p-4 rounded-lg mb-6 ${
-          isMyTurn ? 'bg-green-900 border-2 border-green-500' : 'bg-gray-800 border-2 border-gray-600'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-gray-400">
-                Pick {currentPick.pick} of {draftState.totalPicks} • Round {currentPick.round}
-                {myTeam && <span className="ml-2">• You are: <span className="text-blue-400">{myTeam.teamName}</span></span>}
-              </p>
-              <p className="text-xl font-bold text-white mt-1">
-                {isMyTurn ? (
-                  <span className="text-green-400">🏒 YOUR TURN! Draft a player below</span>
-                ) : (
-                  <span>Waiting for <span className="text-yellow-400">{currentPick.team}</span></span>
-                )}
-              </p>
-              {myTeam && league?.rosterSettings && (
-                <div className="mt-2 flex gap-4 text-sm">
-                  <span className={myTeamPositions.active.F >= league.rosterSettings.forwards ? 'text-green-400' : 'text-gray-400'}>
-                    F: {myTeamPositions.active.F}/{league.rosterSettings.forwards}
-                  </span>
-                  <span className={myTeamPositions.active.D >= league.rosterSettings.defensemen ? 'text-green-400' : 'text-gray-400'}>
-                    D: {myTeamPositions.active.D}/{league.rosterSettings.defensemen}
-                  </span>
-                  <span className={myTeamPositions.active.G >= league.rosterSettings.goalies ? 'text-green-400' : 'text-gray-400'}>
-                    G: {myTeamPositions.active.G}/{league.rosterSettings.goalies}
-                  </span>
-                  <span className="text-purple-400">
-                    Reserves: {myTeamPositions.reserve}/5
-                  </span>
-                  <span className="text-gray-500">
-                    ({myTeamPositions.total} total)
-                  </span>
-                </div>
-              )}
-            </div>
-            {isMyTurn && (
-              <div className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold animate-pulse">
-                ON THE CLOCK
-              </div>
-            )}
-          </div>
+      <DraftStatus
+        draftState={draftState}
+        currentPick={currentPick}
+        isMyTurn={isMyTurn}
+        myTeam={myTeam}
+        league={league}
+        myTeamPositions={myTeamPositions}
+      />
+
+      {/* Best Available & Position Scarcity Grid */}
+      {!loading && !error && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <BestAvailable
+            allPlayers={roster}
+            draftedPlayerIds={draftedPlayerIds}
+            lastSeasonStats={lastSeasonStats}
+            onDraft={onDraftPlayer}
+            isMyTurn={isMyTurn}
+          />
+          <PositionScarcity allPlayers={roster} draftedPlayerIds={draftedPlayerIds} />
         </div>
       )}
 
@@ -720,146 +470,84 @@ export default function NHLRoster() {
       )}
 
       {/* Search and Filters */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search Input */}
-          <div className="flex-1">
-            <label className="block text-white font-semibold mb-2">🔍 Search Players:</label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name..."
-              className="w-full px-4 py-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          {/* Position Filter */}
-          <div className="md:w-48">
-            <label className="block text-white font-semibold mb-2">Position:</label>
-            <select
-              value={positionFilter}
-              onChange={(e) => setPositionFilter(e.target.value)}
-              className="w-full px-4 py-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="ALL">All Positions</option>
-              <option value="F">Forwards (C/L/R)</option>
-              <option value="C">Center (C)</option>
-              <option value="L">Left Wing (L)</option>
-              <option value="R">Right Wing (R)</option>
-              <option value="D">Defense (D)</option>
-              <option value="G">Goalie (G)</option>
-            </select>
-          </div>
-
-          {/* Team Filter */}
-          <div className="md:w-48">
-            <label className="block text-white font-semibold mb-2">NHL Team:</label>
-            <select
-              value={teamFilter}
-              onChange={(e) => setTeamFilter(e.target.value)}
-              className="w-full px-4 py-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="ALL">All Teams</option>
-              {Object.entries(NHL_TEAMS).map(([abbrev, name]) => (
-                <option key={abbrev} value={abbrev}>
-                  {abbrev} - {name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clear Button */}
-          {(searchQuery || positionFilter !== 'ALL' || teamFilter !== 'ALL') && (
-            <div className="md:w-auto md:self-end">
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setPositionFilter('ALL');
-                  setTeamFilter('ALL');
-                }}
-                className="w-full md:w-auto px-4 py-3 rounded bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
-              >
-                Clear Filters
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Results Count */}
-        {!loading && roster.length > 0 && (
-          <div className="mt-4 text-gray-400 text-sm">
-            Showing {filteredRoster.length} of {roster.length} players
-            {searchQuery && <span className="ml-1">matching "{searchQuery}"</span>}
-            {positionFilter !== 'ALL' && <span className="ml-1">• Position: {positionFilter === 'F' ? 'Forwards' : positionFilter}</span>}
-            {teamFilter !== 'ALL' && <span className="ml-1">• Team: {teamFilter}</span>}
-          </div>
-        )}
-      </div>
+      <RosterFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        positionFilter={positionFilter}
+        setPositionFilter={setPositionFilter}
+        teamFilter={teamFilter}
+        setTeamFilter={setTeamFilter}
+        loading={loading}
+        totalCount={roster.length}
+        filteredCount={filteredRoster.length}
+      />
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-gray-800 p-8 rounded-lg shadow-lg text-center">
-          <p className="text-gray-400 text-lg">Loading roster...</p>
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
         </div>
       )}
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-900/50 border border-red-600 p-6 rounded-lg shadow-lg mb-8">
-          <p className="text-red-200 font-semibold">⚠️ {error}</p>
+        <div className="bg-red-900/50 border border-red-600 p-4 rounded-lg mb-6 text-center">
+          <p className="text-red-200 font-semibold">Error loading roster:</p>
+          <p className="text-red-300">{error}</p>
         </div>
       )}
 
       {/* Roster Grid */}
-      {!loading && !error && roster.length > 0 && (
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-          {filteredRoster.length > 0 ? (
-            <>
-              <h3 className="text-xl font-semibold mb-6 text-white">
-                {teamFilter !== 'ALL' ? `${NHL_TEAMS[teamFilter as TeamAbbrev]} - ` : 'All NHL Players - '}
-                {filteredRoster.length} Player{filteredRoster.length !== 1 ? 's' : ''}
-                {useVirtualization && <span className="ml-2 text-green-400 text-sm">⚡ Virtualized</span>}
-              </h3>
-              
-              {/* Virtualized grid for large rosters (>100 players) */}
-              {useVirtualization ? (
-                <VirtuosoGrid
-                  style={{ height: '800px' }}
-                  totalCount={filteredRoster.length}
-                  overscan={200}
-                  listClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                  itemContent={(index) => (
-                    <div
-                      className="w-full"
-                      style={{ height: `${VIRTUAL_CARD_HEIGHT}px`, contain: 'strict' }}
-                    >
-                      {renderPlayerCard(filteredRoster[index])}
-                    </div>
-                  )}
+      {!loading && !error && (
+        useVirtualization ? (
+          <VirtuosoGrid
+            style={{ height: '800px' }}
+            totalCount={filteredRoster.length}
+            data={filteredRoster}
+            itemContent={(index, player) => (
+              <div className="p-2 h-full">
+                <PlayerCard
+                  player={player}
+                  isDrafted={draftedPlayerIds.has(player.person.id)}
+                  isDrafting={draftingPlayerId === player.person.id}
+                  isMyTurn={isMyTurn}
+                  isAdmin={isAdmin}
+                  onDraft={onDraftPlayer}
+                  onPickUp={pickUpFreeAgent}
+                  playerStats={lastSeasonStats[player.person.id]}
+                  injury={isPlayerInjuredByName(getPlayerFullName(player), injuries)}
+                  draftState={draftState}
                 />
-              ) : (
-                // Regular grid for small lists (<100 players)
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredRoster.map((rosterPlayer) => renderPlayerCard(rosterPlayer))}
-                </div>
-              )}
-        </>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-400 text-lg">No players found matching your search.</p>
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setPositionFilter('ALL');
-              setTeamFilter('ALL');
-            }}
-            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
-          >
-            Clear Filters
-          </button>
-        </div>
+              </div>
+            )}
+            listClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredRoster.map((player) => (
+              <PlayerCard
+                key={player.person.id}
+                player={player}
+                isDrafted={draftedPlayerIds.has(player.person.id)}
+                isDrafting={draftingPlayerId === player.person.id}
+                isMyTurn={isMyTurn}
+                isAdmin={isAdmin}
+                onDraft={onDraftPlayer}
+                onPickUp={pickUpFreeAgent}
+                playerStats={lastSeasonStats[player.person.id]}
+                injury={isPlayerInjuredByName(getPlayerFullName(player), injuries)}
+                draftState={draftState}
+              />
+            ))}
+          </div>
+        )
       )}
+
+      {/* No Results */}
+      {!loading && !error && filteredRoster.length === 0 && (
+        <div className="text-center py-12 bg-gray-800 rounded-lg">
+          <p className="text-xl text-gray-400 font-semibold">No players found</p>
+          <p className="text-gray-500 mt-2">Try adjusting your search or filters</p>
         </div>
       )}
     </div>

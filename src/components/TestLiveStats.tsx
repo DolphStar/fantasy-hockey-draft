@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLeague } from '../context/LeagueContext';
 import { processLiveStats } from '../utils/liveStats';
+import { GlassCard } from './ui/GlassCard';
 
 export default function TestLiveStats() {
   const { league } = useLeague();
@@ -16,7 +17,7 @@ export default function TestLiveStats() {
     try {
       console.log('🔴 Running live stats update...');
       const stats = await processLiveStats(league.id);
-      
+
       const message = `✅ Live stats updated! Processed ${stats.gamesProcessed} games, updated ${stats.playersUpdated} players.`;
       setResult(message);
       console.log(message);
@@ -32,44 +33,41 @@ export default function TestLiveStats() {
   if (!league) return null;
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg">
-      <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-        🔴 Test Live Stats System
+    <GlassCard className="p-5 space-y-4">
+      <h3 className="text-lg font-bold text-white flex items-center gap-2 border-b border-slate-700/50 pb-2">
+        <span>🔴</span> Test Live Stats System
       </h3>
-      <p className="text-gray-400 text-sm mb-4">
+
+      <p className="text-slate-300 text-sm">
         Manually fetch today's live game stats to test the system. Stats will update in real-time on the Standings page.
       </p>
-      
+
       <button
         onClick={handleRunLiveStats}
         disabled={loading}
-        className={`w-full px-6 py-3 rounded-lg font-semibold transition-colors ${
-          loading
-            ? 'bg-gray-600 cursor-not-allowed'
-            : 'bg-red-600 hover:bg-red-700 text-white'
-        }`}
+        className={`w-full px-4 py-2.5 rounded-lg font-semibold transition-all text-sm ${loading
+            ? 'bg-slate-700 cursor-not-allowed text-slate-400'
+            : 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-900/20 active:scale-95'
+          }`}
       >
         {loading ? '🔄 Updating Live Stats...' : '🔴 Update Live Stats Now'}
       </button>
 
       {result && (
-        <div className={`mt-4 p-4 rounded ${
-          result.startsWith('✅') 
-            ? 'bg-green-900/30 text-green-300' 
-            : 'bg-red-900/30 text-red-300'
-        }`}>
+        <div className={`p-3 rounded-lg text-sm ${result.startsWith('✅')
+            ? 'bg-green-500/10 border border-green-500/30 text-green-200'
+            : 'bg-red-500/10 border border-red-500/30 text-red-200'
+          }`}>
           {result}
         </div>
       )}
 
-      <div className="mt-4 p-4 bg-blue-900/30 border border-blue-500 rounded-lg">
-        <p className="text-blue-200 text-sm">
-          💡 <strong>Note:</strong> Live stats automatically update every 15 minutes during game hours (5 PM - 2 AM ET).
-          <br />• Check the browser console for detailed logs
-          <br />• Live stats appear on the Standings page
-          <br />• In production, this runs automatically via cron job
-        </p>
+      <div className="text-xs text-slate-400 bg-slate-900/30 p-3 rounded-lg space-y-1">
+        <p>💡 <strong className="text-slate-300">Note:</strong> Live stats automatically update every 15 minutes during game hours (5 PM - 2 AM ET).</p>
+        <p>• Check the browser console for detailed logs</p>
+        <p>• Live stats appear on the Standings page</p>
+        <p>• In production, this runs automatically via cron job</p>
       </div>
-    </div>
+    </GlassCard>
   );
 }

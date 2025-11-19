@@ -5,6 +5,8 @@ import App from './App.tsx'
 import { AuthProvider } from './context/AuthContext'
 import { LeagueProvider } from './context/LeagueContext'
 import { DraftProvider } from './context/DraftContext'
+import { ComparisonProvider } from './context/ComparisonContext'
+import { SoundProvider } from './context/SoundContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
@@ -25,8 +27,12 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <LeagueProvider>
           <DraftProvider>
-            <App />
-            <ReactQueryDevtools initialIsOpen={false} />
+            <ComparisonProvider>
+              <SoundProvider>
+                <App />
+                <ReactQueryDevtools initialIsOpen={false} />
+              </SoundProvider>
+            </ComparisonProvider>
           </DraftProvider>
         </LeagueProvider>
       </AuthProvider>

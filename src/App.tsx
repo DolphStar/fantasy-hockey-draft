@@ -1,9 +1,15 @@
-import { useState, useEffect, Suspense } from 'react'
-import { Toaster } from 'sonner'
-import Login from './components/Login'
-import { useAuth } from './context/AuthContext'
-import { useTurnNotification } from './hooks/useTurnNotification'
-import { lazyWithRetry } from './utils/lazyWithRetry'
+import { useState, useEffect, Suspense } from 'react';
+import { Toaster } from 'sonner';
+import Login from './components/Login';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import Navbar from './components/layout/Navbar';
+import Dashboard from './components/Dashboard';
+import { useAuth } from './context/AuthContext';
+import { useDraft } from './context/DraftContext';
+import { useTurnNotification } from './hooks/useTurnNotification';
+import { lazyWithRetry } from './utils/lazyWithRetry';
+import ScrollToTop from './components/ui/ScrollToTop';
+import type { Tab } from './types';
 
 const PlayerList = lazyWithRetry(() => import('./components/PlayerList'))
 const NHLRoster = lazyWithRetry(() => import('./components/NHLRoster'))
@@ -12,17 +18,20 @@ const LeagueSettings = lazyWithRetry(() => import('./components/LeagueSettings')
 const Standings = lazyWithRetry(() => import('./components/Standings'))
 const LeagueChat = lazyWithRetry(() => import('./components/LeagueChat'))
 const Injuries = lazyWithRetry(() => import('./components/Injuries'))
-
-type Tab = 'roster' | 'myPlayers' | 'draftBoard' | 'standings' | 'injuries' | 'leagueSettings' | 'chat'
+const PlayerComparisonModal = lazyWithRetry(() => import('./components/modals/PlayerComparisonModal'))
+const DraftCelebration = lazyWithRetry(() => import('./components/draft/DraftCelebration'))
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('standings')
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [isNavOpen, setIsNavOpen] = useState(false)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [celebrationPlayer, setCelebrationPlayer] = useState('')
   const { user, loading: authLoading, signOut } = useAuth()
-  
+  const { draftState } = useDraft()
+
   // Turn notifications (sound + browser notification)
   useTurnNotification()
-  
+
   // Debug logging - MUST be at top before any returns
   useEffect(() => {
     if (user) {
@@ -32,8 +41,25 @@ function App() {
       console.log('User displayName:', user?.displayName);
     }
   }, [user]);
-  
+
   // Show loading while checking auth
+  // Listen for draft updates to trigger celebration
+  useEffect(() => {
+    if (draftState?.lastPick) {
+      const lastPick = draftState.lastPick;
+      // Only show if it's a recent pick (within last 5 seconds)
+      const pickTime = new Date(lastPick.timestamp).getTime();
+      const now = Date.now();
+
+      if (now - pickTime < 5000) {
+        setCelebrationPlayer(lastPick.playerName);
+        setShowCelebration(true);
+        // Also play sound here if not the drafter (drafter hears it immediately in NHLRoster)
+        // But for simplicity, we can just let the global listener handle it or rely on local feedback
+      }
+    }
+  }, [draftState?.lastPick])
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -44,21 +70,18 @@ function App() {
       </div>
     );
   }
-  
+
   // Show login page if not authenticated
   if (!user) {
     return <Login />;
   }
 
-  // Test render to isolate the problem
-  console.log('About to render main app...');
-  
-  try {
-    return (
+  return (
+    <ErrorBoundary>
       <div className="min-h-screen bg-gray-900 py-8">
         {/* Toast Notifications */}
         <Toaster position="top-right" richColors />
-        
+
         {/* Header with User Info */}
         <div className="max-w-6xl mx-auto px-6 mb-8">
           <div className="flex justify-between items-center">
@@ -72,9 +95,9 @@ function App() {
                 <p className="text-gray-400 text-sm">Signed in</p>
               </div>
               {user?.photoURL && (
-                <img 
-                  src={user.photoURL} 
-                  alt="Profile" 
+                <img
+                  src={user.photoURL}
+                  alt="Profile"
                   className="w-10 h-10 rounded-full"
                 />
               )}
@@ -88,138 +111,42 @@ function App() {
           </div>
         </div>
 
-      {/* Tab Navigation */}
-      <div className="max-w-6xl mx-auto px-6 mb-8">
-        <div className="flex items-center justify-between md:hidden mb-2">
-          <span className="text-gray-300 text-sm font-semibold">Navigation</span>
-          <button
-            onClick={() => setIsNavOpen((open) => !open)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 text-gray-200 text-sm"
-          >
-            <span>{isNavOpen ? 'Close' : 'Menu'}</span>
-            <span className="text-lg">☰</span>
-          </button>
-        </div>
+        {/* Tab Navigation */}
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isNavOpen={isNavOpen}
+          setIsNavOpen={setIsNavOpen}
+        />
 
-        <div
-          className={`border-b border-gray-700 ${
-            isNavOpen ? 'flex' : 'hidden'
-          } md:flex flex-col md:flex-row gap-2 md:gap-4`}
+        {/* Tab Content */}
+        <Suspense
+          fallback={
+            <div className="flex justify-center items-center py-12">
+              <div className="text-center text-gray-400">Loading view...</div>
+            </div>
+          }
         >
-          <button
-            onClick={() => setActiveTab('roster')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'roster'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            🏒 NHL Rosters
-          </button>
-          <button
-            onClick={() => setActiveTab('draftBoard')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'draftBoard'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            📋 Draft Board
-          </button>
-          <button
-            onClick={() => setActiveTab('myPlayers')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'myPlayers'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            👥 My Players
-          </button>
-          <button
-            onClick={() => setActiveTab('standings')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'standings'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            🏆 Standings
-          </button>
-          <button
-            onClick={() => setActiveTab('injuries')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'injuries'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            🏥 Injuries
-          </button>
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'chat'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            💬 Chat
-          </button>
-          <button
-            onClick={() => setActiveTab('leagueSettings')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'leagueSettings'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            ⚙️ League
-          </button>
-        </div>
-      </div>
+          {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} />}
+          {activeTab === 'roster' && <NHLRoster />}
+          {activeTab === 'draftBoard' && (
+            <div className="max-w-6xl mx-auto px-6">
+              <DraftBoardGrid />
+            </div>
+          )}
+          {activeTab === 'myPlayers' && <PlayerList />}
+          {activeTab === 'standings' && <Standings />}
+          {activeTab === 'injuries' && <Injuries />}
+          {activeTab === 'chat' && <LeagueChat />}
+          {activeTab === 'leagueSettings' && <LeagueSettings />}
+        </Suspense>
 
-      {/* Tab Content */}
-      <Suspense
-        fallback={
-          <div className="flex justify-center items-center py-12">
-            <div className="text-center text-gray-400">Loading view...</div>
-          </div>
-        }
-      >
-        {activeTab === 'roster' && <NHLRoster />}
-        {activeTab === 'draftBoard' && (
-          <div className="max-w-6xl mx-auto px-6">
-            <DraftBoardGrid />
-          </div>
-        )}
-        {activeTab === 'myPlayers' && <PlayerList />}
-        {activeTab === 'standings' && <Standings />}
-        {activeTab === 'injuries' && <Injuries />}
-        {activeTab === 'chat' && <LeagueChat />}
-        {activeTab === 'leagueSettings' && <LeagueSettings />}
-      </Suspense>
-    </div>
-    );
-  } catch (error) {
-    console.error('Error rendering app:', error);
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-red-900/50 border border-red-600 p-6 rounded-lg">
-          <h2 className="text-white font-bold text-xl mb-2">⚠️ Rendering Error</h2>
-          <p className="text-red-200 mb-4">
-            Something went wrong. Check the console for details.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-          >
-            Reload Page
-          </button>
-        </div>
+        <PlayerComparisonModal />
+        <DraftCelebration show={showCelebration} playerName={celebrationPlayer} onComplete={() => setShowCelebration(false)} />
+        <ScrollToTop />
       </div>
-    );
-  }
+    </ErrorBoundary>
+  );
 }
 
 export default App

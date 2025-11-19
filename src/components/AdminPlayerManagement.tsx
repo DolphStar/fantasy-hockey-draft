@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
+import { GlassCard } from './ui/GlassCard';
+import { Badge } from './ui/Badge';
 
 interface DraftedPlayer {
   id: string;
@@ -67,37 +69,33 @@ export default function AdminPlayerManagement() {
     }
   };
 
-  // Future: Add player manually functionality
-  // For now, players can only be added via the draft
-  // Admin can remove players, but manual adds would require a full player selector UI
-
-  const getPositionBadgeColor = (position: string) => {
+  const getPositionBadgeVariant = (position: string): 'success' | 'warning' | 'default' => {
     switch (position) {
       case 'C':
       case 'L':
       case 'R':
-        return 'bg-blue-600';
+        return 'default'; // Blue-ish for forwards
       case 'D':
-        return 'bg-green-600';
+        return 'success';
       case 'G':
-        return 'bg-purple-600';
+        return 'warning';
       default:
-        return 'bg-gray-600';
+        return 'default';
     }
   };
 
   if (!isAdmin) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="bg-red-900/50 border border-red-600 p-6 rounded-lg">
+      <GlassCard className="p-6">
+        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-lg text-center">
           <p className="text-red-200">❌ Admin access required</p>
         </div>
-      </div>
+      </GlassCard>
     );
   }
 
-  const filteredPlayers = selectedTeam === 'ALL' 
-    ? players 
+  const filteredPlayers = selectedTeam === 'ALL'
+    ? players
     : players.filter(p => p.draftedByTeam === selectedTeam);
 
   // Group by team
@@ -110,23 +108,25 @@ export default function AdminPlayerManagement() {
   }, {} as Record<string, DraftedPlayer[]>);
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-6 text-white">🛠️ Admin: Player Management</h2>
+    <GlassCard className="p-5 space-y-4">
+      <h3 className="text-lg font-bold text-white flex items-center gap-2 border-b border-slate-700/50 pb-2">
+        <span>🛠️</span> Admin: Player Management
+      </h3>
 
       {/* Info Banner */}
-      <div className="bg-yellow-900/30 border border-yellow-500/30 p-4 rounded-lg mb-6">
-        <p className="text-yellow-200 text-sm">
+      <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg">
+        <p className="text-amber-200 text-sm">
           ⚠️ <strong>Admin Only:</strong> Add or remove players for any team. Use with caution!
         </p>
       </div>
 
       {/* Team Filter */}
-      <div className="bg-gray-800 p-4 rounded-lg mb-6">
-        <label className="block text-white font-semibold mb-2">Filter by Team:</label>
+      <div className="space-y-2">
+        <label className="block text-slate-300 font-semibold text-sm">Filter by Team:</label>
         <select
           value={selectedTeam}
           onChange={(e) => setSelectedTeam(e.target.value)}
-          className="px-4 py-2 rounded bg-gray-700 text-white border border-gray-600"
+          className="w-full px-4 py-2 rounded-lg bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
         >
           <option value="ALL">All Teams ({players.length} players)</option>
           {league?.teams.map(team => {
@@ -141,65 +141,67 @@ export default function AdminPlayerManagement() {
       </div>
 
       {loading ? (
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <p className="text-gray-400">Loading players...</p>
+        <div className="bg-slate-900/30 p-6 rounded-lg text-center">
+          <p className="text-slate-400">Loading players...</p>
         </div>
       ) : filteredPlayers.length === 0 ? (
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <p className="text-gray-400">No players found.</p>
+        <div className="bg-slate-900/30 p-6 rounded-lg text-center">
+          <p className="text-slate-400">No players found.</p>
         </div>
       ) : (
-        Object.entries(playersByTeam).map(([teamName, teamPlayers]) => (
-          <div key={teamName} className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
-            <h3 className="text-xl font-semibold mb-4 text-white">
-              {teamName} ({teamPlayers.length} players)
-            </h3>
-            <div className="space-y-3">
-              {teamPlayers.map((player) => (
-                <div
-                  key={player.id}
-                  className="flex items-center justify-between bg-gray-700 p-4 rounded-lg hover:bg-gray-650 transition-colors"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-white font-semibold">#{player.jerseyNumber}</span>
-                      <span className={`${getPositionBadgeColor(player.position)} text-white text-xs px-2 py-1 rounded font-bold`}>
-                        {player.position}
-                      </span>
-                      <span className="text-gray-400 text-sm">({player.nhlTeam})</span>
-                      <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded">
-                        Pick #{player.pickNumber}
-                      </span>
-                      {player.rosterSlot && (
-                        <span className={`${player.rosterSlot === 'reserve' ? 'bg-gray-600' : 'bg-green-600'} text-white text-xs px-2 py-1 rounded`}>
-                          {player.rosterSlot === 'reserve' ? 'RESERVE' : 'ACTIVE'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-white font-medium text-lg">{player.name}</p>
-                    <p className="text-gray-400 text-sm">{player.positionName} • Round {player.round}</p>
-                  </div>
-                  <button
-                    onClick={() => removePlayer(player.id, player.name)}
-                    disabled={removing === player.id}
-                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors ml-4"
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          {Object.entries(playersByTeam).map(([teamName, teamPlayers]) => (
+            <div key={teamName} className="space-y-3">
+              <h4 className="text-white font-bold flex items-center gap-2 sticky top-0 bg-slate-900/90 backdrop-blur-sm py-2 px-3 rounded-lg -mx-3">
+                {teamName}
+                <Badge variant="outline" className="ml-auto">{teamPlayers.length} players</Badge>
+              </h4>
+              <div className="space-y-2">
+                {teamPlayers.map((player) => (
+                  <div
+                    key={player.id}
+                    className="flex items-center justify-between bg-slate-800/40 p-3 rounded-lg hover:bg-slate-800/60 transition-colors"
                   >
-                    {removing === player.id ? 'Removing...' : 'Remove'}
-                  </button>
-                </div>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <Badge variant={getPositionBadgeVariant(player.position)} className="text-xs">
+                          {player.position}
+                        </Badge>
+                        <span className="text-white font-semibold text-sm">#{player.jerseyNumber}</span>
+                        <span className="text-slate-400 text-xs">({player.nhlTeam})</span>
+                        <Badge variant="default" className="text-xs">
+                          Pick #{player.pickNumber}
+                        </Badge>
+                        {player.rosterSlot && (
+                          <Badge variant={player.rosterSlot === 'reserve' ? 'outline' : 'success'} className="text-xs">
+                            {player.rosterSlot === 'reserve' ? 'BENCH' : 'ACTIVE'}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-white font-medium truncate">{player.name}</p>
+                      <p className="text-slate-400 text-xs">{player.positionName} • Round {player.round}</p>
+                    </div>
+                    <button
+                      onClick={() => removePlayer(player.id, player.name)}
+                      disabled={removing === player.id}
+                      className="bg-red-900/20 hover:bg-red-900/40 text-red-400 px-3 py-1.5 rounded-lg transition-all text-xs font-bold ml-3 border border-red-900/50 active:scale-95 disabled:opacity-50"
+                    >
+                      {removing === player.id ? 'Removing...' : 'Remove'}
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
 
       {/* Note about adding players */}
-      <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mt-6">
-        <p className="text-blue-200 text-sm">
-          💡 <strong>To add players:</strong> Players can use the "NHL Rosters" tab during their draft turn. 
-          For manual commissioner adds outside the draft, you can temporarily enable their turn or modify the draft state.
+      <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg text-sm">
+        <p className="text-blue-200">
+          💡 <strong>To add players:</strong> Players can use the "NHL Rosters" tab during their draft turn.
         </p>
       </div>
-    </div>
+    </GlassCard>
   );
 }

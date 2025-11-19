@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
@@ -6,12 +7,16 @@ import TestScoring from './TestScoring';
 import TestLiveStats from './TestLiveStats';
 import AdminPlayerManagement from './AdminPlayerManagement';
 import type { LeagueTeam } from '../types/league';
+import { GlassCard } from './ui/GlassCard';
+import { GradientButton } from './ui/GradientButton';
+import { Badge } from './ui/Badge';
+
 
 export default function LeagueSettings() {
   const { user } = useAuth();
   const { league, loading, isAdmin, createLeague, updateLeague, startDraft } = useLeague();
   const { resetDraft, draftState } = useDraft();
-  
+
   const [leagueName, setLeagueName] = useState('');
   const [draftRounds, setDraftRounds] = useState(15);
   const [teams, setTeams] = useState<LeagueTeam[]>([
@@ -20,7 +25,7 @@ export default function LeagueSettings() {
     { teamName: 'Friend 2', ownerUid: '', ownerEmail: '' },
     { teamName: 'Friend 3', ownerUid: '', ownerEmail: '' },
   ]);
-  
+
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -110,278 +115,276 @@ export default function LeagueSettings() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <p className="text-gray-400">Loading league...</p>
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="animate-spin-slow text-4xl">🏒</div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-6 text-white">League Settings</h2>
-
-      {/* Display current league info */}
-      {league && (
-        <div className="bg-gray-800 p-6 rounded-lg mb-6 border-2 border-blue-500">
-          <h3 className="text-xl font-bold text-white mb-2">{league.leagueName}</h3>
-          <p className="text-gray-400 text-sm">Status: <span className="text-blue-400 font-semibold">{league.status}</span></p>
-          <p className="text-gray-400 text-sm">Teams: {league.teams.length}</p>
-          <p className="text-gray-400 text-sm">Draft Rounds: {league.draftRounds}</p>
-          {league.draftRounds < 22 && (
-            <p className="text-orange-400 text-sm mt-1">
-              ⚠️ Warning: {league.draftRounds} rounds is not enough! Each team needs 22 picks to fill roster (9F + 6D + 2G + 5 reserves).
-              {isAdmin && ' Update "Draft Rounds" below and reset draft.'}
-            </p>
-          )}
-          {draftState && (
-            <p className="text-gray-400 text-sm">
-              Draft Progress: Pick {draftState.currentPickNumber} of {draftState.totalPicks}
-            </p>
-          )}
-          {isAdmin && <p className="text-green-400 text-sm mt-2">✓ You are the admin</p>}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-7xl mx-auto p-6"
+    >
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-3xl font-heading font-bold text-white flex items-center gap-3">
+            <span className="text-4xl">⚙️</span>
+            League Settings
+          </h2>
+          <p className="text-slate-400 mt-1">Manage your league configuration, teams, and draft settings.</p>
         </div>
-      )}
-
-      {/* Admin Draft Controls */}
-      {league && isAdmin && (
-        <div className="bg-gray-800 p-6 rounded-lg mb-6 border-2 border-green-500">
-          <h3 className="text-xl font-bold text-white mb-4">🏒 Draft Controls (Admin Only)</h3>
-          
-          <div className="space-y-3">
-            {/* Start Draft Button */}
-            {league.status === 'pending' && (
-              <button
-                onClick={async () => {
-                  try {
-                    await startDraft(league.id);
-                    setSuccess('Draft started! Status changed to Live.');
-                  } catch (err) {
-                    setError('Failed to start draft');
-                  }
-                }}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-              >
-                🚀 Start Draft (Change to Live)
-              </button>
-            )}
-
-            {/* Reset Draft Button */}
-            <button
-              onClick={async () => {
-                if (confirm('Are you sure you want to reset the draft? This will clear all picks and start over.')) {
-                  try {
-                    await resetDraft();
-                    setSuccess('Draft reset successfully! All picks cleared.');
-                  } catch (err) {
-                    setError('Failed to reset draft');
-                  }
-                }
-              }}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              🔄 Reset Draft (Clear All Picks)
-            </button>
-
-            {draftState && (
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <p className="text-white text-sm">
-                  <strong>Current Pick:</strong> #{draftState.currentPickNumber} (Round {Math.ceil(draftState.currentPickNumber / league.teams.length)})
-                </p>
-                <p className="text-gray-300 text-sm mt-1">
-                  Total Picks: {draftState.totalPicks} ({league.teams.length} teams × {league.draftRounds} rounds)
-                </p>
-                <p className="text-gray-300 text-sm">
-                  Complete: {draftState.isComplete ? 'Yes ✓' : 'No'}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Show form if no league exists or if user is admin */}
-      {(!league || isAdmin) && (
-        <form onSubmit={league ? handleUpdateLeague : handleCreateLeague} className="bg-gray-800 p-6 rounded-lg shadow-lg border-2 border-yellow-500">
-          <h3 className="text-2xl font-bold mb-2 text-yellow-400">
-            {league ? '⚙️ Update League Settings' : 'Create New League'}
-          </h3>
-          {league && (
-            <p className="text-gray-400 text-sm mb-4">
-              Change draft rounds, add/remove teams, and update settings below ⬇️
-            </p>
-          )}
-
-          {error && (
-            <div className="bg-red-900/50 border border-red-600 p-4 rounded-lg mb-4">
-              <p className="text-red-200">{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-900/50 border border-green-600 p-4 rounded-lg mb-4">
-              <p className="text-green-200">{success}</p>
-            </div>
-          )}
-
-          {/* League Name - only show when creating */}
-          {!league && (
-            <div className="mb-4">
-              <label className="block text-white font-semibold mb-2">League Name</label>
-              <input
-                type="text"
-                value={leagueName}
-                onChange={(e) => setLeagueName(e.target.value)}
-                placeholder="e.g., My Hockey League"
-                className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-          )}
-
-          {/* Draft Rounds - show for both create and update */}
-          <div className="mb-6">
-            <label className="block text-white font-semibold mb-2">Draft Rounds</label>
-            <input
-              type="number"
-              value={draftRounds}
-              onChange={(e) => setDraftRounds(parseInt(e.target.value))}
-              min="1"
-              max="30"
-              className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-            />
-            <p className="text-sm text-gray-400 mt-1">
-              💡 Recommended: <span className="text-yellow-400 font-semibold">22 rounds</span>
-              {' '}(9F + 6D + 2G + 5 reserves = 22 players per team)
-            </p>
-            {draftRounds < 22 && (
-              <p className="text-sm text-orange-400 mt-1">
-                ⚠️ Warning: {draftRounds} rounds × {teams.length} teams = {draftRounds * teams.length} total picks. 
-                Each team only gets {draftRounds} picks but needs 22 to fill roster!
-              </p>
-            )}
-          </div>
-
-          {/* Teams */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-3">
-              <label className="block text-white font-semibold">Teams ({teams.length})</label>
-              <button
-                type="button"
-                onClick={addTeam}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-              >
-                + Add Team
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {teams.map((team, index) => (
-                <div key={index} className="bg-gray-700 p-4 rounded-lg border border-gray-600">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="text-white font-semibold">Team {index + 1}</h4>
-                    {index > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => removeTeam(index)}
-                        className="text-red-400 hover:text-red-300 text-sm"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-1">Team Name</label>
-                      <input
-                        type="text"
-                        value={team.teamName}
-                        onChange={(e) => updateTeam(index, 'teamName', e.target.value)}
-                        placeholder="Team Name"
-                        className="w-full px-3 py-2 rounded bg-gray-600 text-white border border-gray-500 focus:border-blue-500 focus:outline-none"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-1">
-                        Owner UID {index === 0 && '(Your UID)'}
-                      </label>
-                      <input
-                        type="text"
-                        value={team.ownerUid}
-                        onChange={(e) => updateTeam(index, 'ownerUid', e.target.value)}
-                        placeholder={index === 0 ? user?.uid : "Friend's Firebase UID"}
-                        className="w-full px-3 py-2 rounded bg-gray-600 text-white border border-gray-500 focus:border-blue-500 focus:outline-none font-mono text-sm"
-                        disabled={index === 0}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-1">
-                        Email (Optional - for reference)
-                      </label>
-                      <input
-                        type="email"
-                        value={team.ownerEmail}
-                        onChange={(e) => updateTeam(index, 'ownerEmail', e.target.value)}
-                        placeholder="friend@example.com"
-                        className="w-full px-3 py-2 rounded bg-gray-600 text-white border border-gray-500 focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Instructions */}
-          <div className="bg-blue-900/30 border border-blue-600 p-4 rounded-lg mb-6">
-            <h4 className="text-blue-300 font-semibold mb-2">📋 How to get Friend UIDs:</h4>
-            <ol className="text-blue-200 text-sm space-y-1 list-decimal list-inside">
-              <li>Have your friends sign in to the app</li>
-              <li>They can find their UID in the browser console (F12)</li>
-              <li>Or check Firebase Console → Authentication → Users tab</li>
-              <li>Copy their UID and paste it above</li>
-            </ol>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={creating}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-          >
-            {creating ? 'Saving...' : league ? 'Update League' : 'Create League'}
-          </button>
-        </form>
-      )}
-
-      {/* Non-admin view */}
-      {league && !isAdmin && (
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <p className="text-gray-400">Only the league admin can modify settings.</p>
-        </div>
-      )}
-
-      {/* User UID Display */}
-      <div className="mt-6 bg-gray-800 p-4 rounded-lg border border-gray-600">
-        <h4 className="text-white font-semibold mb-2">Your Firebase UID:</h4>
-        <code className="text-blue-400 bg-gray-900 px-3 py-2 rounded block font-mono text-sm break-all">
-          {user?.uid}
-        </code>
-        <p className="text-gray-400 text-sm mt-2">Share this with your league admin</p>
+        {league && (
+          <Badge variant={league.status === 'live' ? 'success' : 'warning'} className="text-lg px-4 py-2">
+            {league.status === 'live' ? 'Draft Live' : 'Draft Pending'}
+          </Badge>
+        )}
       </div>
 
-      {/* Admin Tools */}
-      {isAdmin && (
-        <>
-          <div className="mt-6"><TestScoring /></div>
-          <div className="mt-6"><TestLiveStats /></div>
-          <div className="mt-6"><AdminPlayerManagement /></div>
-        </>
-      )}
-    </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: League Form */}
+        <div className="lg:col-span-2 space-y-8">
+          {(!league || isAdmin) ? (
+            <form onSubmit={league ? handleUpdateLeague : handleCreateLeague}>
+              <GlassCard className="p-6 space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-700/50 pb-4">
+                  <h3 className="text-xl font-bold text-white">
+                    {league ? 'League Configuration' : 'Create New League'}
+                  </h3>
+                  {league && <Badge variant="outline">ID: {league.id}</Badge>}
+                </div>
+
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg flex items-center gap-3">
+                    <span className="text-xl">⚠️</span>
+                    <p className="text-red-200">{error}</p>
+                  </div>
+                )}
+
+                {success && (
+                  <div className="bg-green-500/10 border border-green-500/50 p-4 rounded-lg flex items-center gap-3">
+                    <span className="text-xl">✅</span>
+                    <p className="text-green-200">{success}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* League Name */}
+                  <div className="space-y-2">
+                    <label className="block text-slate-300 font-semibold text-sm">League Name</label>
+                    <input
+                      type="text"
+                      value={leagueName}
+                      onChange={(e) => setLeagueName(e.target.value)}
+                      placeholder="e.g., My Hockey League"
+                      className="w-full px-4 py-3 rounded-lg bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                      required
+                      disabled={!!league} // Name usually shouldn't change after creation to avoid confusion, or enable if desired
+                    />
+                  </div>
+
+                  {/* Draft Rounds */}
+                  <div className="space-y-2">
+                    <label className="block text-slate-300 font-semibold text-sm">Draft Rounds</label>
+                    <input
+                      type="number"
+                      value={draftRounds}
+                      onChange={(e) => setDraftRounds(parseInt(e.target.value))}
+                      min="1"
+                      max="30"
+                      className="w-full px-4 py-3 rounded-lg bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Rounds Warning */}
+                {draftRounds < 22 && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-lg text-sm text-amber-200">
+                    <p className="font-bold mb-1">⚠️ Recommendation</p>
+                    Standard rosters need 22 rounds (9F + 6D + 2G + 5 Bench). Currently set to {draftRounds}.
+                  </div>
+                )}
+
+                {/* Teams Section */}
+                <div className="space-y-4 pt-4 border-t border-slate-700/50">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-lg font-bold text-white">Teams ({teams.length})</h4>
+                    <button
+                      type="button"
+                      onClick={addTeam}
+                      className="text-blue-400 hover:text-blue-300 text-sm font-semibold hover:underline"
+                    >
+                      + Add Team
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    {teams.map((team, index) => (
+                      <div key={index} className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <Badge variant="default" className="bg-slate-700">Team {index + 1}</Badge>
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => removeTeam(index)}
+                              className="text-red-400 hover:text-red-300 text-xs uppercase font-bold tracking-wider"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-slate-400 text-xs mb-1 uppercase tracking-wider">Team Name</label>
+                            <input
+                              type="text"
+                              value={team.teamName}
+                              onChange={(e) => updateTeam(index, 'teamName', e.target.value)}
+                              className="w-full px-3 py-2 rounded bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 outline-none text-sm"
+                              placeholder="Team Name"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 text-xs mb-1 uppercase tracking-wider">Owner UID</label>
+                            <input
+                              type="text"
+                              value={team.ownerUid}
+                              onChange={(e) => updateTeam(index, 'ownerUid', e.target.value)}
+                              className="w-full px-3 py-2 rounded bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 outline-none text-sm font-mono"
+                              placeholder={index === 0 ? "Your UID (Auto)" : "Paste UID here"}
+                              disabled={index === 0}
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <GradientButton
+                    type="submit"
+                    disabled={creating}
+                    className="w-full py-4 text-lg"
+                  >
+                    {creating ? 'Saving Changes...' : league ? 'Save League Settings' : 'Create League'}
+                  </GradientButton>
+                </div>
+              </GlassCard>
+            </form>
+          ) : (
+            <GlassCard className="p-8 text-center">
+              <div className="text-4xl mb-4">🔒</div>
+              <h3 className="text-xl font-bold text-white mb-2">Admin Access Required</h3>
+              <p className="text-slate-400">Only the league commissioner can modify these settings.</p>
+            </GlassCard>
+          )}
+        </div>
+
+        {/* Right Column: Info & Tools */}
+        <div className="space-y-6">
+          {/* User Info Card */}
+          <GlassCard className="p-5 space-y-4">
+            <h3 className="text-lg font-bold text-white border-b border-slate-700/50 pb-2">Your Identity</h3>
+            <div>
+              <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">Your Firebase UID</label>
+              <div className="bg-slate-900/80 p-3 rounded-lg border border-slate-700 font-mono text-xs text-blue-300 break-all select-all cursor-pointer hover:bg-slate-900 transition-colors" onClick={() => navigator.clipboard.writeText(user?.uid || '')}>
+                {user?.uid}
+              </div>
+              <p className="text-slate-500 text-xs mt-2">
+                Share this UID with your league admin so they can add you to a team.
+              </p>
+            </div>
+          </GlassCard>
+
+          {/* Admin Controls */}
+          {league && isAdmin && (
+            <>
+              <GlassCard className="p-5 space-y-4 border-t-4 border-t-green-500">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <span>🎮</span> Draft Controls
+                </h3>
+
+                {league.status === 'pending' ? (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await startDraft(league.id);
+                        setSuccess('Draft started! Status changed to Live.');
+                      } catch (err) {
+                        setError('Failed to start draft');
+                      }
+                    }}
+                    className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg shadow-green-900/20 active:scale-95"
+                  >
+                    🚀 Start Draft
+                  </button>
+                ) : (
+                  <div className="bg-green-500/10 border border-green-500/30 p-3 rounded-lg text-center">
+                    <p className="text-green-400 font-bold">Draft is Live</p>
+                  </div>
+                )}
+
+                {draftState && (
+                  <div className="bg-slate-900/50 p-3 rounded-lg space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Current Pick</span>
+                      <span className="text-white font-bold">#{draftState.currentPickNumber}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Total Picks</span>
+                      <span className="text-white font-bold">{draftState.totalPicks}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Progress</span>
+                      <span className="text-white font-bold">
+                        {Math.round((draftState.currentPickNumber / draftState.totalPicks) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </GlassCard>
+
+              {/* Developer Tools */}
+              <div className="space-y-4">
+                <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider px-2">Developer Tools</h3>
+                <TestScoring />
+                <TestLiveStats />
+                <AdminPlayerManagement />
+              </div>
+
+              {/* Danger Zone */}
+              <GlassCard className="p-5 space-y-4 border-red-900/30 bg-red-950/10">
+                <h3 className="text-lg font-bold text-red-400 flex items-center gap-2">
+                  <span>☢️</span> Danger Zone
+                </h3>
+                <p className="text-xs text-red-300/70">
+                  Destructive actions that cannot be undone. Proceed with caution.
+                </p>
+                <button
+                  onClick={async () => {
+                    if (confirm('Are you sure you want to reset the draft? This will clear all picks and start over.')) {
+                      try {
+                        await resetDraft();
+                        setSuccess('Draft reset successfully! All picks cleared.');
+                      } catch (err) {
+                        setError('Failed to reset draft');
+                      }
+                    }
+                  }}
+                  className="w-full bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 font-semibold py-2 px-4 rounded-lg transition-all text-sm"
+                >
+                  🔄 Reset Draft State
+                </button>
+              </GlassCard>
+            </>
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 }
