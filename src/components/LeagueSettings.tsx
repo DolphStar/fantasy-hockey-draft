@@ -10,6 +10,10 @@ import type { LeagueTeam } from '../types/league';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { Badge } from './ui/Badge';
+import { db } from '../firebase';
+import { collection, getDocs, doc, runTransaction } from 'firebase/firestore';
+import { getAllPlayers, getTeamRoster, NHL_TEAMS, type RosterPerson, type TeamAbbrev, getPlayerFullName } from '../utils/nhlApi';
+import { toast } from 'sonner';
 
 
 export default function LeagueSettings() {
@@ -110,6 +114,204 @@ export default function LeagueSettings() {
       console.error(err);
     } finally {
       setCreating(false);
+    }
+  };
+
+  // Auto-complete draft with smart filling
+  const [autoCompleting, setAutoCompleting] = useState(false);
+
+  const autoCompleteDraft = async () => {
+    if (!league || !draftState) {
+      toast.error('Draft state not found');
+      return;
+    }
+
+    const remainingPicks = draftState.totalPicks - draftState.currentPickNumber + 1;
+
+    if (remainingPicks <= 0) {
+      toast.info('Draft is already complete!');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Auto-complete the remaining ${remainingPicks} picks?\n\nThis will randomly assign players to fill all rosters based on position needs.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setAutoCompleting(true);
+      toast.info(`Starting auto-complete for ${remainingPicks} picks...`);
+
+      // 1. Fetch all NHL players
+      console.log('Loading all NHL players...');
+      const teamPromises = (Object.keys(NHL_TEAMS) as TeamAbbrev[]).map(async (abbrev) => {
+        const rosterData = await getTeamRoster(abbrev);
+        const teamPlayers = getAllPlayers(rosterData);
+        return teamPlayers.map(player => {
+          (player as any).teamAbbrev = abbrev;
+          return player;
+        });
+      });
+      const results = await Promise.all(teamPromises);
+      const allPlayers = results.flat();
+      console.log(`Loaded ${allPlayers.length} total players`);
+
+      // 2. Get currently drafted players
+      const draftedSnapshot = await getDocs(collection(db, 'draftedPlayers'));
+      const draftedPlayerIds = new Set<number>();
+      const teamRosters: Record<string, { F: number; D: number; G: number; reserve: number }> = {};
+
+      draftedSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        draftedPlayerIds.add(data.playerId);
+
+        // Track each team's current roster
+        const teamName = data.draftedByTeam;
+        if (!teamRosters[teamName]) {
+          teamRosters[teamName] = { F: 0, D: 0, G: 0, reserve: 0 };
+        }
+
+        const pos = data.position;
+        const slot = data.rosterSlot || 'active';
+
+        if (slot === 'reserve') {
+          teamRosters[teamName].reserve++;
+        } else if (['C', 'L', 'R'].includes(pos)) {
+          teamRosters[teamName].F++;
+        } else if (pos === 'D') {
+          teamRosters[teamName].D++;
+        } else if (pos === 'G') {
+          teamRosters[teamName].G++;
+        }
+      });
+
+      // 3. Filter available players
+      const availablePlayers = allPlayers.filter(p => !draftedPlayerIds.has(p.person.id));
+      console.log(`${availablePlayers.length} players available`);
+
+      // 4. Auto-draft remaining picks
+      const draftRef = doc(db, 'drafts', league.id);
+
+      for (let i = 0; i < remainingPicks; i++) {
+        const currentPickNum = draftState.currentPickNumber + i;
+        const pickIndex = currentPickNum - 1;
+
+        if (!draftState.draftOrder[pickIndex]) {
+          console.log('No more picks in draft order');
+          break;
+        }
+
+        const pickInfo = draftState.draftOrder[pickIndex];
+        const teamName = pickInfo.team;
+
+        // Get team's current roster (initialize if new)
+        if (!teamRosters[teamName]) {
+          teamRosters[teamName] = { F: 0, D: 0, G: 0, reserve: 0 };
+        }
+
+        const roster = teamRosters[teamName];
+        const rosterSettings = league.rosterSettings || { forwards: 9, defensemen: 6, goalies: 2 };
+
+        // Determine what positions team needs
+        const needs: string[] = [];
+        if (roster.F < rosterSettings.forwards) needs.push('F');
+        if (roster.D < rosterSettings.defensemen) needs.push('D');
+        if (roster.G < rosterSettings.goalies) needs.push('G');
+
+        // If all active spots full, can add to reserves
+        const canAddReserve = roster.reserve < 5;
+
+        // Find available players for needed positions
+        let candidatePlayers: RosterPerson[] = [];
+
+        if (needs.length > 0) {
+          // Priority: fill active roster
+          candidatePlayers = availablePlayers.filter(p => {
+            if (needs.includes('F') && ['C', 'L', 'R'].includes(p.position.code)) return true;
+            if (needs.includes('D') && p.position.code === 'D') return true;
+            if (needs.includes('G') && p.position.code === 'G') return true;
+            return false;
+          });
+        } else if (canAddReserve) {
+          // All active spots full, add to reserves
+          candidatePlayers = availablePlayers;
+        } else {
+          console.log(`Team ${teamName} roster full, skipping pick ${currentPickNum}`);
+          continue;
+        }
+
+        if (candidatePlayers.length === 0) {
+          console.log(`No available players for team ${teamName}, skipping pick ${currentPickNum}`);
+          continue;
+        }
+
+        // Randomly select a player
+        const randomIndex = Math.floor(Math.random() * candidatePlayers.length);
+        const selectedPlayer = candidatePlayers[randomIndex];
+
+        // Determine roster slot
+        let rosterSlot: 'active' | 'reserve' = 'active';
+        if (needs.length === 0) {
+          rosterSlot = 'reserve';
+        }
+
+        // Draft the player
+        await runTransaction(db, async (transaction) => {
+          const draftedPlayerRef = doc(collection(db, 'draftedPlayers'));
+          transaction.set(draftedPlayerRef, {
+            playerId: selectedPlayer.person.id,
+            name: getPlayerFullName(selectedPlayer),
+            position: selectedPlayer.position.code,
+            positionName: selectedPlayer.position.name,
+            jerseyNumber: selectedPlayer.jerseyNumber,
+            nhlTeam: (selectedPlayer as any).teamAbbrev || 'UNK',
+            draftedByTeam: teamName,
+            pickNumber: pickInfo.pick,
+            round: pickInfo.round,
+            leagueId: league.id,
+            draftedAt: new Date().toISOString(),
+            rosterSlot: rosterSlot
+          });
+
+          const nextPickNumber = currentPickNum + 1;
+          transaction.update(draftRef, {
+            currentPickNumber: nextPickNumber,
+            isComplete: nextPickNumber > draftState.totalPicks
+          });
+        });
+
+        // Update local tracking
+        draftedPlayerIds.add(selectedPlayer.person.id);
+        availablePlayers.splice(availablePlayers.findIndex(p => p.person.id === selectedPlayer.person.id), 1);
+
+        // Update team roster tracking
+        if (rosterSlot === 'reserve') {
+          teamRosters[teamName].reserve++;
+        } else if (['C', 'L', 'R'].includes(selectedPlayer.position.code)) {
+          teamRosters[teamName].F++;
+        } else if (selectedPlayer.position.code === 'D') {
+          teamRosters[teamName].D++;
+        } else if (selectedPlayer.position.code === 'G') {
+          teamRosters[teamName].G++;
+        }
+
+        console.log(`Pick ${currentPickNum}: ${teamName} - ${getPlayerFullName(selectedPlayer)} (${selectedPlayer.position.code}) [${rosterSlot}]`);
+
+        // Update progress toast
+        if (i % 10 === 0 && i > 0) {
+          toast.info(`Auto-completing... (${i}/${remainingPicks} picks done)`);
+        }
+      }
+
+      toast.success(`Draft auto-completed! ${remainingPicks} picks filled.`);
+      setSuccess(`Auto-complete successful! Filled ${remainingPicks} picks.`);
+    } catch (err) {
+      console.error('Error auto-completing draft:', err);
+      toast.error('Failed to auto-complete draft');
+      setError('Auto-complete failed. Check console for details.');
+    } finally {
+      setAutoCompleting(false);
     }
   };
 
@@ -330,22 +532,39 @@ export default function LeagueSettings() {
                 )}
 
                 {draftState && (
-                  <div className="bg-slate-900/50 p-3 rounded-lg space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Current Pick</span>
-                      <span className="text-white font-bold">#{draftState.currentPickNumber}</span>
+                  <>
+                    <div className="bg-slate-900/50 p-3 rounded-lg space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Current Pick</span>
+                        <span className="text-white font-bold">#{draftState.currentPickNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Total Picks</span>
+                        <span className="text-white font-bold">{draftState.totalPicks}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Progress</span>
+                        <span className="text-white font-bold">
+                          {Math.round((draftState.currentPickNumber / draftState.totalPicks) * 100)}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Total Picks</span>
-                      <span className="text-white font-bold">{draftState.totalPicks}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Progress</span>
-                      <span className="text-white font-bold">
-                        {Math.round((draftState.currentPickNumber / draftState.totalPicks) * 100)}%
-                      </span>
-                    </div>
-                  </div>
+
+                    {/* Auto-Complete Button */}
+                    {league.status === 'live' && !draftState.isComplete && (
+                      <button
+                        onClick={autoCompleteDraft}
+                        disabled={autoCompleting}
+                        className="w-full bg-amber-900/20 hover:bg-amber-600/30 text-amber-400 hover:text-amber-300 border border-amber-900/50 hover:border-amber-600/50 font-bold py-3 px-4 rounded-lg transition-all shadow-lg shadow-amber-900/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {autoCompleting ? (
+                          <>⏳ Auto-completing...</>
+                        ) : (
+                          <>⚡ Auto-Complete Draft</>
+                        )}
+                      </button>
+                    )}
+                  </>
                 )}
               </GlassCard>
 
