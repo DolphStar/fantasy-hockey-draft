@@ -420,7 +420,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                         <p className="text-slate-300 text-lg mt-2">{heroState.message}</p>
                         <div className="mt-4 flex flex-wrap gap-2">
                             <GradientButton onClick={goToRoster}>Set Lines</GradientButton>
-                            <GradientButton variant="outline" onClick={() => setActiveTab('schedule')}>
+                            <GradientButton variant="outline" onClick={() => setActiveTab('standings')}>
                                 View Schedule
                             </GradientButton>
                         </div>
