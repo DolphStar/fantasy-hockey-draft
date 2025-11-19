@@ -44,12 +44,21 @@ export default function PlayerList() {
   // Helper to get next Saturday at 5 AM
   const getNextSaturday = () => {
     const d = new Date();
-    d.setDate(d.getDate() + (6 - d.getDay() + 7) % 7);
-    d.setHours(5, 0, 0, 0);
-    // If today is Saturday and it's past 5 AM, move to next Saturday
-    if (d.getDay() === 6 && new Date().getHours() >= 5) {
+    const today = d.getDay(); // 0 = Sunday, 6 = Saturday
+    const daysUntilSaturday = (6 - today + 7) % 7;
+
+    // If today is Saturday and it's already past 5 AM, move to next Saturday
+    if (today === 6 && d.getHours() >= 5) {
       d.setDate(d.getDate() + 7);
+    } else if (daysUntilSaturday === 0) {
+      // Today is Saturday but before 5 AM, so use today
+      d.setDate(d.getDate());
+    } else {
+      // Add days until next Saturday
+      d.setDate(d.getDate() + daysUntilSaturday);
     }
+
+    d.setHours(5, 0, 0, 0);
     return d;
   };
 
