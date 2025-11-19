@@ -369,6 +369,15 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         return injuries.filter(injury => myPlayerNameSet.has(injury.playerName.toLowerCase()));
     }, [injuries, myPlayerNameSet]);
 
+    const formatStatusLabel = (status: string) => {
+        const normalized = status.toLowerCase();
+        if (normalized.includes('injured reserve') || normalized === 'ir') return 'IR';
+        if (normalized.includes('day-to-day') || normalized.includes('day to day')) return 'DTD';
+        if (normalized.includes('questionable')) return 'Q';
+        if (normalized.includes('doubtful')) return 'D';
+        return status.toUpperCase();
+    };
+
     const heroState = (() => {
         if (liveStats.length > 0) {
             return {
@@ -514,7 +523,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                             myInjuryReports.slice(0, 3).map((injury) => (
                                 <div key={injury.playerId} className="rounded-xl border border-slate-800 p-3 bg-slate-900/40">
                                     <div className="flex items-center gap-2">
-                                        <span className={`${getInjuryColor(injury.status)} text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase`}>{injury.status}</span>
+                                        <span className={`inline-flex items-center gap-1 ${getInjuryColor(injury.status)} text-white text-[10px] px-2.5 py-0.5 rounded-full font-semibold tracking-wide uppercase`}>🩹 {formatStatusLabel(injury.status)}</span>
                                         <p className="text-white font-medium text-sm">{injury.playerName}</p>
                                     </div>
                                     <p className="text-xs text-slate-400 mt-1">{injury.teamAbbrev} • {injury.injuryType}</p>
