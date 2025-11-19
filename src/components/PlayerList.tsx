@@ -1,51 +1,78 @@
-import { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, doc, query, where, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
-import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
+import { db } from '../firebase';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { isPlayerInjuredByName, getInjuryIcon } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
 import { toast } from 'sonner';
+import { GlassCard } from './ui/GlassCard';
+import { Badge } from './ui/Badge';
+import { GradientButton } from './ui/GradientButton';
 
 interface DraftedPlayer {
   id: string;
-  playerId: number;
+  playerId: string;
   name: string;
   position: string;
   positionName: string;
-  jerseyNumber: string;
   nhlTeam: string;
-  draftedByTeam: string;
-  pickNumber: number;
+  jerseyNumber: number;
   round: number;
-  draftedAt: string;
-  rosterSlot?: 'active' | 'reserve'; // Default to 'active' if not set
-  pendingSlot?: 'active' | 'reserve'; // Pending change for next Saturday
+  pickNumber: number;
+  draftedBy: string;
+  draftedByTeam: string;
+  rosterSlot: 'active' | 'reserve';
+  pendingSlot?: 'active' | 'reserve' | null; // For pending swaps
 }
 
 export default function PlayerList() {
-  const { myTeam, league } = useLeague();
+  const { currentUser } = useAuth();
+  const { league, myTeam } = useLeague();
   const [players, setPlayers] = useState<DraftedPlayer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [swapping, setSwapping] = useState<string | null>(null);
+  const [swapping, setSwapping] = useState<string | null>(null); // Player ID being swapped
   const [selectedForSwap, setSelectedForSwap] = useState<{
     playerId: string;
     playerName: string;
     position: string;
     currentSlot: 'active' | 'reserve';
   } | null>(null);
-  
-  // React Query hook for injuries - automatic caching!
+
   const { data: injuries = [] } = useInjuries();
 
-  // Calculate next Saturday at 9 AM ET
+  // Helper to get next Saturday at 5 AM
   const getNextSaturday = () => {
-    const now = new Date();
-    const day = now.getDay();
-    const daysUntilSaturday = (6 - day + 7) % 7 || 7; // Days until next Saturday
-    const nextSat = new Date(now);
-    nextSat.setDate(now.getDate() + daysUntilSaturday);
-    nextSat.setHours(9, 0, 0, 0); // 9 AM
-    return nextSat;
+    const d = new Date();
+    d.setDate(d.getDate() + (6 - d.getDay() + 7) % 7);
+    d.setHours(5, 0, 0, 0);
+    // If today is Saturday and it's past 5 AM, move to next Saturday
+    if (d.getDay() === 6 && new Date().getHours() >= 5) {
+      d.setDate(d.getDate() + 7);
+    }
+    return d;
+  };
+
+  // Helper to get position name
+  const getPositionName = (pos: string) => {
+    switch (pos) {
+      case 'C': return 'Center';
+      case 'L': return 'Left Wing';
+      case 'R': return 'Right Wing';
+      case 'D': return 'Defenseman';
+      case 'G': return 'Goalie';
+      default: return pos;
+    }
+  };
+
+  // Check if swap is valid (must be same position)
+  const isSwapDisabled = (player: DraftedPlayer) => {
+    if (!selectedForSwap) return false;
+    // Must be same position
+    if (player.position !== selectedForSwap.position) return true;
+    // Must be different roster slot
+    if (player.rosterSlot === selectedForSwap.currentSlot) return true;
+    return false;
   };
 
   // Select player for swap
@@ -53,101 +80,57 @@ export default function PlayerList() {
     const player = players.find(p => p.id === playerId);
     if (!player) return;
 
-    const currentSlot = (player.rosterSlot || 'active') as 'active' | 'reserve';
-    
-    // If no player selected yet, select this one
-    if (!selectedForSwap) {
+    if (selectedForSwap) {
+      // If clicking the same player, deselect
+      if (selectedForSwap.playerId === playerId) {
+        setSelectedForSwap(null);
+        return;
+      }
+
+      // If clicking a valid target, execute swap
+      if (!isSwapDisabled(player)) {
+        executeSwap(selectedForSwap.playerId, playerId);
+      }
+    } else {
+      // Select first player
       setSelectedForSwap({
         playerId: player.id,
         playerName: player.name,
         position: player.position,
-        currentSlot: currentSlot
-      });
-      return;
-    }
-
-    // If same player clicked again, deselect
-    if (selectedForSwap.playerId === playerId) {
-      setSelectedForSwap(null);
-      return;
-    }
-
-    // If different slot (one active, one reserve) and same position type, perform swap
-    const targetSlot = currentSlot;
-    if (selectedForSwap.currentSlot !== targetSlot && isSamePositionType(selectedForSwap.position, player.position)) {
-      performSwap(selectedForSwap.playerId, playerId);
-    } else if (selectedForSwap.currentSlot === targetSlot) {
-      toast.error('Same roster slot', {
-        description: `Both players are in ${targetSlot}. Select one active and one reserve player.`
-      });
-    } else {
-      toast.error('Position mismatch!', {
-        description: `You can only swap players of the same position type.\n\nSelected: ${selectedForSwap.position} (${getPositionName(selectedForSwap.position)})\nClicked: ${player.position} (${player.positionName})`
+        currentSlot: player.rosterSlot
       });
     }
   };
 
-  // Check if two positions are the same type (all forwards count as same)
-  const isSamePositionType = (pos1: string, pos2: string): boolean => {
-    const forwards = ['C', 'L', 'R'];
-    if (forwards.includes(pos1) && forwards.includes(pos2)) return true;
-    return pos1 === pos2;
-  };
-
-  // Get position TYPE for swap messaging (group all forwards together)
-  const getPositionName = (pos: string): string => {
-    if (['C', 'L', 'R'].includes(pos)) return 'Forward';
-    if (pos === 'D') return 'Defense';
-    if (pos === 'G') return 'Goalie';
-    return pos;
-  };
-
-  // Check if swap button should be disabled for this player
-  const isSwapDisabled = (player: DraftedPlayer): boolean => {
-    if (!selectedForSwap) return false; // No selection, all buttons enabled
-    
-    const currentSlot = (player.rosterSlot || 'active') as 'active' | 'reserve';
-    
-    // Can't swap with yourself
-    if (selectedForSwap.playerId === player.id) return false;
-    
-    // Must be in opposite roster (active ↔ reserve)
-    if (selectedForSwap.currentSlot === currentSlot) return true;
-    
-    // Must be same position type
-    if (!isSamePositionType(selectedForSwap.position, player.position)) return true;
-    
-    return false;
-  };
-
-  // Perform atomic swap between two players
-  const performSwap = async (player1Id: string, player2Id: string) => {
+  // Execute swap request
+  const executeSwap = async (player1Id: string, player2Id: string) => {
     try {
-      setSwapping(player1Id);
-
-      const player1Ref = doc(db, 'draftedPlayers', player1Id);
-      const player2Ref = doc(db, 'draftedPlayers', player2Id);
-
+      setSwapping(player1Id); // Show loading state
       const player1 = players.find(p => p.id === player1Id);
       const player2 = players.find(p => p.id === player2Id);
 
       if (!player1 || !player2) return;
 
-      const player1CurrentSlot = (player1.rosterSlot || 'active') as 'active' | 'reserve';
-      const player2CurrentSlot = (player2.rosterSlot || 'active') as 'active' | 'reserve';
+      // Determine target slots (swap them)
+      const player1CurrentSlot = player1.rosterSlot || 'active';
+      const player2CurrentSlot = player2.rosterSlot || 'active';
 
-      // Mark both players with pending swaps (will apply on Saturday)
-      await updateDoc(player1Ref, {
-        pendingSlot: player2CurrentSlot
+      // Update both players with pendingSlot
+      const p1Ref = doc(db, 'draftedPlayers', player1Id);
+      const p2Ref = doc(db, 'draftedPlayers', player2Id);
+
+      await updateDoc(p1Ref, {
+        pendingSlot: player2CurrentSlot // Move to other slot
       });
 
-      await updateDoc(player2Ref, {
-        pendingSlot: player1CurrentSlot
+      await updateDoc(p2Ref, {
+        pendingSlot: player1CurrentSlot // Move to other slot
       });
 
+      toast.success('Swap requested successfully!');
       console.log(`Swap requested: "${player1.name}" ↔ "${player2.name}" will swap on ${getNextSaturday().toDateString()}`);
       alert(`✅ Swap requested!\n\n"${player1.name}" (${player1CurrentSlot}) ↔ "${player2.name}" (${player2CurrentSlot})\n\nWill apply on ${getNextSaturday().toLocaleDateString()}`);
-      
+
       setSelectedForSwap(null);
     } catch (error) {
       console.error('Error requesting swap:', error);
@@ -169,22 +152,6 @@ export default function PlayerList() {
       console.error('Error canceling swap:', error);
     } finally {
       setSwapping(null);
-    }
-  };
-
-  // Get position badge color
-  const getPositionBadgeColor = (position: string) => {
-    switch (position) {
-      case 'C':
-      case 'L':
-      case 'R':
-        return 'bg-blue-600';
-      case 'D':
-        return 'bg-green-600';
-      case 'G':
-        return 'bg-purple-600';
-      default:
-        return 'bg-gray-600';
     }
   };
 
@@ -211,21 +178,21 @@ export default function PlayerList() {
     }
 
     console.log('PlayerList: Setting up listener for team:', myTeam.teamName);
-    
+
     // Query only players drafted by your team
     const q = query(
       collection(db, 'draftedPlayers'),
       where('draftedByTeam', '==', myTeam.teamName),
       orderBy('pickNumber', 'asc')
     );
-    
+
     // Set up real-time listener
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const playersData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as DraftedPlayer));
-      
+
       console.log(`PlayerList: Found ${playersData.length} players for team "${myTeam.teamName}"`);
       setPlayers(playersData);
       setLoading(false);
@@ -246,10 +213,10 @@ export default function PlayerList() {
       if (pos === 'G') return 3; // Goalies third
       return 4; // Unknown positions last
     };
-    
+
     const orderDiff = getPositionOrder(a.position) - getPositionOrder(b.position);
     if (orderDiff !== 0) return orderDiff;
-    
+
     // Within same position group, sort by pick number
     return a.pickNumber - b.pickNumber;
   };
@@ -268,9 +235,9 @@ export default function PlayerList() {
     return (
       <div className="max-w-6xl mx-auto p-6">
         <h2 className="text-3xl font-bold mb-6 text-white">My Players</h2>
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg text-center">
-          <p className="text-gray-400">No league found. Create or join a league to see your roster.</p>
-        </div>
+        <GlassCard className="p-8 text-center">
+          <p className="text-gray-400 text-lg">No league found. Create or join a league to see your roster.</p>
+        </GlassCard>
       </div>
     );
   }
@@ -282,7 +249,7 @@ export default function PlayerList() {
       {/* Roster Lock Info */}
       <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mb-4">
         <p className="text-blue-200 text-sm">
-          📅 <strong>Next Roster Lock:</strong> {nextSaturday.toLocaleString()} 
+          📅 <strong>Next Roster Lock:</strong> {nextSaturday.toLocaleString()}
           <span className="ml-2 text-gray-400">• Pending swaps will apply then</span>
         </p>
       </div>
@@ -294,7 +261,7 @@ export default function PlayerList() {
             🔄 Swap Mode Active
           </p>
           <p className="text-yellow-100 text-sm mb-2">
-            Selected: <strong>{selectedForSwap.playerName}</strong> ({getPositionName(selectedForSwap.position)}) 
+            Selected: <strong>{selectedForSwap.playerName}</strong> ({getPositionName(selectedForSwap.position)})
             {' '}in <strong>{selectedForSwap.currentSlot}</strong> roster
           </p>
           <p className="text-gray-300 text-sm">
@@ -313,14 +280,14 @@ export default function PlayerList() {
       {!selectedForSwap && (
         <div className="bg-gray-700/50 border border-gray-600 p-4 rounded-lg mb-6">
           <p className="text-gray-300 text-sm">
-            <strong>💡 How to Swap Players:</strong> Click "🔄 Select to Swap" on a player, 
+            <strong>💡 How to Swap Players:</strong> Click "🔄 Select to Swap" on a player,
             then select another player of the same position from the opposite roster (active ↔ reserve) to swap them.
           </p>
         </div>
       )}
 
       {/* Active Roster */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
+      <GlassCard className="p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-white">
             🏒 Active Roster ({activePlayers.length})
@@ -348,29 +315,33 @@ export default function PlayerList() {
             {activePlayers.map((player) => (
               <div
                 key={player.id}
-                className="flex items-center justify-between bg-gray-700 p-4 rounded-lg hover:bg-gray-650 transition-colors"
+                className="flex items-center justify-between bg-gray-700/50 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-600/30"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-white font-semibold">#{player.jerseyNumber}</span>
-                    <span className={`${getPositionBadgeColor(player.position)} text-white text-xs px-2 py-1 rounded font-bold`}>
+                    <Badge variant={
+                      ['C', 'L', 'R'].includes(player.position) ? 'info' :
+                        player.position === 'D' ? 'success' :
+                          player.position === 'G' ? 'warning' : 'default'
+                    }>
                       {player.position}
-                    </span>
+                    </Badge>
                     <span className="text-gray-400 text-sm">({player.nhlTeam})</span>
-                    <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                    <Badge variant="outline" className="font-normal">
                       Pick #{player.pickNumber}
-                    </span>
+                    </Badge>
                     {player.pendingSlot && (
-                      <span className="bg-yellow-600 text-white text-xs px-2 py-1 rounded animate-pulse">
+                      <Badge variant="warning" className="animate-pulse">
                         → {player.pendingSlot === 'reserve' ? 'Moving to Reserve' : 'Staying Active'}
-                      </span>
+                      </Badge>
                     )}
                     {(() => {
                       const injury = isPlayerInjuredByName(player.name, injuries);
                       return injury && (
-                        <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
+                        <Badge variant="danger" className="flex items-center gap-1">
                           {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
-                        </span>
+                        </Badge>
                       );
                     })()}
                   </div>
@@ -378,36 +349,34 @@ export default function PlayerList() {
                   <p className="text-gray-400 text-sm">{player.positionName} • Round {player.round}</p>
                 </div>
                 {player.pendingSlot ? (
-                  <button
+                  <GradientButton
                     onClick={() => cancelSwap(player.id)}
                     disabled={swapping === player.id}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors ml-4"
+                    variant="outline"
+                    size="sm"
+                    className="ml-4"
                   >
                     Cancel Swap
-                  </button>
+                  </GradientButton>
                 ) : (
-                  <button
+                  <GradientButton
                     onClick={() => selectPlayerForSwap(player.id)}
                     disabled={swapping === player.id || isSwapDisabled(player)}
-                    className={`px-4 py-2 rounded transition-colors ml-4 ${
-                      selectedForSwap?.playerId === player.id
-                        ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
-                        : isSwapDisabled(player)
-                        ? 'bg-gray-600 cursor-not-allowed text-gray-400'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
+                    variant={selectedForSwap?.playerId === player.id ? 'secondary' : 'primary'}
+                    size="sm"
+                    className="ml-4"
                   >
                     {selectedForSwap?.playerId === player.id ? '✓ Selected' : '🔄 Select to Swap'}
-                  </button>
+                  </GradientButton>
                 )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </GlassCard>
 
       {/* Reserve Roster */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+      <GlassCard className="p-6">
         <h3 className="text-xl font-semibold mb-4 text-white">
           💼 Reserve Roster ({reservePlayers.length})
         </h3>
@@ -424,29 +393,33 @@ export default function PlayerList() {
             {reservePlayers.map((player) => (
               <div
                 key={player.id}
-                className="flex items-center justify-between bg-gray-700 p-4 rounded-lg hover:bg-gray-650 transition-colors opacity-75"
+                className="flex items-center justify-between bg-gray-700/50 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-600/30"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-white font-semibold">#{player.jerseyNumber}</span>
-                    <span className={`${getPositionBadgeColor(player.position)} text-white text-xs px-2 py-1 rounded font-bold`}>
+                    <Badge variant={
+                      ['C', 'L', 'R'].includes(player.position) ? 'info' :
+                        player.position === 'D' ? 'success' :
+                          player.position === 'G' ? 'warning' : 'default'
+                    }>
                       {player.position}
-                    </span>
+                    </Badge>
                     <span className="text-gray-400 text-sm">({player.nhlTeam})</span>
-                    <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">
+                    <Badge variant="outline" className="font-normal">
                       Pick #{player.pickNumber}
-                    </span>
+                    </Badge>
                     {player.pendingSlot && (
-                      <span className="bg-yellow-600 text-white text-xs px-2 py-1 rounded animate-pulse">
+                      <Badge variant="warning" className="animate-pulse">
                         → {player.pendingSlot === 'active' ? 'Moving to Active' : 'Staying Reserve'}
-                      </span>
+                      </Badge>
                     )}
                     {(() => {
                       const injury = isPlayerInjuredByName(player.name, injuries);
                       return injury && (
-                        <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`} title={`${injury.injuryType} - ${injury.description}`}>
+                        <Badge variant="danger" className="flex items-center gap-1">
                           {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
-                        </span>
+                        </Badge>
                       );
                     })()}
                   </div>
@@ -454,33 +427,31 @@ export default function PlayerList() {
                   <p className="text-gray-400 text-sm">{player.positionName} • Round {player.round}</p>
                 </div>
                 {player.pendingSlot ? (
-                  <button
+                  <GradientButton
                     onClick={() => cancelSwap(player.id)}
                     disabled={swapping === player.id}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors ml-4"
+                    variant="outline"
+                    size="sm"
+                    className="ml-4"
                   >
                     Cancel Swap
-                  </button>
+                  </GradientButton>
                 ) : (
-                  <button
+                  <GradientButton
                     onClick={() => selectPlayerForSwap(player.id)}
                     disabled={swapping === player.id || isSwapDisabled(player)}
-                    className={`px-4 py-2 rounded transition-colors ml-4 ${
-                      selectedForSwap?.playerId === player.id
-                        ? 'bg-yellow-600 text-white font-bold ring-2 ring-yellow-400'
-                        : isSwapDisabled(player)
-                        ? 'bg-gray-600 cursor-not-allowed text-gray-400'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
+                    variant={selectedForSwap?.playerId === player.id ? 'secondary' : 'primary'}
+                    size="sm"
+                    className="ml-4"
                   >
                     {selectedForSwap?.playerId === player.id ? '✓ Selected' : '🔄 Select to Swap'}
-                  </button>
+                  </GradientButton>
                 )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </GlassCard>
     </div>
   );
 }

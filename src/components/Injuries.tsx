@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { getInjuryIcon, getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { getInjuryIcon, type InjuryReport } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
 import { useLeague } from '../context/LeagueContext';
 import { db } from '../firebase';
+import { GlassCard } from './ui/GlassCard';
+import { Badge } from './ui/Badge';
+import { GradientButton } from './ui/GradientButton';
 
 interface DraftedPlayer {
   id: string;
@@ -94,6 +97,12 @@ export default function Injuries() {
     return acc;
   }, {} as Record<string, InjuryReport[]>);
 
+  const getInjuryBadgeVariant = (status: string) => {
+    const s = status.toLowerCase();
+    if (s.includes('out') || s.includes('ir') || s.includes('reserve')) return 'danger';
+    return 'warning';
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h2 className="text-3xl font-bold mb-6 text-white">🏥 NHL Injury Report</h2>
@@ -114,7 +123,7 @@ export default function Injuries() {
       </div>
 
       {/* My Injured Players */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
+      <GlassCard className="p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-2xl font-semibold text-white">👥 My Injured Players</h3>
@@ -146,7 +155,7 @@ export default function Injuries() {
             {myInjuries.map((injury) => (
               <div
                 key={`${injury.playerId}-${injury.lastUpdated}`}
-                className="bg-gray-700 p-4 rounded-lg border border-red-500/30"
+                className="bg-gray-700/50 p-4 rounded-lg border border-red-500/30 hover:bg-gray-700 transition-colors"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -154,12 +163,12 @@ export default function Injuries() {
                       <span className="text-white font-semibold text-lg">
                         {injury.playerName}
                       </span>
-                      <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded font-bold">
+                      <Badge variant="info">
                         {injury.position}
-                      </span>
-                      <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`}>
+                      </Badge>
+                      <Badge variant={getInjuryBadgeVariant(injury.status)} className="flex items-center gap-1">
                         {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
-                      </span>
+                      </Badge>
                     </div>
                     <p className="text-gray-300"><strong>Team:</strong> {injury.team}</p>
                     <p className="text-gray-300"><strong>Injury:</strong> {injury.injuryType}</p>
@@ -177,10 +186,10 @@ export default function Injuries() {
             ))}
           </div>
         )}
-      </div>
+      </GlassCard>
 
       {/* Filters */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
+      <GlassCard className="p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Team Filter */}
           <div className="flex-1">
@@ -221,13 +230,14 @@ export default function Injuries() {
 
           {/* Refresh Button */}
           <div className="md:w-auto md:self-end">
-            <button
+            <GradientButton
               onClick={() => refetch()}
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded transition-colors flex items-center gap-2"
+              variant="primary"
+              className="flex items-center gap-2"
             >
               🔄 {loading ? 'Refreshing...' : 'Refresh Injuries'}
-            </button>
+            </GradientButton>
           </div>
         </div>
 
@@ -237,33 +247,34 @@ export default function Injuries() {
             Showing {filteredInjuries.length} of {injuries.length} injured players
           </div>
         )}
-      </div>
+      </GlassCard>
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-gray-800 p-8 rounded-lg shadow-lg text-center">
+        <GlassCard className="p-8 text-center">
           <p className="text-gray-400 text-lg">Loading injury reports from ESPN...</p>
-        </div>
+        </GlassCard>
       )}
 
       {/* Error State */}
       {error && (
         <div className="bg-red-900/50 border border-red-600 p-6 rounded-lg shadow-lg mb-8">
           <p className="text-red-200 font-semibold">⚠️ {(error as Error).message}</p>
-          <button
+          <GradientButton
             onClick={() => refetch()}
-            className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white"
+            variant="danger"
+            className="mt-4"
           >
             Try Again
-          </button>
+          </GradientButton>
         </div>
       )}
 
       {/* Injuries List */}
       {!loading && !error && filteredInjuries.length === 0 && (
-        <div className="bg-gray-800 p-6 rounded-lg text-center">
+        <GlassCard className="p-6 text-center">
           <p className="text-gray-400">No injuries found matching your filters. 🎉</p>
-        </div>
+        </GlassCard>
       )}
 
       {!loading && !error && Object.keys(injuriesByTeam).length > 0 && (
@@ -271,7 +282,7 @@ export default function Injuries() {
           {Object.entries(injuriesByTeam)
             .sort(([teamA], [teamB]) => teamA.localeCompare(teamB))
             .map(([team, teamInjuries]) => (
-              <div key={team} className="bg-gray-800 p-6 rounded-lg shadow-lg">
+              <GlassCard key={team} className="p-6">
                 <h3 className="text-xl font-semibold mb-4 text-white">
                   {team} - {teamInjuries[0].team} ({teamInjuries.length} injured)
                 </h3>
@@ -279,7 +290,7 @@ export default function Injuries() {
                   {teamInjuries.map((injury) => (
                     <div
                       key={injury.playerId}
-                      className="bg-gray-700 p-4 rounded-lg hover:bg-gray-650 transition-colors"
+                      className="bg-gray-700/50 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-600/30"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -287,12 +298,12 @@ export default function Injuries() {
                             <span className="text-white font-semibold text-lg">
                               {injury.playerName}
                             </span>
-                            <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded font-bold">
+                            <Badge variant="info">
                               {injury.position}
-                            </span>
-                            <span className={`${getInjuryColor(injury.status)} text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1`}>
+                            </Badge>
+                            <Badge variant={getInjuryBadgeVariant(injury.status)} className="flex items-center gap-1">
                               {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
-                            </span>
+                            </Badge>
                           </div>
                           <div className="space-y-1">
                             <p className="text-gray-300">
@@ -314,7 +325,7 @@ export default function Injuries() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </GlassCard>
             ))}
         </div>
       )}
