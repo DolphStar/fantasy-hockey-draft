@@ -72,7 +72,7 @@ export default function PlayerCard({
 
     // --- 2. Style Configuration ---
     const styles = {
-        // Tier 1: Legendary / Superstar (Amber/Gold)
+        // Tier 1: Legendary / Superstar (Amber/Gold) - ONLY tier with colored border
         'legendary': {
             card: "bg-gray-800 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.15)] bg-gradient-to-br from-gray-900 via-amber-900/10 to-gray-900",
             foil: "absolute inset-0 opacity-30 bg-[linear-gradient(110deg,transparent_25%,rgba(251,191,36,0.3)_45%,rgba(245,158,11,0.5)_50%,rgba(251,191,36,0.3)_55%,transparent_75%)] bg-[length:250%_100%] animate-shimmer pointer-events-none mix-blend-overlay",
@@ -80,21 +80,21 @@ export default function PlayerCard({
             statBorder: "border-amber-500/30",
             avatarRing: "from-amber-400 to-orange-600"
         },
-        // Tier 2: Elite (Emerald)
+        // Tier 2: Elite - No colored border
         'elite': {
-            card: "bg-gray-800 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]",
+            card: "bg-gray-800 border-gray-700/50",
             foil: "",
             accentText: "text-emerald-400",
-            statBorder: "border-emerald-500/30",
-            avatarRing: "" // No ring
+            statBorder: "border-gray-700/50",
+            avatarRing: ""
         },
-        // Tier 3: Good (Sky Blue)
+        // Tier 3: Good - No colored border
         'good': {
-            card: "bg-gray-800 border-sky-500/50 shadow-[0_0_10px_rgba(14,165,233,0.1)]",
+            card: "bg-gray-800 border-gray-700/50",
             foil: "",
             accentText: "text-sky-400",
-            statBorder: "border-sky-500/30",
-            avatarRing: "" // No ring
+            statBorder: "border-gray-700/50",
+            avatarRing: ""
         },
         // Standard
         'standard': {
@@ -102,7 +102,7 @@ export default function PlayerCard({
             foil: "",
             accentText: "text-white",
             statBorder: "border-gray-700/50",
-            avatarRing: "" // No ring
+            avatarRing: ""
         }
     };
 
@@ -119,21 +119,7 @@ export default function PlayerCard({
     const fallbackHeadshot = "https://assets.nhle.com/mugs/nhl/default-skater.png";
     const teamLogoUrl = `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_dark.svg`;
 
-    // Position Badge Variant
-    const getPositionBadgeVariant = (positionCode: string) => {
-        switch (positionCode) {
-            case 'C':
-            case 'L':
-            case 'R':
-                return 'solid-red';
-            case 'D':
-                return 'solid-green';
-            case 'G':
-                return 'solid-blue';
-            default:
-                return 'default';
-        }
-    };
+
 
     return (
         <GlassCard
@@ -174,24 +160,24 @@ export default function PlayerCard({
             {/* --- Card Content --- */}
             <div className="flex flex-col h-full">
 
-                {/* 1. Header Section: Headshot & Info */}
-                <div className="flex items-center p-3 pb-1.5 gap-4">
-                    {/* Avatar with Overlapping Team Logo */}
+                {/* 1. Header Section: Headshot & Name (Horizontal) */}
+                <div className="flex items-center p-4 pb-3 gap-3">
+                    {/* Avatar with Team Logo */}
                     <div className="relative flex-shrink-0">
                         <div className={cn(
-                            "w-16 h-16 rounded-full p-0.5 bg-gradient-to-br relative z-10",
-                            currentStyle.avatarRing
+                            "w-16 h-16 rounded-full overflow-hidden bg-gray-900 border-2",
+                            currentStyle.avatarRing ? "border-transparent p-0.5 bg-gradient-to-br " + currentStyle.avatarRing : "border-gray-700"
                         )}>
                             <img
                                 src={headshotUrl}
                                 alt={getPlayerFullName(player)}
                                 loading="lazy"
                                 onError={(e) => { e.currentTarget.src = fallbackHeadshot; }}
-                                className="w-full h-full rounded-full object-cover bg-gray-800"
+                                className="w-full h-full object-cover bg-gray-900"
                             />
                         </div>
                         {/* Team Logo Badge (Overlapping) */}
-                        <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-gray-800 rounded-full p-0.5 border border-gray-600 shadow-md flex items-center justify-center z-20">
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gray-900 rounded-full p-1 border border-gray-700 flex items-center justify-center">
                             <img
                                 src={teamLogoUrl}
                                 alt={teamAbbrev}
@@ -202,20 +188,19 @@ export default function PlayerCard({
 
                     {/* Player Name & Position */}
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Badge variant={getPositionBadgeVariant(player.position.code) as any}>
-                                {player.position.code}
-                            </Badge>
-                            <span className="text-gray-400 text-xs font-medium tracking-wider">
-                                {teamAbbrev}
-                            </span>
-                        </div>
-                        <h3 className="text-white font-heading font-bold text-lg leading-tight truncate">
+                        <h3 className="text-white font-heading font-bold text-xl leading-tight truncate mb-1">
                             {getPlayerFullName(player)}
                         </h3>
-                        <p className="text-gray-500 text-xs">
-                            {player.position.name}
-                        </p>
+                        <div className="flex items-center gap-2">
+                            <span className="text-gray-400 text-sm font-medium tracking-wide">
+                                {teamAbbrev} • {player.position.code}
+                            </span>
+                            <div className={cn(
+                                "w-2 h-2 rounded-full",
+                                player.position.code === 'D' ? "bg-green-500" :
+                                    player.position.code === 'G' ? "bg-blue-500" : "bg-red-500"
+                            )} />
+                        </div>
                     </div>
                 </div>
 
