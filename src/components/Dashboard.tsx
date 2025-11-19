@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { collection, doc, getDocs, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
+import type { DraftedPlayer } from '../hooks/useDraftedPlayers';
 import { useInjuries } from '../queries/useInjuries';
 import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import type { LivePlayerStats } from '../utils/liveStats';
@@ -39,10 +40,24 @@ interface HotPickupData {
     percentRostered: number;
 }
 
+type RosterEventType = 'add' | 'drop' | 'activate' | 'bench';
+
+interface RosterEvent {
+    id: string;
+    type: RosterEventType;
+    playerName: string;
+    position: string;
+    nhlTeam: string;
+    teamName: string;
+    fromSlot?: DraftedPlayer['rosterSlot'];
+    toSlot?: DraftedPlayer['rosterSlot'];
+    timestamp: string;
+}
+
 export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) => void }) {
     const { league } = useLeague();
     const { user } = useAuth();
-    const { draftedPlayers, draftedPlayerIds, recentActivity } = useDraftedPlayers();
+    const { draftedPlayers, draftedPlayerIds } = useDraftedPlayers();
     const { data: injuries = [] } = useInjuries();
 
     const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
@@ -52,6 +67,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
     const [hotPickups, setHotPickups] = useState<HotPickupData[]>([]);
     const [teamPoints, setTeamPoints] = useState<number>(0);
     const [leagueAveragePoints, setLeagueAveragePoints] = useState<number>(0);
+    const [rosterEvents, setRosterEvents] = useState<RosterEvent[]>([]);
 
     const myTeam = useMemo(() => {
         if (!league || !user) return null;
@@ -66,6 +82,62 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         if (!myTeam) return [];
         return draftedPlayers.filter(p => p.draftedByTeam === myTeam.teamName && p.rosterSlot !== 'reserve');
     }, [draftedPlayers, myTeam]);
+
+    const rosterSnapshotRef = useRef<Map<number, DraftedPlayer>>(new Map());
+    const hasRosterSnapshotRef = useRef(false);
+
+    const buildRosterEvent = useCallback((type: RosterEventType, player: DraftedPlayer, fromSlot?: DraftedPlayer['rosterSlot'], toSlot?: DraftedPlayer['rosterSlot']): RosterEvent => ({
+        id: `${type}-${player.playerId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type,
+        playerName: player.name,
+        position: player.position,
+        nhlTeam: player.nhlTeam,
+        teamName: player.draftedByTeam,
+        fromSlot,
+        toSlot,
+        timestamp: new Date().toISOString(),
+    }), []);
+
+    useEffect(() => {
+        if (draftedPlayers.length === 0) return;
+
+        const prevSnapshot = rosterSnapshotRef.current;
+        const currentSnapshot = new Map<number, DraftedPlayer>();
+        draftedPlayers.forEach(player => currentSnapshot.set(player.playerId, player));
+
+        if (!hasRosterSnapshotRef.current) {
+            rosterSnapshotRef.current = currentSnapshot;
+            hasRosterSnapshotRef.current = true;
+            return;
+        }
+
+        const newEvents: RosterEvent[] = [];
+
+        currentSnapshot.forEach((player, playerId) => {
+            const prev = prevSnapshot.get(playerId);
+            if (!prev) {
+                newEvents.push(buildRosterEvent('add', player, undefined, player.rosterSlot));
+                return;
+            }
+
+            if (prev.rosterSlot !== player.rosterSlot) {
+                const type: RosterEventType = player.rosterSlot === 'active' ? 'activate' : 'bench';
+                newEvents.push(buildRosterEvent(type, player, prev.rosterSlot, player.rosterSlot));
+            }
+        });
+
+        prevSnapshot.forEach((player, playerId) => {
+            if (!currentSnapshot.has(playerId)) {
+                newEvents.push(buildRosterEvent('drop', player, player.rosterSlot, undefined));
+            }
+        });
+
+        if (newEvents.length > 0) {
+            setRosterEvents(prev => [...newEvents, ...prev].slice(0, 6));
+        }
+
+        rosterSnapshotRef.current = currentSnapshot;
+    }, [draftedPlayers, buildRosterEvent]);
 
     useEffect(() => {
         if (!league || !myTeam || activeRoster.length === 0) {
@@ -115,6 +187,35 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
             return;
         }
 
+        const describeRosterEvent = (event: RosterEvent) => {
+            switch (event.type) {
+                case 'activate':
+                    return {
+                        title: `${event.teamName} activated ${event.playerName}`,
+                        description: `${event.position} • ${event.nhlTeam} • ${event.fromSlot === 'reserve' ? 'Bench → Active' : 'Slot updated'}`,
+                        icon: '⬆️'
+                    };
+                case 'bench':
+                    return {
+                        title: `${event.teamName} benched ${event.playerName}`,
+                        description: `${event.position} • ${event.nhlTeam} • Active → Bench`,
+                        icon: '⬇️'
+                    };
+                case 'drop':
+                    return {
+                        title: `${event.teamName} dropped ${event.playerName}`,
+                        description: `${event.position} • ${event.nhlTeam}`,
+                        icon: '➖'
+                    };
+                default:
+                    return {
+                        title: `${event.teamName} added ${event.playerName}`,
+                        description: `${event.position} • ${event.nhlTeam} • ${event.toSlot === 'reserve' ? 'Bench stash' : 'Active roster'}`,
+                        icon: '➕'
+                    };
+            }
+        };
+
         const buildFeed = () => {
             const items: FeedItem[] = [];
 
@@ -132,12 +233,13 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                     });
                 });
 
-            recentActivity.slice(0, 2).forEach(activity => {
+            rosterEvents.slice(0, 3).forEach(event => {
+                const copy = describeRosterEvent(event);
                 items.push({
-                    id: `pickup-${activity.id}`,
-                    icon: '➕',
-                    title: `${activity.draftedByTeam} added ${activity.name}`,
-                    description: `${activity.position} • ${activity.nhlTeam}`,
+                    id: `roster-${event.id}`,
+                    icon: copy.icon,
+                    title: copy.title,
+                    description: copy.description,
                     cta: 'Scout player',
                     onClick: goToRoster
                 });
@@ -169,7 +271,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         baseItems = buildFeed();
 
         return () => unsubscribe();
-    }, [league, injuries, draftedPlayerIds, recentActivity, goToChat, goToRoster, goToInjuries]);
+    }, [league, injuries, draftedPlayerIds, rosterEvents, goToChat, goToRoster, goToInjuries]);
 
     useEffect(() => {
         if (!league || !myTeam) {
