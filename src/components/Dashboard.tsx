@@ -68,6 +68,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
     const [teamPoints, setTeamPoints] = useState<number>(0);
     const [leagueAveragePoints, setLeagueAveragePoints] = useState<number>(0);
     const [rosterEvents, setRosterEvents] = useState<RosterEvent[]>([]);
+    const [showAllMatchups, setShowAllMatchups] = useState(false);
 
     const myTeam = useMemo(() => {
         if (!league || !user) return null;
@@ -400,6 +401,34 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         };
     })();
 
+    const isLiveMode = liveStats.length > 0;
+    const matchupDisplayList = isLiveMode
+        ? liveStats
+        : showAllMatchups
+            ? matchups
+            : matchups.slice(0, 4);
+
+    useEffect(() => {
+        if (matchups.length <= 4) {
+            setShowAllMatchups(false);
+        }
+    }, [matchups.length]);
+
+    const renderTeamBadge = (abbrev: string) => (
+        <span className="inline-flex items-center gap-1">
+            <span className="font-semibold">{abbrev}</span>
+            <img
+                src={`https://assets.nhle.com/logos/nhl/svg/${abbrev}_dark.svg`}
+                alt={`${abbrev} logo`}
+                className="w-5 h-5"
+                onError={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    target.style.display = 'none';
+                }}
+            />
+        </span>
+    );
+
     if (!league) {
         return <div className="text-white">Loading league data…</div>;
     }
@@ -439,27 +468,32 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                    {(liveStats.length > 0 ? liveStats.slice(0, 4) : matchups.slice(0, 4)).map((item) => (
+                    {matchupDisplayList.map((item) => (
                         <div
-                            key={liveStats.length > 0 ? `live-${item.playerId}` : `${item.playerId}-${item.gameId}`}
+                            key={isLiveMode ? `live-${(item as LivePlayerStats).playerId}` : `${(item as PlayerMatchup).playerId}-${(item as PlayerMatchup).gameId}`}
                             className="bg-slate-900/40 rounded-xl p-4 border border-slate-800 flex items-center justify-between"
                         >
                             <div>
                                 <p className="text-white font-semibold">
-                                    {liveStats.length > 0 ? (item as LivePlayerStats).playerName : (item as PlayerMatchup).playerName}
+                                    {isLiveMode ? (item as LivePlayerStats).playerName : (item as PlayerMatchup).playerName}
                                 </p>
-                                {liveStats.length > 0 ? (
+                                {isLiveMode ? (
                                     <p className="text-xs text-slate-400">
                                         {(item as LivePlayerStats).nhlTeam} • {(item as LivePlayerStats).goals || 0}G / {(item as LivePlayerStats).assists || 0}A
                                     </p>
                                 ) : (
-                                    <p className="text-xs text-slate-400">
-                                        {(item as PlayerMatchup).teamAbbrev} vs {(item as PlayerMatchup).opponent} @ {(item as PlayerMatchup).gameTime}
-                                    </p>
+                                    <div className="text-xs text-slate-400 space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            {renderTeamBadge((item as PlayerMatchup).teamAbbrev)}
+                                            <span className="text-slate-500">vs</span>
+                                            {renderTeamBadge((item as PlayerMatchup).opponent)}
+                                        </div>
+                                        <p>{(item as PlayerMatchup).gameTime}</p>
+                                    </div>
                                 )}
                             </div>
                             <div className="text-right">
-                                {liveStats.length > 0 ? (
+                                {isLiveMode ? (
                                     <span className="text-green-400 font-bold text-xl">
                                         +{(item as LivePlayerStats).points.toFixed(1)}
                                     </span>
@@ -472,6 +506,16 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                         </div>
                     ))}
                 </div>
+                {!isLiveMode && matchups.length > 4 && (
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => setShowAllMatchups(prev => !prev)}
+                            className="text-xs font-semibold text-blue-400 hover:text-blue-300 mt-3"
+                        >
+                            {showAllMatchups ? 'Show fewer matchups' : `View all ${matchups.length} matchups`}
+                        </button>
+                    </div>
+                )}
             </GlassCard>
 
             <div className="grid gap-6 lg:grid-cols-3">
