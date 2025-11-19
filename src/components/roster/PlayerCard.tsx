@@ -80,119 +80,10 @@ export default function PlayerCard({
             statBorder: "border-amber-500/30",
             avatarRing: "from-amber-400 to-orange-600"
         },
-        // Tier 2: Elite (Emerald)
-        'elite': {
-            card: "bg-gray-800 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]",
-            foil: "",
-            accentText: "text-emerald-400",
-            statBorder: "border-emerald-500/30",
-            avatarRing: "from-emerald-400 to-teal-600"
-        },
-        // Tier 3: Good (Sky Blue)
-        'good': {
-            card: "bg-gray-800 border-sky-500/50 shadow-[0_0_10px_rgba(14,165,233,0.1)]",
-            foil: "",
-            accentText: "text-sky-400",
-            statBorder: "border-sky-500/30",
-            avatarRing: "from-sky-400 to-blue-600"
-        },
-        // Standard
-        'standard': {
-            card: "bg-gray-800 border-gray-700/50",
-            foil: "",
-            accentText: "text-white",
-            statBorder: "border-gray-700/50",
-            avatarRing: "from-gray-600 to-gray-800"
-        }
-    };
+                    </div >
 
-    // Map specific logic to shared styles
-    let styleKey = 'standard';
-    if (tier === 'legendary') styleKey = 'legendary';
-    else if (tier === 'elite' || tier === 'elite-d' || tier === 'elite-g') styleKey = 'elite';
-    else if (tier === 'good' || tier === 'good-d' || tier === 'good-g') styleKey = 'good';
-
-    const currentStyle = styles[styleKey as keyof typeof styles];
-
-    // NHL headshot URL (with fallback)
-    const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.person.id}.png`;
-    const fallbackHeadshot = "https://assets.nhle.com/mugs/nhl/default-skater.png";
-    const teamLogoUrl = `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_dark.svg`;
-
-    // Position Badge Variant
-    const getPositionBadgeVariant = (positionCode: string) => {
-        switch (positionCode) {
-            case 'C':
-            case 'L':
-            case 'R':
-                return 'solid-red';
-            case 'D':
-                return 'solid-green';
-            case 'G':
-                return 'solid-blue';
-            default:
-                return 'default';
-        }
-    };
-
-    return (
-        <GlassCard
-            hoverEffect={!isDrafted}
-            className={cn(
-                "relative flex h-full flex-col p-0 transition-all overflow-hidden group/card",
-                isDrafted ? "opacity-60 grayscale-[0.5] bg-gray-800/50 border-gray-700" : currentStyle.card
-            )}
-        >
-            {/* Foil Effect Overlay */}
-            {!isDrafted && currentStyle.foil && (
-                <div className={currentStyle.foil} />
-            )}
-
-            {/* Top Right Badges (IR/OUT) */}
-            {injury && (
-                <div className="absolute top-2 right-2 z-20">
-                    <Badge variant="danger" className="shadow-md">
-                        {getInjuryIcon(injury.status)} {
-                            injury.status === 'Injured Reserve' ? 'IR' :
-                                injury.status === 'Day To Day' ? 'DTD' :
-                                    injury.status === 'Out' ? 'OUT' :
-                                        injury.status.toUpperCase().substring(0, 3)
-                        }
-                    </Badge>
-                </div>
-            )}
-
-            {/* --- Card Content --- */}
-            <div className="flex flex-col h-full">
-
-                {/* 1. Header Section: Headshot & Info */}
-                <div className="flex items-center p-4 pb-2 gap-4">
-                    {/* Avatar with Overlapping Team Logo */}
-                    <div className="relative flex-shrink-0">
-                        <div className={cn(
-                            "w-16 h-16 rounded-full p-0.5 bg-gradient-to-br relative z-10",
-                            currentStyle.avatarRing
-                        )}>
-                            <img
-                                src={headshotUrl}
-                                alt={getPlayerFullName(player)}
-                                loading="lazy"
-                                onError={(e) => { e.currentTarget.src = fallbackHeadshot; }}
-                                className="w-full h-full rounded-full object-cover bg-gray-800"
-                            />
-                        </div>
-                        {/* Team Logo Badge (Overlapping) */}
-                        <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-gray-800 rounded-full p-0.5 border border-gray-600 shadow-md flex items-center justify-center">
-                            <img
-                                src={teamLogoUrl}
-                                alt={teamAbbrev}
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Player Name & Position */}
-                    <div className="flex-1 min-w-0">
+        {/* Player Name & Position */ }
+        < div className = "flex-1 min-w-0" >
                         <div className="flex items-center gap-2 mb-1">
                             <Badge variant={getPositionBadgeVariant(player.position.code) as any}>
                                 {player.position.code}
@@ -207,117 +98,125 @@ export default function PlayerCard({
                         <p className="text-gray-500 text-xs">
                             {player.position.name}
                         </p>
-                    </div>
-                </div>
+                    </div >
+                </div >
 
-                {/* 2. Stat Block (Horizontal) */}
-                <div className="px-0 py-2 mt-1 mb-auto">
-                    {playerStats ? (
-                        <div className="bg-gray-900/40 border-y border-gray-700/50 py-2 px-4">
-                            {player.position.code === 'G' ? (
-                                <div className="flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className={cn("text-2xl font-black leading-none", currentStyle.accentText)}>
-                                            {playerStats.wins || 0}
-                                        </span>
-                                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Wins</span>
-                                    </div>
-                                    <div className="h-8 w-px bg-gray-700/50 mx-4" />
-                                    <div className="flex items-center gap-4 text-sm">
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-100 font-mono font-bold">{(playerStats.savePct || 0).toFixed(3)}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase">SV%</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-100 font-mono font-bold">{(playerStats.goalsAgainstAverage || 0).toFixed(2)}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase">GAA</span>
-                                        </div>
-                                    </div>
+        {/* 2. Stat Block (Horizontal) */ }
+        < div className = "px-0 py-2 mt-1 mb-auto" >
+        {
+            playerStats?(
+                        <div className = "bg-gray-900/40 border-y border-gray-700/50 py-2 px-4" >
+                {
+                    player.position.code === 'G' ? (
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                                <span className={cn("text-2xl font-black leading-none", currentStyle.accentText)}>
+                                    {playerStats.wins || 0}
+                                </span>
+                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Wins</span>
+                            </div>
+                            <div className="h-8 w-px bg-gray-700/50 mx-4" />
+                            <div className="flex items-center gap-4 text-sm">
+                                <div className="flex flex-col items-end">
+                                    <span className="text-gray-100 font-mono font-bold">{(playerStats.savePct || 0).toFixed(3)}</span>
+                                    <span className="text-[10px] text-gray-500 uppercase">SV%</span>
                                 </div>
-                            ) : (
-                                <div className="flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className={cn("text-2xl font-black leading-none", currentStyle.accentText)}>
-                                            {playerStats.points || 0}
-                                        </span>
-                                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Points</span>
-                                    </div>
-                                    <div className="h-8 w-px bg-gray-700/50 mx-4" />
-                                    <div className="flex items-center gap-4 text-sm">
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-100 font-mono font-bold">{playerStats.goals || 0}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase">G</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-100 font-mono font-bold">{playerStats.assists || 0}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase">A</span>
-                                        </div>
-                                    </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-gray-100 font-mono font-bold">{(playerStats.goalsAgainstAverage || 0).toFixed(2)}</span>
+                                    <span className="text-[10px] text-gray-500 uppercase">GAA</span>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     ) : (
-                        <div className="bg-gray-900/40 border-y border-gray-700/50 py-3 px-4 flex flex-col items-center justify-center">
-                            <div className="w-8 h-0.5 bg-gray-600 mb-1 rounded-full" />
-                            <span className="text-[10px] text-gray-500 uppercase font-medium">No 23-24 Stats</span>
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                                <span className={cn("text-2xl font-black leading-none", currentStyle.accentText)}>
+                                    {playerStats.points || 0}
+                                </span>
+                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Points</span>
+                            </div>
+                            <div className="h-8 w-px bg-gray-700/50 mx-4" />
+                            <div className="flex items-center gap-4 text-sm">
+                                <div className="flex flex-col items-end">
+                                    <span className="text-gray-100 font-mono font-bold">{playerStats.goals || 0}</span>
+                                    <span className="text-[10px] text-gray-500 uppercase">G</span>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-gray-100 font-mono font-bold">{playerStats.assists || 0}</span>
+                                    <span className="text-[10px] text-gray-500 uppercase">A</span>
+                                </div>
+                            </div>
                         </div>
-                    )}
-                </div>
+                    )
+                }
+                        </div>
+                    ) : (
+        <div className="bg-gray-900/40 border-y border-gray-700/50 py-3 px-4 flex flex-col items-center justify-center">
+            <div className="w-8 h-0.5 bg-gray-600 mb-1 rounded-full" />
+            <span className="text-[10px] text-gray-500 uppercase font-medium">No 23-24 Stats</span>
+        </div>
+    )
+}
+                </div >
 
-                {/* 3. Actions Footer */}
-                <div className="p-4 pt-2 space-y-2">
-                    {/* Draft Button */}
-                    {draftState && !draftState.isComplete && (
-                        <button
-                            onClick={() => onDraft(player)}
-                            disabled={isDrafted || isDrafting || !isMyTurn}
-                            className={cn(
-                                "w-full py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 shadow-sm",
-                                isDrafted
-                                    ? "bg-gray-700/50 text-gray-500 cursor-not-allowed"
-                                    : !isMyTurn
-                                        ? "bg-gray-800 border border-gray-700 text-gray-500 hover:bg-gray-700 hover:text-gray-400"
-                                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-900/20"
-                            )}
-                        >
-                            {isDrafted
-                                ? 'Already Drafted'
-                                : !isMyTurn
-                                    ? 'Not Your Turn'
-                                    : isDrafting && !isDrafted ? 'Drafting...' : 'Draft Player'}
-                        </button>
-                    )}
+    {/* 3. Actions Footer */ }
+    < div className = "p-4 pt-2 space-y-2" >
+        {/* Draft Button */ }
+{
+    draftState && !draftState.isComplete && (
+        <button
+            onClick={() => onDraft(player)}
+            disabled={isDrafted || isDrafting || !isMyTurn}
+            className={cn(
+                "w-full py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 shadow-sm",
+                isDrafted
+                    ? "bg-gray-700/50 text-gray-500 cursor-not-allowed"
+                    : !isMyTurn
+                        ? "bg-gray-800 border border-gray-700 text-gray-500 hover:bg-gray-700 hover:text-gray-400"
+                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-900/20"
+            )}
+        >
+            {isDrafted
+                ? 'Already Drafted'
+                : !isMyTurn
+                    ? 'Not Your Turn'
+                    : isDrafting && !isDrafted ? 'Drafting...' : 'Draft Player'}
+        </button>
+    )
+}
 
-                    {/* Admin Pick Up */}
-                    {isAdmin && !isDrafted && (
-                        <button
-                            onClick={() => onPickUp(player)}
-                            disabled={isDrafting}
-                            className="w-full py-1.5 px-3 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors shadow-sm"
-                        >
-                            {isDrafting ? 'Picking Up...' : '👑 Pick Up (Admin)'}
-                        </button>
-                    )}
+{/* Admin Pick Up */ }
+{
+    isAdmin && !isDrafted && (
+        <button
+            onClick={() => onPickUp(player)}
+            disabled={isDrafting}
+            className="w-full py-1.5 px-3 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors shadow-sm"
+        >
+            {isDrafting ? 'Picking Up...' : '👑 Pick Up (Admin)'}
+        </button>
+    )
+}
 
-                    {/* Compare Button */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            addPlayerToCompare({
-                                id: player.person.id,
-                                name: getPlayerFullName(player),
-                                headshot: headshotUrl,
-                                positionCode: player.position.code,
-                                teamAbbrev: teamAbbrev,
-                                stats: playerStats
-                            });
-                        }}
-                        className="w-full py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors"
-                    >
-                        ⚖️ Compare
-                    </button>
-                </div>
-            </div>
-        </GlassCard>
+{/* Compare Button */ }
+<button
+    onClick={(e) => {
+        e.stopPropagation();
+        addPlayerToCompare({
+            id: player.person.id,
+            name: getPlayerFullName(player),
+            headshot: headshotUrl,
+            positionCode: player.position.code,
+            teamAbbrev: teamAbbrev,
+            stats: playerStats
+        });
+    }}
+    className="w-full py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors"
+>
+    ⚖️ Compare
+</button>
+                </div >
+            </div >
+        </GlassCard >
     );
 }
