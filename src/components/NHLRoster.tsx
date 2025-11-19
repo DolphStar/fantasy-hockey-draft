@@ -23,7 +23,6 @@ import { useTeamRoster } from '../queries/useTeamRoster';
 import PlayerCard from './roster/PlayerCard';
 import RosterFilters from './roster/RosterFilters';
 import DraftStatus from './draft/DraftStatus';
-import PositionScarcity from './draft/PositionScarcity';
 import BestAvailable from './draft/BestAvailable';
 
 export default function NHLRoster() {
@@ -36,7 +35,7 @@ export default function NHLRoster() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
-  const [teamFilter, setTeamFilter] = useState<string>('ANA'); // Default to Anaheim Ducks
+  const [teamFilter, setTeamFilter] = useState<string>('ALL'); // Default to all teams
   const [pickupTeam, setPickupTeam] = useState<string>(''); // Admin: which team to pick up for
   const [lastSeasonStats, setLastSeasonStats] = useState<StatsMap>({}); // Last season stats
 
@@ -423,18 +422,15 @@ export default function NHLRoster() {
         myTeamPositions={myTeamPositions}
       />
 
-      {/* Best Available & Position Scarcity Grid */}
+      {/* Best Available (includes Position Scarcity) */}
       {!loading && !error && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <BestAvailable
-            allPlayers={roster}
-            draftedPlayerIds={draftedPlayerIds}
-            lastSeasonStats={lastSeasonStats}
-            onDraft={onDraftPlayer}
-            isMyTurn={isMyTurn}
-          />
-          <PositionScarcity allPlayers={roster} draftedPlayerIds={draftedPlayerIds} />
-        </div>
+        <BestAvailable
+          allPlayers={roster}
+          draftedPlayerIds={draftedPlayerIds}
+          lastSeasonStats={lastSeasonStats}
+          onDraft={onDraftPlayer}
+          isMyTurn={isMyTurn}
+        />
       )}
 
       {/* Admin: Team Selector for Free Agent Pickups */}

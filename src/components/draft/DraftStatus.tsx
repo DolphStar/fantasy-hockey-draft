@@ -39,13 +39,13 @@ export default function DraftStatus({
                     </p>
                     {myTeam && league?.rosterSettings && (
                         <div className="mt-2 flex gap-4 text-sm">
-                            <span className={myTeamPositions.active.F >= league.rosterSettings.forwards ? 'text-green-400' : 'text-gray-400'}>
+                            <span className={myTeamPositions.active.F >= league.rosterSettings.forwards ? 'text-green-400' : 'text-red-400 font-bold'}>
                                 F: {myTeamPositions.active.F}/{league.rosterSettings.forwards}
                             </span>
-                            <span className={myTeamPositions.active.D >= league.rosterSettings.defensemen ? 'text-green-400' : 'text-gray-400'}>
+                            <span className={myTeamPositions.active.D >= league.rosterSettings.defensemen ? 'text-green-400' : 'text-green-500 font-bold'}>
                                 D: {myTeamPositions.active.D}/{league.rosterSettings.defensemen}
                             </span>
-                            <span className={myTeamPositions.active.G >= league.rosterSettings.goalies ? 'text-green-400' : 'text-gray-400'}>
+                            <span className={myTeamPositions.active.G >= league.rosterSettings.goalies ? 'text-green-400' : 'text-blue-400 font-bold'}>
                                 G: {myTeamPositions.active.G}/{league.rosterSettings.goalies}
                             </span>
                             <span className="text-purple-400">
