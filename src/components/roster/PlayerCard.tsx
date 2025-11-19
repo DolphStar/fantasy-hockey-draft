@@ -72,72 +72,47 @@ export default function PlayerCard({
 
     // --- 2. Style Configuration ---
     const styles = {
-        // Skaters
+        // Tier 1: Legendary / Superstar (Amber/Gold)
         'legendary': {
             card: "bg-gray-800 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.15)] bg-gradient-to-br from-gray-900 via-amber-900/10 to-gray-900",
             foil: "absolute inset-0 opacity-30 bg-[linear-gradient(110deg,transparent_25%,rgba(251,191,36,0.3)_45%,rgba(245,158,11,0.5)_50%,rgba(251,191,36,0.3)_55%,transparent_75%)] bg-[length:250%_100%] animate-shimmer pointer-events-none mix-blend-overlay",
             accentText: "text-amber-400",
-            statBorder: "border-amber-500/30"
+            statBorder: "border-amber-500/30",
+            avatarRing: "from-amber-400 to-orange-600"
         },
+        // Tier 2: Elite (Emerald)
         'elite': {
             card: "bg-gray-800 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]",
             foil: "",
             accentText: "text-emerald-400",
-            statBorder: "border-emerald-500/30"
+            statBorder: "border-emerald-500/30",
+            avatarRing: "from-emerald-400 to-teal-600"
         },
+        // Tier 3: Good (Sky Blue)
         'good': {
             card: "bg-gray-800 border-sky-500/50 shadow-[0_0_10px_rgba(14,165,233,0.1)]",
             foil: "",
             accentText: "text-sky-400",
-            statBorder: "border-sky-500/30"
+            statBorder: "border-sky-500/30",
+            avatarRing: "from-sky-400 to-blue-600"
         },
+        // Standard
         'standard': {
             card: "bg-gray-800 border-gray-700/50",
             foil: "",
             accentText: "text-white",
-            statBorder: "border-gray-700/50"
-        },
-        // Defensemen
-        'elite-d': {
-            card: "bg-gray-800 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]",
-            foil: "",
-            accentText: "text-purple-400",
-            statBorder: "border-purple-500/30"
-        },
-        'good-d': {
-            card: "bg-gray-800 border-pink-500/50 shadow-[0_0_10px_rgba(236,72,153,0.1)]",
-            foil: "",
-            accentText: "text-pink-400",
-            statBorder: "border-pink-500/30"
-        },
-        'standard-d': {
-            card: "bg-gray-800 border-gray-700/50",
-            foil: "",
-            accentText: "text-white",
-            statBorder: "border-gray-700/50"
-        },
-        // Goalies
-        'elite-g': {
-            card: "bg-gray-800 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.1)]",
-            foil: "",
-            accentText: "text-cyan-400",
-            statBorder: "border-cyan-500/30"
-        },
-        'good-g': {
-            card: "bg-gray-800 border-lime-500/50 shadow-[0_0_10px_rgba(132,204,22,0.1)]",
-            foil: "",
-            accentText: "text-lime-400",
-            statBorder: "border-lime-500/30"
-        },
-        'standard-g': {
-            card: "bg-gray-800 border-gray-700/50",
-            foil: "",
-            accentText: "text-white",
-            statBorder: "border-gray-700/50"
+            statBorder: "border-gray-700/50",
+            avatarRing: "from-gray-600 to-gray-800"
         }
     };
 
-    const currentStyle = styles[tier];
+    // Map specific logic to shared styles
+    let styleKey = 'standard';
+    if (tier === 'legendary') styleKey = 'legendary';
+    else if (tier === 'elite' || tier === 'elite-d' || tier === 'elite-g') styleKey = 'elite';
+    else if (tier === 'good' || tier === 'good-d' || tier === 'good-g') styleKey = 'good';
+
+    const currentStyle = styles[styleKey as keyof typeof styles];
 
     // NHL headshot URL (with fallback)
     const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.person.id}.png`;
@@ -194,13 +169,16 @@ export default function PlayerCard({
                 <div className="flex items-center p-4 pb-2 gap-4">
                     {/* Avatar with Overlapping Team Logo */}
                     <div className="relative flex-shrink-0">
-                        <div className="w-16 h-16 rounded-full bg-gray-700 overflow-hidden border-2 border-gray-600">
+                        <div className={cn(
+                            "w-16 h-16 rounded-full p-0.5 bg-gradient-to-br relative z-10",
+                            currentStyle.avatarRing
+                        )}>
                             <img
                                 src={headshotUrl}
                                 alt={getPlayerFullName(player)}
                                 loading="lazy"
                                 onError={(e) => { e.currentTarget.src = fallbackHeadshot; }}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full rounded-full object-cover bg-gray-800"
                             />
                         </div>
                         {/* Team Logo Badge (Overlapping) */}
