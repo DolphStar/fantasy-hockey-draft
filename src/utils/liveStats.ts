@@ -26,6 +26,7 @@ export interface LivePlayerStats {
   saves: number;
   shutouts: number;
   lastUpdated: any; // Firestore timestamp
+  dateKey: string; // YYYY-MM-DD of the actual game date
 }
 
 /**
@@ -67,24 +68,25 @@ export async function processLiveStats(leagueId: string) {
     const yesterdayStr = `${yesterday.getUTCFullYear()}-${String(yesterday.getUTCMonth() + 1).padStart(2, '0')}-${String(yesterday.getUTCDate()).padStart(2, '0')}`;
     const yesterdayGames = await getGamesForDate(yesterdayStr);
     
-    // Combine and filter: today's all games + yesterday's FINAL only
-    const games = [
-      ...todayGames,
-      ...yesterdayGames.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF')
+    const yesterdayFinals = yesterdayGames.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF');
+    // Combine with explicit metadata so we know which entries belong to which day
+    const gameEntries = [
+      ...todayGames.map(game => ({ game, dateKey: etDateStr, isPreviousDay: false })),
+      ...yesterdayFinals.map(game => ({ game, dateKey: yesterdayStr, isPreviousDay: true })),
     ];
     
-    console.log(`🔴 LIVE STATS: Found ${todayGames.length} today's games + ${yesterdayGames.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF').length} yesterday's FINAL games`);
+    console.log(`🔴 LIVE STATS: Found ${todayGames.length} today's games + ${yesterdayFinals.length} yesterday's FINAL games`);
     
-    if (games.length === 0) {
+    if (gameEntries.length === 0) {
       console.log('🔴 LIVE STATS: No games to process');
       return { success: true, gamesProcessed: 0, playersUpdated: 0 };
     }
     
-    console.log(`🔴 LIVE STATS: Found ${games.length} games today`);
+    console.log(` LIVE STATS: Tracking ${gameEntries.length} games for processing`);
     
     // 2. Get all drafted players for this league
     const draftedPlayersRef = collection(db, 'draftedPlayers');
-    const { getDocs, query, where } = await import('firebase/firestore');
+    const { getDocs, query, where, limit } = await import('firebase/firestore');
     const draftedQuery = query(draftedPlayersRef, where('leagueId', '==', leagueId));
     const draftedSnapshot = await getDocs(draftedQuery);
     
@@ -101,8 +103,23 @@ export async function processLiveStats(leagueId: string) {
     let gamesProcessed = 0;
     let playersUpdated = 0;
     
-    for (let i = 0; i < games.length; i++) {
-      const game = games[i];
+    const liveStatsCollection = collection(db, `leagues/${leagueId}/liveStats`);
+
+    for (let i = 0; i < gameEntries.length; i++) {
+      const { game, dateKey: gameDateKey, isPreviousDay: isPreviousDayGame } = gameEntries[i];
+
+      const existingStatsQuery = query(
+        liveStatsCollection,
+        where('gameId', '==', game.id),
+        limit(1)
+      );
+      const existingStatsSnapshot = await getDocs(existingStatsQuery);
+      const existingStat = existingStatsSnapshot.docs[0]?.data() as LivePlayerStats | undefined;
+
+      if (isPreviousDayGame && !existingStat) {
+        console.log(` LIVE STATS: Skipping previous-day game ${game.id} with no existing stats`);
+        continue;
+      }
       
       try {
         // Skip future games - no stats yet
@@ -122,66 +139,31 @@ export async function processLiveStats(leagueId: string) {
         
         // 2. THE FIX: If API says 0-0, check if we have better data in Firestore
         // This prevents the "blip" from overwriting real scores
-        if (apiAwayScore === 0 && apiHomeScore === 0) {
-          try {
-            const { getDocs, query, where, limit } = await import('firebase/firestore');
-            const existingQuery = query(
-              collection(db, `leagues/${leagueId}/liveStats`),
-              where('gameId', '==', game.id),
-              limit(1)
-            );
-            const existingDocs = await getDocs(existingQuery);
-            
-            if (!existingDocs.empty) {
-              const existingData = existingDocs.docs[0].data() as LivePlayerStats;
-              // If our DB has a real score, IGNORE the API and keep our DB score
-              if (existingData.awayScore > 0 || existingData.homeScore > 0) {
-                console.warn(`⚠️ API returned 0-0 for Game ${game.id}, preserving existing score: ${existingData.awayScore}-${existingData.homeScore}`);
-                awayScore = existingData.awayScore;
-                homeScore = existingData.homeScore;
-              }
-            }
-          } catch (err) {
-            console.error("Error checking existing scores:", err);
+        if (apiAwayScore === 0 && apiHomeScore === 0 && existingStat) {
+          if (existingStat.awayScore > 0 || existingStat.homeScore > 0) {
+            console.warn(`⚠️ API returned 0-0 for Game ${game.id}, preserving existing score: ${existingStat.awayScore}-${existingStat.homeScore}`);
+            awayScore = existingStat.awayScore;
+            homeScore = existingStat.homeScore;
           }
         }
         
         // 3. Handle the "Stuck FINAL Game" (The TBL vs FLA issue)
         // If the game is FINAL, check if we need to update it
         const isFinal = game.gameState === 'FINAL' || game.gameState === 'OFF';
-        if (isFinal) {
-          // Check if API has DIFFERENT scores than what we stored (e.g., OT goal)
-          try {
-            const { getDocs, query, where, limit } = await import('firebase/firestore');
-            const existingQuery = query(
-              collection(db, `leagues/${leagueId}/liveStats`),
-              where('gameId', '==', game.id),
-              limit(1)
-            );
-            const existingDocs = await getDocs(existingQuery);
-            
-            if (!existingDocs.empty) {
-              const existingData = existingDocs.docs[0].data() as LivePlayerStats;
-              
-              // If API has different scores (e.g., 4-3 vs stored 3-3), we MUST update
-              if (apiAwayScore !== existingData.awayScore || apiHomeScore !== existingData.homeScore) {
-                console.warn(`🔄 FINAL game ${game.id} score changed: ${existingData.awayScore}-${existingData.homeScore} → ${apiAwayScore}-${apiHomeScore} (OT goal?)`);
-                // Use the NEW API scores (not the preserved ones)
-                awayScore = apiAwayScore;
-                homeScore = apiHomeScore;
-                // Continue processing to update
-              } else if (apiAwayScore > 0 || apiHomeScore > 0) {
-                // Scores match and are valid, skip
-                console.log(`✓ LIVE STATS: Skipping FINAL game ${game.id} with unchanged scores: ${apiAwayScore}-${apiHomeScore}`);
-                continue;
-              }
-            } else if (apiAwayScore === 0 && apiHomeScore === 0) {
-              // FINAL game with 0-0 and no existing data
-              console.log(`⚠️ LIVE STATS: FINAL game ${game.id} has 0-0, will attempt to fetch real scores`);
-            }
-          } catch (err) {
-            console.error("Error checking FINAL game scores:", err);
+        if (isFinal && existingStat) {
+          // If API has different scores (e.g., OT goal) we must update
+          if (apiAwayScore !== existingStat.awayScore || apiHomeScore !== existingStat.homeScore) {
+            console.warn(`🔄 FINAL game ${game.id} score changed: ${existingStat.awayScore}-${existingStat.homeScore} → ${apiAwayScore}-${apiHomeScore}`);
+            awayScore = apiAwayScore;
+            homeScore = apiHomeScore;
+            // Continue processing to update
+          } else if (apiAwayScore > 0 || apiHomeScore > 0) {
+            console.log(`✓ LIVE STATS: Skipping FINAL game ${game.id} with unchanged scores: ${apiAwayScore}-${apiHomeScore}`);
+            continue;
           }
+        } else if (isFinal && !existingStat) {
+          // Final game with no existing stats should already be skipped earlier
+          continue;
         }
         
         // Add delay between API calls to avoid rate limiting (500ms)
@@ -225,9 +207,10 @@ export async function processLiveStats(leagueId: string) {
               saves: playerStats.saves || 0,
               shutouts: playerStats.shutouts || 0,
               lastUpdated: serverTimestamp(),
+              dateKey: gameDateKey,
             };
             
-            const liveStatsRef = doc(db, `leagues/${leagueId}/liveStats`, `${etDateStr}_${playerStats.playerId}`);
+            const liveStatsRef = doc(db, `leagues/${leagueId}/liveStats`, `${gameDateKey}_${playerStats.playerId}`);
             batch.set(liveStatsRef, liveStats);
             batchCount++;
             

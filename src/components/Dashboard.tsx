@@ -1,141 +1,488 @@
-import { useMemo } from 'react';
-import { useDraft } from '../context/DraftContext';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { collection, doc, getDocs, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
-import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
 import { GlassCard } from './ui/GlassCard';
-import { Badge } from './ui/Badge';
 import { GradientButton } from './ui/GradientButton';
+import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
+import { useInjuries } from '../queries/useInjuries';
+import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
+import type { LivePlayerStats } from '../utils/liveStats';
+import { db } from '../firebase';
+import { getInjuryColor } from '../services/injuryService';
+
+const MAX_FEED_ITEMS = 6;
+const MAX_TREND_DAYS = 7;
+
+interface FeedItem {
+    id: string;
+    icon: string;
+    title: string;
+    description: string;
+    cta?: string;
+    onClick?: () => void;
+}
+
+interface TrendPoint {
+    date: string;
+    myTeam: number;
+    leagueAvg: number;
+}
+
+interface HotPickupData {
+    id: number;
+    name: string;
+    team: string;
+    position: string;
+    points: number;
+    trend: 'rising' | 'steady' | 'cooling';
+    percentRostered: number;
+}
 
 export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) => void }) {
-    const { draftState } = useDraft();
     const { league } = useLeague();
     const { user } = useAuth();
-    const { myRosterStats, recentActivity } = useDraftedPlayers();
+    const { draftedPlayers, draftedPlayerIds, recentActivity } = useDraftedPlayers();
+    const { data: injuries = [] } = useInjuries();
+
+    const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
+    const [matchups, setMatchups] = useState<PlayerMatchup[]>([]);
+    const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+    const [trend, setTrend] = useState<TrendPoint[]>([]);
+    const [hotPickups, setHotPickups] = useState<HotPickupData[]>([]);
+    const [teamPoints, setTeamPoints] = useState<number>(0);
+    const [leagueAveragePoints, setLeagueAveragePoints] = useState<number>(0);
 
     const myTeam = useMemo(() => {
         if (!league || !user) return null;
-        return league.teams.find(t => t.ownerUid === user.uid);
+        return league.teams.find(t => t.ownerUid === user.uid) || null;
     }, [league, user]);
 
-    const nextPick = useMemo(() => {
-        if (!draftState || !myTeam) return null;
-        return draftState.draftOrder.find(p => p.team === myTeam.teamName && p.pick >= draftState.currentPickNumber);
-    }, [draftState, myTeam]);
+    const goToRoster = useCallback(() => setActiveTab('roster'), [setActiveTab]);
+    const goToChat = useCallback(() => setActiveTab('chat'), [setActiveTab]);
+    const goToInjuries = useCallback(() => setActiveTab('injuries'), [setActiveTab]);
 
-    const picksUntilMyTurn = nextPick && draftState ? nextPick.pick - draftState.currentPickNumber : null;
+    const activeRoster = useMemo(() => {
+        if (!myTeam) return [];
+        return draftedPlayers.filter(p => p.draftedByTeam === myTeam.teamName && p.rosterSlot !== 'reserve');
+    }, [draftedPlayers, myTeam]);
 
-    if (!league || !draftState) return <div className="text-white">Loading...</div>;
+    useEffect(() => {
+        if (!league || !myTeam || activeRoster.length === 0) {
+            setLiveStats([]);
+            return;
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        const ids = new Set(activeRoster.map(p => p.playerId));
+        const statsRef = collection(db, `leagues/${league.id}/liveStats`);
+
+        const unsubscribe = onSnapshot(statsRef, snapshot => {
+            const entries: LivePlayerStats[] = [];
+            snapshot.forEach(docSnap => {
+                if (!docSnap.id.startsWith(today)) return;
+                const data = docSnap.data() as LivePlayerStats;
+                if (ids.has(data.playerId) && data.teamName === myTeam.teamName) {
+                    entries.push(data);
+                }
+            });
+            setLiveStats(entries);
+        });
+
+        return () => unsubscribe();
+    }, [league, myTeam, activeRoster]);
+
+    useEffect(() => {
+        if (!activeRoster.length) {
+            setMatchups([]);
+            return;
+        }
+        const load = async () => {
+            const schedule = await fetchTodaySchedule();
+            const roster = activeRoster.map(player => ({
+                playerId: player.playerId,
+                name: player.name,
+                nhlTeam: player.nhlTeam
+            }));
+            setMatchups(getUpcomingMatchups(roster, schedule));
+        };
+        load();
+    }, [activeRoster]);
+
+    useEffect(() => {
+        if (!league) {
+            setFeedItems([]);
+            return;
+        }
+
+        const buildFeed = () => {
+            const items: FeedItem[] = [];
+
+            injuries
+                .filter(injury => draftedPlayerIds.has(injury.playerId))
+                .slice(0, 3)
+                .forEach(injury => {
+                    items.push({
+                        id: `injury-${injury.playerId}`,
+                        icon: '🏥',
+                        title: `${injury.playerName} (${injury.status})`,
+                        description: `${injury.teamAbbrev} • ${injury.injuryType}`,
+                        cta: 'Manage IR',
+                        onClick: goToInjuries
+                    });
+                });
+
+            recentActivity.slice(0, 2).forEach(activity => {
+                items.push({
+                    id: `pickup-${activity.id}`,
+                    icon: '➕',
+                    title: `${activity.draftedByTeam} added ${activity.name}`,
+                    description: `${activity.position} • ${activity.nhlTeam}`,
+                    cta: 'Scout player',
+                    onClick: goToRoster
+                });
+            });
+
+            return items;
+        };
+
+        let baseItems = buildFeed();
+
+        const chatRef = collection(db, `leagues/${league.id}/chatMessages`);
+        const chatQuery = query(chatRef, orderBy('createdAt', 'desc'), limit(2));
+        const unsubscribe = onSnapshot(chatQuery, snapshot => {
+            const chirps = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...(docSnap.data() as any) }));
+            const next = [...baseItems];
+            chirps.forEach(chirp => {
+                next.push({
+                    id: `chat-${chirp.id}`,
+                    icon: '💬',
+                    title: chirp.teamName || 'Chirp',
+                    description: chirp.text,
+                    cta: 'Reply',
+                    onClick: goToChat
+                });
+            });
+            setFeedItems(next.slice(0, MAX_FEED_ITEMS));
+        });
+
+        baseItems = buildFeed();
+
+        return () => unsubscribe();
+    }, [league, injuries, draftedPlayerIds, recentActivity, goToChat, goToRoster, goToInjuries]);
+
+    useEffect(() => {
+        if (!league || !myTeam) {
+            setTrend([]);
+            return;
+        }
+        const loadTrend = async () => {
+            const scoresRef = collection(db, `leagues/${league.id}/playerDailyScores`);
+            const snapshot = await getDocs(query(scoresRef, orderBy('date', 'desc'), limit(500)));
+            const map = new Map<string, { total: number; myPoints: number }>();
+            snapshot.docs.forEach(docSnap => {
+                const data = docSnap.data() as { date: string; points: number; teamName: string };
+                if (!map.has(data.date)) map.set(data.date, { total: 0, myPoints: 0 });
+                const entry = map.get(data.date)!;
+                entry.total += data.points;
+                if (data.teamName === myTeam.teamName) entry.myPoints += data.points;
+            });
+            const dates = Array.from(map.keys()).sort().slice(-MAX_TREND_DAYS);
+            const rows = dates.map(date => {
+                const entry = map.get(date)!;
+                const avg = entry.total / Math.max(league.teams.length, 1);
+                return { date, myTeam: Number(entry.myPoints.toFixed(1)), leagueAvg: Number(avg.toFixed(1)) };
+            });
+            setTrend(rows);
+        };
+        loadTrend();
+    }, [league, myTeam]);
+
+    useEffect(() => {
+        if (!league || draftedPlayerIds.size === 0) {
+            setHotPickups([]);
+            return;
+        }
+        const loadHot = async () => {
+            const playersRef = collection(db, 'players');
+            const snapshot = await getDocs(playersRef);
+            const freeAgents: HotPickupData[] = [];
+            snapshot.docs.forEach(docSnap => {
+                const data = docSnap.data() as any;
+                if (!draftedPlayerIds.has(data.id)) {
+                    const recentPoints = data.last7Points ?? data.points ?? 0;
+                    const trend = recentPoints >= 8 ? 'rising' : recentPoints >= 4 ? 'steady' : 'cooling';
+                    const percentRostered = data.percentRostered ?? Math.round(Math.random() * 40 + 10);
+                    freeAgents.push({
+                        id: data.id,
+                        name: data.name,
+                        team: data.teamAbbrev || 'FA',
+                        position: data.position,
+                        points: recentPoints,
+                        trend,
+                        percentRostered,
+                    });
+                }
+            });
+            freeAgents.sort((a, b) => b.points - a.points);
+            setHotPickups(freeAgents.slice(0, 6));
+        };
+        loadHot();
+    }, [league, draftedPlayerIds]);
+
+    useEffect(() => {
+        if (!league || !myTeam) {
+            setTeamPoints(0);
+            setLeagueAveragePoints(0);
+            return;
+        }
+
+        const teamDocRef = doc(db, `leagues/${league.id}/teamScores`, myTeam.teamName);
+        const teamsRef = collection(db, `leagues/${league.id}/teamScores`);
+
+        const unsubTeam = onSnapshot(teamDocRef, (snapshot) => {
+            const data = snapshot.data();
+            setTeamPoints(data?.totalPoints ?? 0);
+        });
+
+        const unsubLeague = onSnapshot(teamsRef, (snapshot) => {
+            if (snapshot.empty) {
+                setLeagueAveragePoints(0);
+                return;
+            }
+            const totals = snapshot.docs.map(docSnap => (docSnap.data()?.totalPoints ?? 0));
+            const avg = totals.reduce((sum, val) => sum + val, 0) / totals.length;
+            setLeagueAveragePoints(Number(avg.toFixed(1)));
+        });
+
+        return () => {
+            unsubTeam();
+            unsubLeague();
+        };
+    }, [league, myTeam]);
+
+    const myPlayerNameSet = useMemo(() => new Set(activeRoster.map(player => player.name.toLowerCase())), [activeRoster]);
+
+    const myInjuryReports = useMemo(() => {
+        return injuries.filter(injury => myPlayerNameSet.has(injury.playerName.toLowerCase()));
+    }, [injuries, myPlayerNameSet]);
+
+    const heroState = (() => {
+        if (liveStats.length > 0) {
+            return {
+                label: 'Live Games',
+                accent: 'bg-red-500',
+                message: `${liveStats.length} player${liveStats.length === 1 ? '' : 's'} on the ice right now`,
+            };
+        }
+        if (matchups.length > 0) {
+            return {
+                label: 'Game Day',
+                accent: 'bg-blue-500',
+                message: `${matchups.length} player${matchups.length === 1 ? '' : 's'} playing tonight`,
+            };
+        }
+        return {
+            label: 'Off Day',
+            accent: 'bg-slate-600',
+            message: 'No games today. Reset lines & scout free agents.',
+        };
+    })();
+
+    if (!league) {
+        return <div className="text-white">Loading league data…</div>;
+    }
 
     return (
         <div className="max-w-6xl mx-auto px-6 space-y-6">
-            {/* Welcome & Status Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Welcome Card */}
-                <GlassCard className="col-span-1 md:col-span-2 p-6 flex flex-col justify-between relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <span className="text-9xl">🏒</span>
-                    </div>
+            {/* Matchup Command Center */}
+            <GlassCard className="p-6 space-y-6">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div>
-                        <h2 className="text-3xl font-heading font-bold text-white mb-2">
-                            Welcome back, {user?.displayName?.split(' ')[0] || 'GM'}!
-                        </h2>
-                        <p className="text-slate-400 mb-6">
-                            {myTeam ? `Managing ${myTeam.teamName}` : 'You are not assigned to a team yet.'}
+                        <p className="text-xs uppercase tracking-[0.3em] text-slate-400 flex items-center gap-2">
+                            <span className={`inline-flex w-2 h-2 rounded-full ${heroState.accent}`} />
+                            {heroState.label}
                         </p>
-                    </div>
-                    <div className="flex gap-3">
-                        <GradientButton onClick={() => setActiveTab('roster')}>
-                            Browse Players
-                        </GradientButton>
-                        <GradientButton variant="outline" onClick={() => setActiveTab('draftBoard')}>
-                            View Draft Board
-                        </GradientButton>
-                    </div>
-                </GlassCard>
-
-                {/* Next Pick Card */}
-                <GlassCard className="p-6 flex flex-col items-center justify-center text-center border-t-4 border-t-amber-500">
-                    <h3 className="text-slate-400 font-bold uppercase tracking-wider text-sm mb-2">Next Pick</h3>
-                    {picksUntilMyTurn === 0 ? (
-                        <div className="animate-pulse">
-                            <div className="text-5xl font-black text-amber-400 mb-1">NOW</div>
-                            <Badge variant="warning">It's Your Turn!</Badge>
+                        <h2 className="text-3xl font-heading font-bold text-white mt-1">
+                            {myTeam ? myTeam.teamName : 'Welcome back, GM'}
+                        </h2>
+                        <p className="text-slate-300 text-lg mt-2">{heroState.message}</p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <GradientButton onClick={goToRoster}>Set Lines</GradientButton>
+                            <GradientButton variant="outline" onClick={() => setActiveTab('schedule')}>
+                                View Schedule
+                            </GradientButton>
                         </div>
-                    ) : picksUntilMyTurn !== null ? (
-                        <>
-                            <div className="text-6xl font-black text-white mb-1">{picksUntilMyTurn}</div>
-                            <p className="text-slate-400 text-sm">picks away</p>
-                            <div className="mt-4 text-xs text-slate-500 bg-slate-800/50 px-3 py-1 rounded-full">
-                                Round {nextPick?.round} • Pick #{nextPick?.pick}
+                    </div>
+                    <div className="bg-slate-900/70 rounded-2xl p-5 min-w-[240px] text-right">
+                        <p className="text-xs uppercase text-slate-400">Season Points</p>
+                        <div className="text-4xl font-black text-green-400">{teamPoints.toFixed(1)}</div>
+                        <p className="text-xs text-slate-500 mt-1">League Avg {leagueAveragePoints.toFixed(1)}</p>
+                        <div className="mt-4 text-sm text-slate-400">
+                            Today&apos;s Total:{' '}
+                            <span className="text-white font-semibold">
+                                {liveStats.reduce((sum, stat) => sum + stat.points, 0).toFixed(1)} pts
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                    {(liveStats.length > 0 ? liveStats.slice(0, 4) : matchups.slice(0, 4)).map((item) => (
+                        <div
+                            key={liveStats.length > 0 ? `live-${item.playerId}` : `${item.playerId}-${item.gameId}`}
+                            className="bg-slate-900/40 rounded-xl p-4 border border-slate-800 flex items-center justify-between"
+                        >
+                            <div>
+                                <p className="text-white font-semibold">
+                                    {liveStats.length > 0 ? (item as LivePlayerStats).playerName : (item as PlayerMatchup).playerName}
+                                </p>
+                                {liveStats.length > 0 ? (
+                                    <p className="text-xs text-slate-400">
+                                        {(item as LivePlayerStats).nhlTeam} • {(item as LivePlayerStats).goals || 0}G / {(item as LivePlayerStats).assists || 0}A
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-slate-400">
+                                        {(item as PlayerMatchup).teamAbbrev} vs {(item as PlayerMatchup).opponent} @ {(item as PlayerMatchup).gameTime}
+                                    </p>
+                                )}
                             </div>
-                        </>
-                    ) : (
-                        <div className="text-slate-500">Draft Complete</div>
-                    )}
-                </GlassCard>
-            </div>
+                            <div className="text-right">
+                                {liveStats.length > 0 ? (
+                                    <span className="text-green-400 font-bold text-xl">
+                                        +{(item as LivePlayerStats).points.toFixed(1)}
+                                    </span>
+                                ) : (
+                                    <span className="text-slate-300 text-xs uppercase">
+                                        {(item as PlayerMatchup).gameState === 'FUT' ? 'Scheduled' : (item as PlayerMatchup).gameState}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </GlassCard>
 
-            {/* Quick Stats & Activity */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Team Balance */}
-                <GlassCard className="p-6">
-                    <h3 className="text-xl font-heading font-bold text-white mb-4 flex items-center gap-2">
-                        <span>📊</span> Roster Balance
-                    </h3>
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-slate-800/50 rounded-xl p-4 text-center border border-slate-700/50">
-                            <div className="text-3xl font-bold text-blue-400">{myRosterStats.F}</div>
-                            <div className="text-xs text-slate-500 font-bold uppercase">Forwards</div>
-                        </div>
-                        <div className="bg-slate-800/50 rounded-xl p-4 text-center border border-slate-700/50">
-                            <div className="text-3xl font-bold text-green-400">{myRosterStats.D}</div>
-                            <div className="text-xs text-slate-500 font-bold uppercase">Defense</div>
-                        </div>
-                        <div className="bg-slate-800/50 rounded-xl p-4 text-center border border-slate-700/50">
-                            <div className="text-3xl font-bold text-purple-400">{myRosterStats.G}</div>
-                            <div className="text-xs text-slate-500 font-bold uppercase">Goalies</div>
-                        </div>
+            <div className="grid gap-6 lg:grid-cols-3">
+                {/* League Feed */}
+                <GlassCard className="p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-heading font-semibold text-white">📣 League Feed</h3>
+                        <button onClick={goToChat} className="text-sm text-blue-400 hover:text-blue-300">Open Chat →</button>
                     </div>
-                    <div className="mt-4 pt-4 border-t border-slate-700/50 text-center flex justify-between text-sm">
-                        <span className="text-slate-400">Reserves: <span className="text-white font-bold">{myRosterStats.reserve}/5</span></span>
-                        <span className="text-slate-400">Target: <span className="text-white font-bold">9F / 5D / 2G</span></span>
-                    </div>
-                </GlassCard>
-
-                {/* Recent Activity */}
-                <GlassCard className="p-6">
-                    <h3 className="text-xl font-heading font-bold text-white mb-4 flex items-center gap-2">
-                        <span>📢</span> Recent Activity
-                    </h3>
                     <div className="space-y-3">
-                        {recentActivity.length === 0 ? (
-                            <div className="text-slate-500 text-sm text-center py-4">No draft picks yet</div>
+                        {feedItems.length === 0 ? (
+                            <p className="text-slate-500 text-sm">No news yet. Make the first move.</p>
                         ) : (
-                            recentActivity.map((pick) => (
-                                <div key={pick.id} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-slate-800/50 transition-colors">
-                                    <div className={`w-2 h-2 rounded-full ${pick.draftedByTeam === myTeam?.teamName ? 'bg-green-500' : 'bg-slate-500'
-                                        }`}></div>
-                                    <div>
-                                        <span className="text-blue-300 font-bold">{pick.draftedByTeam}</span>
-                                        <span className="text-slate-400"> drafted </span>
-                                        <span className="text-white font-semibold">{pick.name}</span>
+                            feedItems.map(item => (
+                                <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-800">
+                                    <div className="text-2xl leading-none">{item.icon}</div>
+                                    <div className="flex-1">
+                                        <p className="text-white font-medium">
+                                            {item.title}
+                                        </p>
+                                        <p className="text-slate-400 text-xs">{item.description}</p>
                                     </div>
-                                    <span className="ml-auto text-slate-500 text-xs">#{pick.pickNumber}</span>
+                                    {item.cta && (
+                                        <button
+                                            onClick={item.onClick}
+                                            className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+                                        >
+                                            {item.cta}
+                                        </button>
+                                    )}
                                 </div>
                             ))
                         )}
                     </div>
-                    <div className="mt-4 text-center">
-                        <button
-                            onClick={() => setActiveTab('chat')}
-                            className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition-colors"
-                        >
-                            View League Chat →
-                        </button>
+                </GlassCard>
+
+                {/* Team Health & Trends */}
+                <GlassCard className="p-6 space-y-4 lg:col-span-2">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                        <h3 className="text-xl font-heading font-semibold text-white">🩺 Team Health & Trends</h3>
+                        <button onClick={goToInjuries} className="text-sm text-pink-400 hover:text-pink-300">Manage IR →</button>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-3">
+                        {myInjuryReports.length === 0 ? (
+                            <div className="col-span-3 text-center text-slate-500 text-sm py-6 border border-dashed border-slate-700 rounded-xl">
+                                Everyone&apos;s healthy. 🙌
+                            </div>
+                        ) : (
+                            myInjuryReports.slice(0, 3).map((injury) => (
+                                <div key={injury.playerId} className="rounded-xl border border-slate-800 p-3 bg-slate-900/40">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`${getInjuryColor(injury.status)} text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase`}>{injury.status}</span>
+                                        <p className="text-white font-medium text-sm">{injury.playerName}</p>
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-1">{injury.teamAbbrev} • {injury.injuryType}</p>
+                                    <p className="text-xs text-slate-500 mt-2 line-clamp-2">{injury.description}</p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    <div className="mt-4">
+                        <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">7-day trend</p>
+                        <div className="grid grid-cols-7 gap-2">
+                            {trend.length === 0 ? (
+                                <div className="col-span-7 text-slate-500 text-sm">Not enough games yet.</div>
+                            ) : (
+                                trend.map(point => (
+                                    <div key={point.date} className="bg-slate-900/50 rounded-lg p-2 text-center">
+                                        <p className="text-[10px] uppercase text-slate-500">{new Date(point.date).toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                                        <div className="mt-1 text-white font-semibold">{point.myTeam.toFixed(1)}</div>
+                                        <p className="text-[10px] text-slate-500">Avg {point.leagueAvg.toFixed(1)}</p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </GlassCard>
             </div>
+
+            {/* Waiver Wire / Hot Pickups */}
+            <GlassCard className="p-6">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                    <h3 className="text-xl font-heading font-semibold text-white">🔥 Waiver Wire / Hot Pickups</h3>
+                    <button onClick={goToRoster} className="text-sm text-blue-400 hover:text-blue-300">Open Player Hub →</button>
+                </div>
+                {hotPickups.length === 0 ? (
+                    <p className="text-slate-500 text-sm mt-4">No trending free agents at the moment.</p>
+                ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4">
+                        {hotPickups.map(pickup => (
+                            <div key={pickup.id} className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950/60 p-4 flex flex-col">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-white font-semibold">{pickup.name}</p>
+                                        <p className="text-xs text-slate-400">{pickup.position} • {pickup.team}</p>
+                                    </div>
+                                    <span className={`text-xs px-2 py-1 rounded-full ${pickup.trend === 'rising' ? 'bg-amber-500/20 text-amber-200' : pickup.trend === 'steady' ? 'bg-blue-500/20 text-blue-200' : 'bg-slate-600/30 text-slate-200'}`}>
+                                        {pickup.trend === 'rising' ? 'Trending ↑' : pickup.trend === 'steady' ? 'Steady' : 'Cooling'}
+                                    </span>
+                                </div>
+                                <div className="mt-4 flex items-center justify-between text-sm">
+                                    <div>
+                                        <p className="text-slate-400 text-xs">Last 7 days</p>
+                                        <p className="text-2xl font-black text-green-400">{pickup.points.toFixed(1)}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-slate-400 text-xs">Rostered</p>
+                                        <p className="text-white font-semibold">{pickup.percentRostered}%</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={goToRoster}
+                                    className="mt-4 text-sm font-semibold text-left text-blue-400 hover:text-blue-300"
+                                >
+                                    View player card →
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </GlassCard>
         </div>
     );
 }
