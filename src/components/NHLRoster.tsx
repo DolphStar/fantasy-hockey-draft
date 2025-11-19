@@ -408,7 +408,6 @@ export default function NHLRoster() {
 
   // Use virtualization for large lists (>100 players)
   const useVirtualization = filteredRoster.length > 100;
-  const VIRTUAL_CARD_HEIGHT = 320; // px
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -504,7 +503,7 @@ export default function NHLRoster() {
             style={{ height: '800px' }}
             totalCount={filteredRoster.length}
             data={filteredRoster}
-            itemContent={(index, player) => (
+            itemContent={(_index, player) => (
               <div className="p-2 h-full">
                 <PlayerCard
                   player={player}
