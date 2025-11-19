@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 import { db } from '../firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { isPlayerInjuredByName, getInjuryIcon } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
 import { toast } from 'sonner';
@@ -27,7 +27,7 @@ interface DraftedPlayer {
 }
 
 export default function PlayerList() {
-  const { currentUser } = useAuth();
+  useAuth();
   const { league, myTeam } = useLeague();
   const [players, setPlayers] = useState<DraftedPlayer[]>([]);
   const [loading, setLoading] = useState(true);
