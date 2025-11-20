@@ -222,8 +222,7 @@ export default function Standings() {
                   <th className="text-left p-4 text-slate-400 font-semibold">Rank</th>
                   <th className="text-left p-4 text-slate-400 font-semibold">Team</th>
                   <th className="text-center p-4 text-slate-400 font-semibold">Points</th>
-                  <th className="text-center p-4 text-slate-400 font-semibold">W</th>
-                  <th className="text-center p-4 text-slate-400 font-semibold">L</th>
+
                   <th className="text-right p-4 text-slate-400 font-semibold">Last Updated</th>
                 </tr>
               </thead>
@@ -264,8 +263,7 @@ export default function Standings() {
                           {team.totalPoints.toFixed(2)}
                         </span>
                       </td>
-                      <td className="p-4 text-center text-slate-300 font-medium">{team.wins || 0}</td>
-                      <td className="p-4 text-center text-slate-300 font-medium">{team.losses || 0}</td>
+
                       <td className="p-4 text-right text-slate-500 text-sm font-mono">
                         {team.lastUpdated
                           ? new Date(team.lastUpdated).toLocaleDateString()
