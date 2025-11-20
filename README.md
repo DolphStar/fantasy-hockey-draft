@@ -2,6 +2,9 @@
 
 A **real-time fantasy hockey draft application** built with React, TypeScript, Firebase, and the NHL API. The app provides a complete fantasy hockey league experience including live drafting, automated daily scoring, real-time game stats, roster management, injury tracking, and league chat.
 
+> ⚠️ **Current Status: Single-League Demo**  
+> Currently, the app is hardcoded to run a single active league for demonstration purposes. Multi-tenancy (supporting multiple different leagues simultaneously) is planned for v2.
+
 ---
 
 ## 🎯 Core Features
