@@ -155,7 +155,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
             snapshot.forEach(docSnap => {
                 if (!docSnap.id.startsWith(today)) return;
                 const data = docSnap.data() as LivePlayerStats;
-                if (ids.has(data.playerId) && data.teamName === myTeam.teamName) {
+                if (ids.has(data.playerId)) {
                     entries.push(data);
                 }
             });
