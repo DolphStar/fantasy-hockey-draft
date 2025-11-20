@@ -102,6 +102,30 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 
 ---
 
+## 📸 Screenshots
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+*Season overview with live game status, matchups, league feed, team health, and waiver wire pickups*
+
+### NHL Rosters
+![NHL Rosters](screenshots/nhl-rosters.png)
+*Browse and search NHL players by team and position with real-time availability*
+
+### Draft Board
+![Draft Board](screenshots/draft-board.png)
+*Visual snake draft grid showing all picks across teams and rounds*
+
+### Standings
+![Standings](screenshots/standings.png)
+*League standings with real-time point totals and rankings*
+
+### Live Stats
+![Live Stats](screenshots/live-stats.png)
+*Real-time game stats tracking for all your players during NHL games*
+
+---
+
 ## 🛠️ Technical Stack
 
 ### Frontend
@@ -262,7 +286,7 @@ See [SECURITY_SETUP.md](./SECURITY_SETUP.md) for detailed security configuration
 - **Injury data** - Depends on sportsdata.io API (requires API key)
 - **NHL API rate limits** - No official rate limit, but should respect fair use
 - **Firestore costs** - Free tier allows 50k reads/day, 20k writes/day
-- **No player search** - Must browse by team (to be added)
+
 - **No trades** - Players cannot be traded between teams (future feature)
 - **No waiver wire** - Cannot pick up undrafted players mid-season (future)
 
@@ -270,7 +294,7 @@ See [SECURITY_SETUP.md](./SECURITY_SETUP.md) for detailed security configuration
 
 ## 🔮 Future Enhancements
 
-- [ ] Player search by name
+
 - [ ] Trade system between teams
 - [ ] Waiver wire / free agent pickups
 - [ ] Weekly head-to-head matchups
