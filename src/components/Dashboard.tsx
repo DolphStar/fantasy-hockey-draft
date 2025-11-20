@@ -146,7 +146,15 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
             return;
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        // Get today's date in Eastern Time (NHL's timezone) to match liveStats keys
+        const now = new Date();
+        const etOffset = -5; // EST is UTC-5
+        const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+        const year = etTime.getUTCFullYear();
+        const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(etTime.getUTCDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`;
+
         const ids = new Set(activeRoster.map(p => p.playerId));
         const statsRef = collection(db, `leagues/${league.id}/liveStats`);
 
@@ -494,9 +502,15 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                             </div>
                             <div className="text-right">
                                 {isLiveMode ? (
-                                    <span className="text-green-400 font-bold text-xl">
-                                        +{(item as LivePlayerStats).points.toFixed(1)}
-                                    </span>
+                                    (item as LivePlayerStats).points > 0 ? (
+                                        <span className="text-green-400 font-bold text-xl">
+                                            +{(item as LivePlayerStats).points.toFixed(1)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-slate-600 font-medium text-lg">
+                                            0.0
+                                        </span>
+                                    )
                                 ) : (
                                     <span className="text-slate-300 text-xs uppercase">
                                         {(item as PlayerMatchup).gameState === 'FUT' ? 'Scheduled' : (item as PlayerMatchup).gameState}
