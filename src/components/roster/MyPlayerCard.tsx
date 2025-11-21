@@ -96,13 +96,13 @@ export default function MyPlayerCard({
                 'relative group transition-all duration-300 h-[330px] w-full',
                 isSelected ? 'scale-[1.02] z-10' : 'hover:scale-[1.02] hover:-translate-y-1'
             )}
-            onMouseEnter={() => setShowPopup(true)}
+            onMouseEnter={() => !isOverlay && setShowPopup(true)}
             onMouseLeave={() => setShowPopup(false)}
-            onTouchStart={() => setShowPopup(true)}
+            onTouchStart={() => !isOverlay && setShowPopup(true)}
             onTouchEnd={() => setTimeout(() => setShowPopup(false), 3000)}
         >
-            {/* Game Log Popup */}
-            {showPopup && (
+            {/* Game Log Popup - Don't show on drag overlay */}
+            {showPopup && !isOverlay && (
                 <PlayerGameLogPopup
                     playerName={player.name}
                     recentGames={recentGames}
