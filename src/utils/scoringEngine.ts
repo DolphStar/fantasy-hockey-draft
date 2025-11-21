@@ -41,14 +41,18 @@ function calculateSkaterPoints(
   // Short-handed goals (bonus on top of regular goal)
   points += (stats.shortHandedGoals || 0) * rules.shortHandedGoal;
 
+  // Fighting (5 PIM = 1 fight)
+  const fights = Math.floor((stats.pim || 0) / 5);
+  points += fights * rules.fight;
+
   // Defense-specific stats
   if (isDefenseman) {
     points += (stats.blockedShots || 0) * rules.blockedShot;
     points += (stats.hits || 0) * rules.hit;
   }
 
-  // Note: Fight and overtime goal detection would require more detailed game data
-  // These would need to be tracked separately via NHL play-by-play data
+  // Note: Overtime goal detection would require more detailed game data
+  // This would need to be tracked separately via NHL play-by-play data
 
   return points;
 }
@@ -227,6 +231,7 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
               if (playerStats.shots !== undefined) stats.shots = playerStats.shots;
               if (playerStats.hits !== undefined) stats.hits = playerStats.hits;
               if (playerStats.blockedShots !== undefined) stats.blockedShots = playerStats.blockedShots;
+              if (playerStats.pim !== undefined) stats.pim = playerStats.pim;
               if (playerStats.wins !== undefined) stats.wins = playerStats.wins;
               if (playerStats.saves !== undefined) stats.saves = playerStats.saves;
               if (playerStats.shutouts !== undefined) stats.shutouts = playerStats.shutouts;

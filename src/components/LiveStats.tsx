@@ -317,6 +317,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
                             <th className="text-center p-3 text-slate-400 font-medium">A</th>
                             <th className="text-center p-3 text-slate-400 font-medium">H</th>
                             <th className="text-center p-3 text-slate-400 font-medium">BS</th>
+                            <th className="text-center p-3 text-slate-400 font-medium">F</th>
                             <th className="text-center p-3 text-slate-400 font-medium">W</th>
                             <th className="text-center p-3 text-slate-400 font-medium">Sv</th>
                             <th className="text-center p-3 text-slate-400 font-bold">Pts</th>
@@ -336,6 +337,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
                               <td className="p-3 text-center text-slate-300 font-medium">{player.assists}</td>
                               <td className="p-3 text-center text-slate-400">{player.hits || 0}</td>
                               <td className="p-3 text-center text-slate-400">{player.blockedShots || 0}</td>
+                              <td className="p-3 text-center text-slate-400">{player.fights || 0}</td>
                               <td className="p-3 text-center text-slate-400">{player.wins || 0}</td>
                               <td className="p-3 text-center text-slate-400">{player.saves || 0}</td>
                               <td className="p-3 text-center">
@@ -515,6 +517,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
                                           <th className="text-center p-2 text-slate-400 font-medium">A</th>
                                           <th className="text-center p-2 text-slate-400 font-medium">H</th>
                                           <th className="text-center p-2 text-slate-400 font-medium">BS</th>
+                                          <th className="text-center p-2 text-slate-400 font-medium">F</th>
                                           <th className="text-center p-2 text-slate-400 font-medium">Pts</th>
                                         </tr>
                                       </thead>
@@ -549,6 +552,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
                                                 <td className="p-2 text-center text-slate-300">{stats?.assists || 0}</td>
                                                 <td className="p-2 text-center text-slate-400">{stats?.hits || 0}</td>
                                                 <td className="p-2 text-center text-slate-400">{stats?.blockedShots || 0}</td>
+                                                <td className="p-2 text-center text-slate-400">{stats?.fights || 0}</td>
                                                 <td className="p-2 text-center">
                                                   <span className="text-green-400 font-bold">
                                                     {stats?.points ? `+${stats.points.toFixed(2)}` : '0.00'}
