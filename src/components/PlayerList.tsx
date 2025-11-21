@@ -621,7 +621,6 @@ export default function PlayerList() {
                 injury={isPlayerInjuredByName(player.name, injuries) || undefined}
                 onSwap={handleSwap}
                 onCancelSwap={handleCancelSwap}
-                isSwapMode={swapMode}
                 isSelected={selectedPlayerId === player.id}
               />
             ))}
@@ -665,7 +664,6 @@ export default function PlayerList() {
                 injury={isPlayerInjuredByName(player.name, injuries) || undefined}
                 onSwap={handleSwap}
                 onCancelSwap={handleCancelSwap}
-                isSwapMode={swapMode}
                 isSelected={selectedPlayerId === player.id}
               />
             ))}
