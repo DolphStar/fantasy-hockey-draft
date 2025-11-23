@@ -113,8 +113,17 @@ export default function MyPlayerCard({
         <div
             className={cn(
                 'relative group transition-all duration-300 h-[420px] w-full',
-                isSelected ? 'scale-[1.02] z-10' : 'hover:scale-[1.02] hover:-translate-y-1'
+                isSelected ? 'scale-[1.02] z-10' : 'hover:scale-[1.02] hover:-translate-y-1',
+                (onSwap || isSelected) && 'cursor-pointer'
             )}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (isSelected && onCancelSwap) {
+                    onCancelSwap(player);
+                } else if (onSwap) {
+                    onSwap(player);
+                }
+            }}
             onMouseEnter={() => !isOverlay && setShowPopup(true)}
             onMouseLeave={() => setShowPopup(false)}
             onTouchStart={() => !isOverlay && setShowPopup(true)}
@@ -124,7 +133,6 @@ export default function MyPlayerCard({
             {showPopup && !isOverlay && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
                     <PlayerGameLogPopup
-                        playerName={player.name}
                         recentGames={recentGames}
                         projectedPoints={projectedPoints}
                         injury={injury}
@@ -270,33 +278,34 @@ export default function MyPlayerCard({
 
                     {/* Action Buttons - Blue Glowing */}
                     {player.pendingSlot ? (
-                        <div className="absolute bottom-[-24px] left-1/2 -translate-x-1/2 w-[90%] z-30">
+                        <div className="absolute bottom-[-24px] left-1/2 -translate-x-1/2 w-[85%] z-30">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onCancelSwap?.(player);
                                 }}
-                                className="w-full py-2 rounded-full bg-gradient-to-b from-yellow-400 to-yellow-600 border-t border-yellow-200 text-white text-sm font-black uppercase tracking-wider text-center shadow-[0_4px_10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.4)] hover:brightness-110 transition-all cursor-pointer relative overflow-hidden active:translate-y-[1px]"
+                                className={cn(
+                                    'w-full py-3 rounded-full',
+                                    'font-black uppercase tracking-[0.2em] text-sm text-white',
+                                    'flex items-center justify-center gap-2',
+                                    'bg-gradient-to-b from-amber-400 to-amber-600',
+                                    'shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_4px_10px_rgba(0,0,0,0.5)]',
+                                    'border border-amber-300/30',
+                                    'transition-all duration-300',
+                                    'hover:scale-[1.02] hover:brightness-110 hover:shadow-[0_0_20px_rgba(251,191,36,0.6)]',
+                                    'active:scale-95'
+                                )}
                             >
-                                Pending Swap (Cancel?)
+                                {/* Clock Icon */}
+                                <svg className="w-4 h-4 text-amber-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="drop-shadow-md">Pending Swap</span>
                             </button>
                         </div>
                     ) : (
-                        <div className="absolute bottom-[-120px] left-1/2 -translate-x-1/2 w-[90%] z-30 opacity-0 group-hover:opacity-100 group-hover:bottom-[5px] transition-all duration-300">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSwap?.(player);
-                                }}
-                                className={cn(
-                                    'w-full py-2.5 rounded-full text-sm font-black uppercase tracking-[0.15em] transition-all relative overflow-hidden active:translate-y-[1px]',
-                                    isSelected
-                                        ? 'bg-gradient-to-b from-red-500 via-red-600 to-red-700 text-white shadow-[0_0_20px_rgba(239,68,68,0.6),0_4px_15px_rgba(0,0,0,0.4),inset_0_1px_2px_rgba(255,255,255,0.3)]'
-                                        : 'bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.6),0_4px_15px_rgba(0,0,0,0.4),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.8),0_4px_15px_rgba(0,0,0,0.4)]'
-                                )}
-                            >
-                                <span className="relative z-10 drop-shadow-md">{isSelected ? 'Cancel Swap' : 'Swap Player'}</span>
-                            </button>
+                        <div className="absolute bottom-[-120px] left-1/2 -translate-x-1/2 w-[85%] z-30 opacity-0 group-hover:opacity-100 group-hover:bottom-[-24px] transition-all duration-300 pointer-events-none">
+                            {/* Button removed, functionality moved to card click */}
                         </div>
                     )}
                 </div>
