@@ -41,9 +41,8 @@ function calculateSkaterPoints(
   // Short-handed goals (bonus on top of regular goal)
   points += (stats.shortHandedGoals || 0) * rules.shortHandedGoal;
 
-  // Fighting (5 PIM = 1 fight)
-  const fights = Math.floor((stats.pim || 0) / 5);
-  points += fights * rules.fight;
+  // NOTE: Fight scoring is handled by Cloud Function using play-by-play data
+  // Manual scoring from the UI will not count fights to avoid incorrect PIM/5 calculation
 
   // Defense-specific stats
   if (isDefenseman) {

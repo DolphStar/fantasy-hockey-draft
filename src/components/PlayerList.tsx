@@ -526,77 +526,73 @@ export default function PlayerList() {
 
 
 
-      {/* Sort & Filter Controls */}
-      <div className="max-w-4xl mx-auto mb-6 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-900/40 p-4 rounded-xl border border-white/5 backdrop-blur-md">
-        {/* Filter Controls */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2">Filter:</span>
-          <div className="flex bg-slate-800/50 rounded-lg p-1 border border-white/5">
-            {(['all', 'F', 'D', 'G'] as const).map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setFilterBy(filter)}
-                className={cn(
-                  "px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all",
-                  filterBy === filter
-                    ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                )}
-              >
-                {filter === 'all' ? 'All' : filter}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sort Controls */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2">Sort By:</span>
-          <div className="flex bg-slate-800/50 rounded-lg p-1 border border-white/5">
-            {[
-              { id: 'points', label: 'Points' },
-              { id: 'name', label: 'Name' },
-              { id: 'position', label: 'Pos' },
-              { id: 'games', label: 'Games Today' }
-            ].map((sort) => (
-              <button
-                key={sort.id}
-                onClick={() => setSortBy(sort.id as 'points' | 'name' | 'position' | 'games')}
-                className={cn(
-                  "px-3 py-1.5 rounded-md text-xs font-bold uppercase transition-all",
-                  sortBy === sort.id
-                    ? "bg-purple-500 text-white shadow-lg shadow-purple-500/20"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                )}
-              >
-                {sort.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Active Roster */}
       <GlassCard className="p-6 mb-6 bg-gray-900/40 border-gray-700/30 backdrop-blur-md">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-white flex items-center gap-3">
-            <span className="bg-green-500/20 text-green-400 p-2 rounded-lg shadow-[0_0_15px_rgba(74,222,128,0.2)]">🏒</span>
-            Active Roster
-            <span className="text-gray-500 text-lg font-normal">({activePlayers.length})</span>
-          </h3>
-          {league?.rosterSettings && (
-            <div className="flex gap-3 text-sm bg-gray-800/50 p-2 rounded-lg border border-gray-700/50">
-              <div className={cn("px-3 py-1 rounded-md flex items-center gap-2", rosterCounts.forwards >= league.rosterSettings.forwards ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'text-gray-400')}>
-                <span className="font-bold">F</span> {rosterCounts.forwards}/{league.rosterSettings.forwards}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4">
+          <div className="flex items-center gap-4">
+            <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+              <span className="bg-green-500/20 text-green-400 p-2 rounded-lg shadow-[0_0_15px_rgba(74,222,128,0.2)]">🏒</span>
+              Active Roster
+              <span className="text-gray-500 text-lg font-normal">({activePlayers.length})</span>
+            </h3>
+            {league?.rosterSettings && (
+              <div className="flex gap-2 text-xs bg-gray-800/50 p-1.5 rounded-lg border border-gray-700/50">
+                <div className={cn("px-2 py-0.5 rounded flex items-center gap-1.5", rosterCounts.forwards >= league.rosterSettings.forwards ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'text-gray-400')}>
+                  <span className="font-bold">F</span> {rosterCounts.forwards}/{league.rosterSettings.forwards}
+                </div>
+                <div className={cn("px-2 py-0.5 rounded flex items-center gap-1.5", rosterCounts.defense >= league.rosterSettings.defensemen ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'text-gray-400')}>
+                  <span className="font-bold">D</span> {rosterCounts.defense}/{league.rosterSettings.defensemen}
+                </div>
+                <div className={cn("px-2 py-0.5 rounded flex items-center gap-1.5", rosterCounts.goalies >= league.rosterSettings.goalies ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'text-gray-400')}>
+                  <span className="font-bold">G</span> {rosterCounts.goalies}/{league.rosterSettings.goalies}
+                </div>
               </div>
-              <div className={cn("px-3 py-1 rounded-md flex items-center gap-2", rosterCounts.defense >= league.rosterSettings.defensemen ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'text-gray-400')}>
-                <span className="font-bold">D</span> {rosterCounts.defense}/{league.rosterSettings.defensemen}
-              </div>
-              <div className={cn("px-3 py-1 rounded-md flex items-center gap-2", rosterCounts.goalies >= league.rosterSettings.goalies ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'text-gray-400')}>
-                <span className="font-bold">G</span> {rosterCounts.goalies}/{league.rosterSettings.goalies}
-              </div>
+            )}
+          </div>
+
+          {/* Compact Filter & Sort Controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Filter */}
+            <div className="flex bg-slate-800/50 rounded-lg p-1 border border-white/5">
+              {(['all', 'F', 'D', 'G'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setFilterBy(filter)}
+                  className={cn(
+                    "px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all",
+                    filterBy === filter
+                      ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  {filter === 'all' ? 'All' : filter}
+                </button>
+              ))}
             </div>
-          )}
+
+            {/* Sort */}
+            <div className="flex bg-slate-800/50 rounded-lg p-1 border border-white/5">
+              {[
+                { id: 'points', label: 'Pts' },
+                { id: 'name', label: 'Name' },
+                { id: 'position', label: 'Pos' },
+                { id: 'games', label: 'Gms' }
+              ].map((sort) => (
+                <button
+                  key={sort.id}
+                  onClick={() => setSortBy(sort.id as 'points' | 'name' | 'position' | 'games')}
+                  className={cn(
+                    "px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all",
+                    sortBy === sort.id
+                      ? "bg-purple-500 text-white shadow-lg shadow-purple-500/20"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  {sort.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {loading ? (

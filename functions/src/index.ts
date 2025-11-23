@@ -1,5 +1,6 @@
-import {onDocumentUpdated} from "firebase-functions/v2/firestore";
-import {setGlobalOptions} from "firebase-functions/v2/options";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { setGlobalOptions } from "firebase-functions/v2/options";
 import * as admin from "firebase-admin";
 import axios from "axios";
 
@@ -11,7 +12,7 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 
 // Optional: global options to avoid runaway concurrency
-setGlobalOptions({maxInstances: 10});
+setGlobalOptions({ maxInstances: 10 });
 
 interface DraftPick {
   team: string;
@@ -113,9 +114,6 @@ export const onDraftPick = onDocumentUpdated("drafts/{leagueId}", async (event: 
     return;
   }
 
-  // NOTE: functions.config() is deprecated long-term, but still works and
-  // matches how you already configured your webhook URL via
-  // `firebase functions:config:set discord.webhook_url=...`.
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
   if (!webhookUrl) {
@@ -135,10 +133,62 @@ export const onDraftPick = onDocumentUpdated("drafts/{leagueId}", async (event: 
   ].join("\n");
 
   try {
-    await axios.post(webhookUrl, {content: message});
+    await axios.post(webhookUrl, { content: message });
     console.log("Sent Discord ping to", discordId, "for league", leagueId);
   } catch (err) {
     console.error("Failed to send Discord ping:", err);
   }
 });
 
+/**
+ * Scheduled function: runs daily at 3 AM EST to calculate fantasy points
+ * from yesterday's NHL games for all active leagues.
+ */
+export const scheduledDailyScoring = onSchedule({
+  schedule: "0 3 * * *", // 3:00 AM every day
+  timeZone: "America/New_York", // EST/EDT timezone
+  memory: "256MiB",
+}, async (event) => {
+  console.log("🏒 Starting scheduled daily scoring...");
+
+  try {
+    // Get all leagues
+    const leaguesSnapshot = await db.collection("leagues").get();
+
+    if (leaguesSnapshot.empty) {
+      console.log("No leagues found");
+      return;
+    }
+
+    console.log(`Found ${leaguesSnapshot.size} leagues`);
+
+    // Process each league
+    const results = [];
+    for (const leagueDoc of leaguesSnapshot.docs) {
+      const leagueId = leagueDoc.id;
+      const leagueData = leagueDoc.data();
+
+      // Skip leagues that aren't live
+      if (leagueData.status !== "live") {
+        console.log(`Skipping league ${leagueId} (status: ${leagueData.status})`);
+        continue;
+      }
+
+      try {
+        const { processYesterdayScores } = await import("./scoringEngine.js");
+        await processYesterdayScores(leagueId);
+        results.push({ leagueId, status: "success" });
+      } catch (error: any) {
+        console.error(`Error processing league ${leagueId}:`, error);
+        results.push({ leagueId, status: "error", error: error.message });
+        // Continue with other leagues even if one fails
+      }
+    }
+
+    console.log("✅ Scheduled daily scoring complete!");
+    console.log("Results:", results);
+  } catch (error) {
+    console.error("Error in scheduledDailyScoring:", error);
+    throw error;
+  }
+});
