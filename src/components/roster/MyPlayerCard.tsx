@@ -5,20 +5,24 @@ import { useState } from 'react';
 
 // Position color logic - User Defined Palette
 const getPositionTheme = (pos: string) => {
+    // Updated color mapping per user request
     if (['C', 'L', 'R'].includes(pos)) return {
-        color: "cyan-400",
-        rgb: "0,234,255",
-        graph: "#00eaff"
-    };
-    if (pos === 'D') return {
+        // Centers and Wingers: Blue-ish (using blue-400)
         color: "blue-400",
         rgb: "96,165,250",
         graph: "#60a5fa"
     };
-    if (pos === 'G') return {
+    if (pos === 'D') return {
+        // Defense: Green-ish (using green-400)
         color: "green-400",
         rgb: "74,222,128",
         graph: "#4ade80"
+    };
+    if (pos === 'G') return {
+        // Goalies: Yellow (using yellow-400)
+        color: "yellow-400",
+        rgb: "234,179,8",
+        graph: "#eab308"
     };
     return {
         color: "gray-400",
@@ -208,7 +212,10 @@ export default function MyPlayerCard({
                     <div
                         className={cn(
                             'absolute top-3 right-3 z-30 w-12 h-14 flex items-center justify-center shadow-[0_4px_6px_rgba(0,0,0,0.3)]',
-                            `bg-gradient-to-b from-slate-400 via-${theme.color} to-slate-900 text-white`
+                            // Color coding logic matching filters: F=blue, D=green, G=yellow
+                            ['C', 'L', 'R'].includes(player.position) ? 'bg-gradient-to-b from-blue-400 via-blue-600 to-slate-900' :
+                                player.position === 'D' ? 'bg-gradient-to-b from-green-400 via-green-600 to-slate-900' :
+                                    'bg-gradient-to-b from-yellow-400 via-yellow-600 to-slate-900'
                         )}
                         style={{
                             clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)'
@@ -216,8 +223,16 @@ export default function MyPlayerCard({
                     >
                         <div className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none mix-blend-overlay" />
                         <div className="absolute inset-[1px] bg-slate-900 z-0" style={{ clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)' }} />
-                        <div className={cn("absolute inset-[2px] z-0 bg-gradient-to-br from-slate-700 to-slate-900", `from-${theme.color}/50 to-slate-900`)} style={{ clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)' }} />
-                        <span className="font-black font-heading text-lg drop-shadow-md mt-[-2px] relative z-10">
+                        <div
+                            className={cn(
+                                "absolute inset-[2px] z-0 bg-gradient-to-br",
+                                ['C', 'L', 'R'].includes(player.position) ? 'from-blue-600/50 to-slate-900' :
+                                    player.position === 'D' ? 'from-green-600/50 to-slate-900' :
+                                        'from-yellow-600/50 to-slate-900'
+                            )}
+                            style={{ clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)' }}
+                        />
+                        <span className="font-black font-heading text-lg drop-shadow-md mt-[-2px] relative z-10 text-white">
                             {player.position}
                         </span>
                     </div>
@@ -232,7 +247,8 @@ export default function MyPlayerCard({
                     )}
 
                     {/* Player Image - Break the Frame */}
-                    <div className="absolute top-[50px] left-1/2 -translate-x-1/2 w-[100%] h-[180px] flex items-start justify-center z-10 pointer-events-none">
+                    {/* Player Image - Break the Frame */}
+                    <div className="relative top-[60px] left-1/2 -translate-x-1/2 w-[240px] h-[240px] flex items-start justify-center z-10 pointer-events-none">
                         <img
                             src={headshotUrl}
                             alt={player.name}
@@ -241,7 +257,7 @@ export default function MyPlayerCard({
                                 e.currentTarget.src = fallbackHeadshot;
                             }}
                             className={cn(
-                                "w-full h-full object-contain object-top drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] transition-all duration-300",
+                                "w-[240px] h-[240px] object-contain object-top rounded-full drop-shadow-[0_5px_10px_rgba(0,0,0,0.5)] transition-all duration-300",
                                 injury ? "grayscale contrast-125" : ""
                             )}
                             style={{
@@ -250,6 +266,8 @@ export default function MyPlayerCard({
                                 transform: `translateY(${rotateX * -2}px) translateX(${rotateY * -2}px) scale(1.9)` // Parallax movement
                             }}
                         />
+                        {/* Team logo overlay in bottom left */}
+                        <img src={teamLogoUrl} alt="Team Logo" className="absolute bottom-4 left-4 w-[72px] h-[72px] rounded-full border-2 border-white/40 shadow-lg" />
                     </div>
                 </div>
 
