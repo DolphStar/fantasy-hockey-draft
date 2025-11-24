@@ -42,6 +42,7 @@ export interface PlayerGameStats {
   hits?: number;
   blockedShots?: number;
   pim?: number; // Penalty minutes
+  fights?: number; // Actual fighting penalties (added by countFightsFromPlayByPlay)
   faceoffWinningPctg?: number;
   toi?: string; // Time on ice
   // Goalie stats
@@ -89,16 +90,16 @@ export async function getGamesForDate(date?: string): Promise<GameScore[]> {
       yesterday.setDate(yesterday.getDate() - 1);
       date = yesterday.toISOString().split('T')[0];
     }
-    
+
     const response = await fetch(`${BASE_URL_WEB}/score/${date}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch games for ${date}: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     console.log(`NHL Stats: Found ${data.games?.length || 0} games for ${date}`);
-    
+
     return data.games || [];
   } catch (error) {
     console.error('Error fetching games:', error);
@@ -114,19 +115,19 @@ export async function getGamesForDate(date?: string): Promise<GameScore[]> {
 export async function getGameBoxscore(gameId: number): Promise<Boxscore> {
   try {
     const response = await fetch(`${BASE_URL_WEB}/gamecenter/${gameId}/boxscore`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch boxscore for game ${gameId}: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     console.log(`NHL Stats: Fetched boxscore for game ${gameId}`);
-    
+
     // DEBUG: Log sample player structure
     if (data.playerByGameStats?.awayTeam?.forwards?.[0]) {
       console.log('DEBUG: Raw player object from API:', data.playerByGameStats.awayTeam.forwards[0]);
     }
-    
+
     return data;
   } catch (error) {
     console.error(`Error fetching boxscore for game ${gameId}:`, error);
@@ -141,19 +142,68 @@ export async function getGameBoxscore(gameId: number): Promise<Boxscore> {
 export async function getCompletedGamesYesterday(): Promise<number[]> {
   try {
     const games = await getGamesForDate();
-    
+
     // Filter for completed games only (Final or Overtime)
     const completedGames = games.filter(
       game => game.gameState === 'OFF' || game.gameState === 'FINAL'
     );
-    
+
     console.log(`NHL Stats: ${completedGames.length} completed games yesterday`);
-    
+
     return completedGames.map(game => game.id);
   } catch (error) {
     console.error('Error getting completed games:', error);
     throw error;
   }
+}
+
+/**
+ * Fetch play-by-play data for a game to get penalty details
+ */
+export async function getGamePlayByPlay(gameId: number): Promise<any> {
+  try {
+    const response = await fetch(`${BASE_URL_WEB}/gamecenter/${gameId}/play-by-play`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching play-by-play for game ${gameId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Count actual fights from play-by-play data
+ * Returns a map of playerId -> fight count
+ */
+export function countFightsFromPlayByPlay(playByPlay: any): Map<number, number> {
+  const fightCounts = new Map<number, number>();
+
+  try {
+    const plays = playByPlay?.plays || [];
+
+    for (const play of plays) {
+      // Look for penalty plays
+      if (play.typeDescKey === 'penalty') {
+        const details = play.details;
+
+        // Fighting major is typically 5 minutes with descKey "fighting"
+        if (details?.descKey === 'fighting') {
+          const playerId = details?.committedByPlayerId;
+          if (playerId) {
+            const currentCount = fightCounts.get(playerId) || 0;
+            fightCounts.set(playerId, currentCount + 1);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error parsing play-by-play for fights:', error);
+  }
+
+  return fightCounts;
 }
 
 /**
@@ -163,15 +213,15 @@ export async function getCompletedGamesYesterday(): Promise<number[]> {
  */
 export function getAllPlayersFromBoxscore(boxscore: Boxscore): PlayerGameStats[] {
   const players: PlayerGameStats[] = [];
-  
+
   if (!boxscore.playerByGameStats) {
     return players;
   }
-  
+
   const { awayTeam, homeTeam } = boxscore.playerByGameStats;
   const awayTeamAbbrev = boxscore.awayTeam?.abbrev || 'UNK';
   const homeTeamAbbrev = boxscore.homeTeam?.abbrev || 'UNK';
-  
+
   // Collect all away team players and add team abbreviation
   if (awayTeam) {
     const awayPlayers = [
@@ -184,7 +234,7 @@ export function getAllPlayersFromBoxscore(boxscore: Boxscore): PlayerGameStats[]
     });
     players.push(...awayPlayers);
   }
-  
+
   // Collect all home team players and add team abbreviation
   if (homeTeam) {
     const homePlayers = [
@@ -197,6 +247,6 @@ export function getAllPlayersFromBoxscore(boxscore: Boxscore): PlayerGameStats[]
     });
     players.push(...homePlayers);
   }
-  
+
   return players;
 }

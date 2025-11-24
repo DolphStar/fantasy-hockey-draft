@@ -1,10 +1,14 @@
-// Fantasy scoring engine - calculates points based on player stats and league rules
-
 import { db } from '../firebase';
 import { collection, getDocs, doc, getDoc, setDoc, updateDoc, increment, query, where } from 'firebase/firestore';
 import type { ScoringRules } from '../types/league';
 import type { PlayerGameStats } from './nhlStats';
-import { getCompletedGamesYesterday, getGameBoxscore, getAllPlayersFromBoxscore } from './nhlStats';
+import {
+  getGamesForDate,
+  getGameBoxscore,
+  getAllPlayersFromBoxscore,
+  getGamePlayByPlay,
+  countFightsFromPlayByPlay
+} from './nhlStats';
 
 export interface TeamScore {
   teamName: string;
@@ -41,8 +45,8 @@ function calculateSkaterPoints(
   // Short-handed goals (bonus on top of regular goal)
   points += (stats.shortHandedGoals || 0) * rules.shortHandedGoal;
 
-  // NOTE: Fight scoring is handled by Cloud Function using play-by-play data
-  // Manual scoring from the UI will not count fights to avoid incorrect PIM/5 calculation
+  // Use actual fight count from play-by-play data
+  points += (stats.fights || 0) * rules.fight;
 
   // Defense-specific stats
   if (isDefenseman) {
@@ -100,20 +104,24 @@ export function calculatePlayerPoints(
  * Process yesterday's games and update team scores
  * This is the main scoring function that should be run daily
  */
-export async function processYesterdayScores(leagueId: string): Promise<void> {
+export async function processYesterdayScores(leagueId: string, targetDate?: string): Promise<void> {
   try {
     console.log(`Starting score processing for league: ${leagueId}`);
 
-    // Calculate yesterday's date in Eastern Time (NHL's timezone)
-    // This matches how liveStats are stored and ensures consistency
-    const now = new Date();
-    const etOffset = -5; // EST is UTC-5
-    const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
-    etTime.setDate(etTime.getDate() - 1); // Yesterday in ET
-    const year = etTime.getUTCFullYear();
-    const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(etTime.getUTCDate()).padStart(2, '0');
-    const dateStr = `${year}-${month}-${day}`;
+    let dateStr = targetDate;
+
+    if (!dateStr) {
+      // Calculate yesterday's date in Eastern Time (NHL's timezone)
+      // This matches how liveStats are stored and ensures consistency
+      const now = new Date();
+      const etOffset = -5; // EST is UTC-5
+      const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+      etTime.setDate(etTime.getDate() - 1); // Yesterday in ET
+      const year = etTime.getUTCFullYear();
+      const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(etTime.getUTCDate()).padStart(2, '0');
+      dateStr = `${year}-${month}-${day}`;
+    }
 
     console.log(`Processing games for date: ${dateStr} (ET timezone)`);
 
@@ -168,8 +176,10 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
 
     console.log(`Found ${playerToTeamMap.size} active roster players in league ${leagueId} (${reserveCount} reserve players excluded from scoring)`);
 
-    // 3. Get yesterday's completed games
-    const gameIds = await getCompletedGamesYesterday();
+    // 3. Get completed games for the date
+    const games = await getGamesForDate(dateStr);
+    const completedGames = games.filter(g => g.gameState === 'OFF' || g.gameState === 'FINAL');
+    const gameIds = completedGames.map(g => g.id);
     console.log(`Processing ${gameIds.length} completed games`);
 
     // 4. Track points by team
@@ -182,7 +192,17 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
     for (const gameId of gameIds) {
       try {
         const boxscore = await getGameBoxscore(gameId);
+
+        // Fetch play-by-play to count fights
+        const playByPlay = await getGamePlayByPlay(gameId);
+        const fightCounts = countFightsFromPlayByPlay(playByPlay);
+
         const allPlayers = getAllPlayersFromBoxscore(boxscore);
+
+        // Merge fight counts into player stats
+        allPlayers.forEach(p => {
+          p.fights = fightCounts.get(p.playerId) || 0;
+        });
 
         console.log(`DEBUG: Game ${gameId} has ${allPlayers.length} players`);
         if (allPlayers.length > 0) {

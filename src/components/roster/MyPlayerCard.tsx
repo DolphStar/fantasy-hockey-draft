@@ -1,6 +1,5 @@
-import { getInjuryIcon } from '../../services/injuryService';
 import { cn } from '../../lib/utils';
-import PlayerSparkline from './PlayerSparkline';
+
 import PlayerGameLogPopup from './PlayerGameLogPopup';
 import { useState } from 'react';
 
@@ -71,12 +70,12 @@ export default function MyPlayerCard({
     const teamLogoUrl = `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_light.svg`;
     const theme = getPositionTheme(player.position);
 
-    // Color-code AVG based on performance
+    // Color-code AVG based on performance (Updated to Cyan/Blue per user request)
     const getAvgColor = (avg: number) => {
-        if (avg >= 2.0) return 'text-green-400';
-        if (avg >= 1.0) return 'text-yellow-400';
-        if (avg >= 0.5) return 'text-orange-400';
-        return 'text-red-400';
+        if (avg >= 2.0) return 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]';
+        if (avg >= 1.0) return 'text-blue-400';
+        if (avg >= 0.5) return 'text-blue-300';
+        return 'text-slate-400';
     };
 
     // Color-code fantasy points based on score
@@ -89,13 +88,7 @@ export default function MyPlayerCard({
 
     const fpColor = getFpColor(fantasyPoints);
 
-    // Calculate running average for graph
-    const avgHistory = history.length > 0 ? history.map((_, idx) => {
-        const subset = history.slice(0, idx + 1);
-        const sum = subset.reduce((acc, curr) => acc + (curr.points || 0), 0);
-        const avg = subset.length > 0 ? sum / subset.length : 0;
-        return { points: isNaN(avg) ? 0 : avg };
-    }) : [];
+
 
     // Prepare game log data for popup
     const recentGames = history.slice(-5).map((h: any) => ({
@@ -109,11 +102,39 @@ export default function MyPlayerCard({
         ? recentGames.reduce((sum, g) => sum + g.points, 0) / recentGames.length
         : stats.avgPoints || 0;
 
+    // 3D Tilt Effect State
+    const [rotateX, setRotateX] = useState(0);
+    const [rotateY, setRotateY] = useState(0);
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (isOverlay) return;
+        const card = e.currentTarget;
+        const box = card.getBoundingClientRect();
+        const x = e.clientX - box.left;
+        const y = e.clientY - box.top;
+        const centerX = box.width / 2;
+        const centerY = box.height / 2;
+        const rotateX = (y - centerY) / 20;
+        const rotateY = (centerX - x) / 20;
+
+        setRotateX(rotateX);
+        setRotateY(rotateY);
+    };
+
+    const handleMouseLeave = () => {
+        setRotateX(0);
+        setRotateY(0);
+        setShowPopup(false);
+    };
+
+    // Holographic Foil for Top Players (e.g., > 15 FP or specific rank)
+    const isTopPlayer = fantasyPoints >= 15;
+
     return (
         <div
             className={cn(
-                'relative group transition-all duration-300 h-[420px] w-full',
-                isSelected ? 'scale-[1.02] z-10' : 'hover:scale-[1.02] hover:-translate-y-1',
+                'relative group transition-all duration-300 h-[420px] w-full perspective-1000',
+                isSelected ? 'z-10' : 'hover:z-20',
                 (onSwap || isSelected) && 'cursor-pointer'
             )}
             onClick={(e) => {
@@ -124,17 +145,23 @@ export default function MyPlayerCard({
                     onSwap(player);
                 }
             }}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
             onMouseEnter={() => !isOverlay && setShowPopup(true)}
-            onMouseLeave={() => setShowPopup(false)}
             onTouchStart={() => !isOverlay && setShowPopup(true)}
             onTouchEnd={() => setTimeout(() => setShowPopup(false), 3000)}
+            style={{
+                transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`,
+                transition: 'transform 0.1s ease-out'
+            }}
         >
             {/* Game Log Popup - Don't show on drag overlay */}
             {showPopup && !isOverlay && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
+                <div className="absolute top-[75%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
                     <PlayerGameLogPopup
                         recentGames={recentGames}
                         projectedPoints={projectedPoints}
+                        totalPoints={fantasyPoints}
                         injury={injury}
                         notes={player.rosterSlot === 'reserve' ? ['Reserve player'] : []}
                     />
@@ -143,34 +170,38 @@ export default function MyPlayerCard({
             {/* Main Card Container */}
             <div
                 className={cn(
-                    'h-full w-full rounded-2xl overflow-hidden relative flex flex-col',
-                    'border-4 transition-all duration-300',
+                    'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
+                    'border-4 transition-all duration-300 bg-slate-900',
                     isSelected
                         ? 'border-amber-300 shadow-[0_0_30px_rgba(251,191,36,0.6),0_0_60px_rgba(251,191,36,0.3)]'
-                        : 'border-amber-400/80 hover:border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)] hover:shadow-[0_0_25px_rgba(251,191,36,0.5)]'
+                        : 'border-slate-700/50 hover:border-blue-400/50 shadow-xl'
                 )}
                 style={{
-                    background: `radial-gradient(ellipse at center, rgba(${theme.rgb}, 0.15) 0%, #0f172a 40%, #020617 100%)`
+                    background: `radial-gradient(circle at 50% 0%, rgba(${theme.rgb}, 0.15) 0%, #0f172a 60%, #020617 100%)`
                 }}
             >
+                {/* Holographic Foil Overlay */}
+                {isTopPlayer && (
+                    <div
+                        className="absolute inset-0 rounded-xl opacity-20 pointer-events-none z-10 mix-blend-color-dodge"
+                        style={{
+                            background: `linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.4) 45%, rgba(255,255,255,0.0) 50%, rgba(255,255,255,0.4) 55%, transparent 100%)`,
+                            backgroundSize: '200% 200%',
+                            animation: 'holo-sheen 3s ease infinite'
+                        }}
+                    />
+                )}
+
                 {/* Noise texture overlay */}
-                <div className="absolute inset-0 opacity-[0.05] pointer-events-none z-0 mix-blend-overlay"
+                <div className="absolute inset-0 opacity-[0.05] pointer-events-none z-0 mix-blend-overlay rounded-xl"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
                 />
 
                 {/* Team Logo Blend */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none z-0 mix-blend-overlay overflow-hidden">
+                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none z-0 mix-blend-overlay overflow-hidden rounded-xl">
                     <img src={teamLogoUrl} alt="Team Logo" className="w-full h-full object-contain scale-[1.85]" />
                 </div>
 
-                {/* Dramatic Light Rays */}
-                <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[conic-gradient(from_0deg,transparent_0deg,rgba(255,255,255,0.03)_10deg,transparent_20deg,rgba(255,255,255,0.03)_30deg,transparent_40deg)] animate-spin-slow pointer-events-none z-0 opacity-30" />
-                <div className="absolute inset-0 pointer-events-none z-0"
-                    style={{
-                        background: `linear-gradient(135deg, transparent 0%, rgba(${theme.rgb}, 0.1) 30%, transparent 60%),
-                                     linear-gradient(-45deg, transparent 0%, rgba(251,191,36,0.05) 40%, transparent 70%)`
-                    }}
-                />
                 {/* Top Section: Image and Badges */}
                 <div className="relative h-64 w-full overflow-visible shrink-0">
                     {/* Shield Position Badge */}
@@ -191,18 +222,17 @@ export default function MyPlayerCard({
                         </span>
                     </div>
 
-                    {/* Injury Badge */}
+                    {/* Injury Badge - Grayscale Effect */}
                     {injury && (
                         <div className="absolute top-3 left-3 z-20">
-                            <div className="bg-red-500/20 border border-red-500 text-red-400 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 backdrop-blur-md shadow-[0_0_10px_rgba(239,68,68,0.4)]">
-                                {getInjuryIcon(injury.status)}{' '}
+                            <div className="bg-red-600 text-white px-2 py-1 rounded-sm text-xs font-black uppercase tracking-wider shadow-lg border border-red-400">
                                 {injury.status === 'Injured Reserve' ? 'IR' : 'INJ'}
                             </div>
                         </div>
                     )}
 
-                    {/* Player Image - Larger */}
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-full h-full flex items-start justify-center z-10">
+                    {/* Player Image - Break the Frame */}
+                    <div className="absolute top-[50px] left-1/2 -translate-x-1/2 w-[100%] h-[180px] flex items-start justify-center z-10 pointer-events-none">
                         <img
                             src={headshotUrl}
                             alt={player.name}
@@ -210,10 +240,14 @@ export default function MyPlayerCard({
                             onError={(e) => {
                                 e.currentTarget.src = fallbackHeadshot;
                             }}
-                            className="w-64 h-64 object-cover object-top drop-shadow-[0_0_30px_rgba(0,0,0,0.9)]"
+                            className={cn(
+                                "w-full h-full object-contain object-top drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] transition-all duration-300",
+                                injury ? "grayscale contrast-125" : ""
+                            )}
                             style={{
                                 maskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
                                 WebkitMaskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
+                                transform: `translateY(${rotateX * -2}px) translateX(${rotateY * -2}px) scale(1.9)` // Parallax movement
                             }}
                         />
                     </div>
@@ -222,7 +256,7 @@ export default function MyPlayerCard({
                 {/* Content Section */}
                 <div className="flex-1 flex flex-col px-4 pb-3 relative z-20 mt-[-20px]">
                     {/* Name - HUGE Typography */}
-                    <div className="text-center w-full mb-3">
+                    <div className="text-center w-full mb-3" style={{ transform: 'translateZ(20px)' }}>
                         <h3 className="text-white/70 font-heading font-medium text-sm uppercase tracking-[0.3em] leading-none mb-1 drop-shadow-md">
                             {player.name.split(' ')[0]}
                         </h3>
@@ -232,7 +266,7 @@ export default function MyPlayerCard({
                     </div>
 
                     {/* Stats Pill - Dark Glossy with Lightning Icons */}
-                    <div className="flex items-center justify-center gap-3 text-xs font-bold tracking-wider text-gray-300 bg-black/60 backdrop-blur-xl py-2 px-5 rounded-full mx-auto w-fit border border-white/20 shadow-lg mb-auto relative overflow-hidden">
+                    <div className="flex items-center justify-center gap-3 text-xs font-bold tracking-wider text-gray-300 bg-black/60 backdrop-blur-xl py-2 px-5 rounded-full mx-auto w-fit border border-white/20 shadow-lg mb-auto relative overflow-hidden group-hover:bg-black/80 transition-colors">
                         {/* Inner glow */}
                         <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
 
@@ -253,24 +287,13 @@ export default function MyPlayerCard({
                     </div>
 
                     {/* Stats Area */}
-                    <div className="w-full flex items-center justify-between mb-3 mt-auto transition-transform duration-300 group-hover:translate-y-[-2px]">
-                        {/* Line Graph - Running Average */}
-                        {avgHistory.length > 0 ? (
-                            <div className="h-8 w-16 relative opacity-80">
-                                <PlayerSparkline data={avgHistory} color="#ffffff" />
-                            </div>
-                        ) : (
-                            <div className="h-8 w-16 border-b border-gray-600 flex items-end">
-                                <span className="text-[8px] text-gray-500">No data</span>
-                            </div>
-                        )}
-
+                    <div className="w-full flex items-center justify-end mb-3 mt-auto transition-transform duration-300 group-hover:translate-y-[-2px]">
                         {/* Fantasy Points - Large with Color Coding */}
                         <div className="text-right flex items-baseline gap-2">
                             <div className="text-[9px] text-gray-400 uppercase tracking-wide font-semibold">
                                 Fantasy Points:
                             </div>
-                            <div className={cn("text-5xl font-black leading-none bg-transparent", fpColor.text)}>
+                            <div className={cn("text-5xl font-black leading-none bg-transparent drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]", fpColor.text)}>
                                 {fantasyPoints.toFixed(0)}
                             </div>
                         </div>

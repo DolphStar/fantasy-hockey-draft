@@ -9,6 +9,7 @@ interface GameLogEntry {
 interface PlayerGameLogPopupProps {
     recentGames: GameLogEntry[];
     projectedPoints: number;
+    totalPoints?: number;
     injury?: { status: string };
     notes?: string[];
     className?: string;
@@ -17,6 +18,7 @@ interface PlayerGameLogPopupProps {
 export default function PlayerGameLogPopup({
     recentGames,
     projectedPoints,
+    totalPoints = 0,
     injury,
     notes = [],
     className
@@ -31,9 +33,6 @@ export default function PlayerGameLogPopup({
     };
 
     const trend = getTrend();
-    const avgPoints = recentGames.length > 0
-        ? (recentGames.reduce((sum, g) => sum + g.points, 0) / recentGames.length).toFixed(1)
-        : '0.0';
 
     return (
         <div
@@ -49,42 +48,47 @@ export default function PlayerGameLogPopup({
             <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
 
             {/* Arrow pointing down */}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[2px]">
-                <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-white/20" />
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-[1px]">
-                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-black/80" />
-                </div>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[2px] flex flex-col items-center">
+                <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-white/20" />
+                <div className="absolute top-[-1px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-black/80" />
             </div>
 
-            {/* Header - No Name, Just Stats */}
+            {/* Header - Stats & Trend */}
             <div className="mb-3 pb-2 border-b border-white/10 relative z-10">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <span className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Avg Points</span>
-                        <span className="font-black text-xl bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent drop-shadow-sm filter">
-                            {avgPoints}
-                        </span>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                        {/* Total Points */}
+                        <div className="flex flex-col">
+                            <span className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Total Pts</span>
+                            <span className="font-black text-xl text-white drop-shadow-sm">
+                                {totalPoints.toFixed(0)}
+                            </span>
+                        </div>
+
+                        {/* L5 Avg */}
+                        <div className="flex flex-col">
+                            <span className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">L5 Avg</span>
+                            <span className="font-black text-xl bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-sm filter">
+                                {projectedPoints.toFixed(1)}
+                            </span>
+                        </div>
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Projected</span>
-                        <span className="font-black text-xl bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-sm filter">
-                            {projectedPoints.toFixed(1)}
-                        </span>
-                    </div>
+
+                    {/* Trend Badge - Far Right */}
+                    {trend !== 'neutral' && (
+                        <div className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded-md border",
+                            trend === 'up'
+                                ? 'text-green-400 border-green-400/30 bg-green-400/10'
+                                : 'text-red-400 border-red-400/30 bg-red-400/10'
+                        )}>
+                            {trend === 'up' ? '↑' : '↓'}
+                            <span className="font-bold text-[10px] tracking-wide">
+                                {trend === 'up' ? 'HOT' : 'COLD'}
+                            </span>
+                        </div>
+                    )}
                 </div>
-                {trend !== 'neutral' && (
-                    <div className={cn(
-                        "absolute top-0 right-0 flex items-center gap-1 px-1.5 py-0.5 rounded-md border",
-                        trend === 'up'
-                            ? 'text-green-400 border-green-400/30 bg-green-400/10'
-                            : 'text-red-400 border-red-400/30 bg-red-400/10'
-                    )}>
-                        {trend === 'up' ? '↑' : '↓'}
-                        <span className="font-bold text-[10px] tracking-wide">
-                            {trend === 'up' ? 'HOT' : 'COLD'}
-                        </span>
-                    </div>
-                )}
             </div>
 
             {/* Last 5 Games */}

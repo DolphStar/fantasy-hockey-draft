@@ -234,14 +234,14 @@ export default function PlayerList() {
           // Aggregate total points per player
           if (pointsMap[playerId]) {
             pointsMap[playerId] += points;
-            statsMap[playerId].goals += (data.goals || 0);
-            statsMap[playerId].assists += (data.assists || 0);
+            statsMap[playerId].goals += (data.stats?.goals || 0);
+            statsMap[playerId].assists += (data.stats?.assists || 0);
             statsMap[playerId].gamesPlayed += 1;
           } else {
             pointsMap[playerId] = points;
             statsMap[playerId] = {
-              goals: data.goals || 0,
-              assists: data.assists || 0,
+              goals: data.stats?.goals || 0,
+              assists: data.stats?.assists || 0,
               gamesPlayed: 1,
               avgPoints: 0
             };

@@ -10,6 +10,7 @@ export default function TestScoring() {
   const [processing, setProcessing] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [targetDate, setTargetDate] = useState<string>('');
 
   const hasRules = league?.scoringRules !== undefined;
 
@@ -26,9 +27,9 @@ export default function TestScoring() {
 
     try {
       setProcessing(true);
-      setResult('⏳ Processing yesterday\'s games...');
+      setResult(`⏳ Processing games for ${targetDate || 'yesterday'}...`);
 
-      await processYesterdayScores(league.id);
+      await processYesterdayScores(league.id, targetDate || undefined);
 
       setResult('✅ Scoring complete! Check Standings page for updated scores.');
     } catch (error) {
@@ -122,27 +123,37 @@ export default function TestScoring() {
       )}
 
       <p className="text-slate-300 text-sm">
-        Manually trigger yesterday's game scoring to test the system. This will calculate fantasy points for all drafted players based on their real NHL performance.
+        Manually trigger game scoring. Leave date empty to process yesterday's games, or select a specific date to backfill/retry.
       </p>
+
+      <div className="space-y-2">
+        <label className="block text-xs text-slate-400 uppercase font-bold">Target Date (Optional)</label>
+        <input
+          type="date"
+          value={targetDate}
+          onChange={(e) => setTargetDate(e.target.value)}
+          className="w-full bg-slate-900/50 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500 outline-none"
+        />
+      </div>
 
       <div className="flex gap-2">
         <button
           onClick={handleRunScoring}
           disabled={processing || clearing}
           className={`flex-1 px-4 py-2.5 rounded-lg font-semibold transition-all text-sm ${processing || clearing
-              ? 'bg-slate-700 cursor-not-allowed text-slate-400'
-              : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 active:scale-95'
+            ? 'bg-slate-700 cursor-not-allowed text-slate-400'
+            : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 active:scale-95'
             }`}
         >
-          {processing ? '⏳ Processing...' : '▶️ Run Yesterday\'s Scoring'}
+          {processing ? '⏳ Processing...' : targetDate ? `▶️ Run Scoring for ${targetDate}` : '▶️ Run Yesterday\'s Scoring'}
         </button>
 
         <button
           onClick={handleClearScores}
           disabled={processing || clearing}
           className={`flex-1 px-4 py-2.5 rounded-lg font-semibold transition-all text-sm ${processing || clearing
-              ? 'bg-slate-700 cursor-not-allowed text-slate-400'
-              : 'bg-red-900/40 hover:bg-red-900/60 text-red-300 border border-red-900/50 active:scale-95'
+            ? 'bg-slate-700 cursor-not-allowed text-slate-400'
+            : 'bg-red-900/40 hover:bg-red-900/60 text-red-300 border border-red-900/50 active:scale-95'
             }`}
         >
           {clearing ? '⏳ Clearing...' : '🗑️ Clear Scores'}
@@ -151,8 +162,8 @@ export default function TestScoring() {
 
       {result && (
         <div className={`p-3 rounded-lg text-sm ${result.startsWith('✅') ? 'bg-green-500/10 border border-green-500/30 text-green-200' :
-            result.startsWith('❌') ? 'bg-red-500/10 border border-red-500/30 text-red-200' :
-              'bg-slate-800/50 border border-slate-700 text-slate-300'
+          result.startsWith('❌') ? 'bg-red-500/10 border border-red-500/30 text-red-200' :
+            'bg-slate-800/50 border border-slate-700 text-slate-300'
           }`}>
           {result}
         </div>
