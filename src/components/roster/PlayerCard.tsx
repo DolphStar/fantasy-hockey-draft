@@ -221,11 +221,11 @@ export default function PlayerCard({
 
                 {/* Fantasy Points - Bottom Right */}
                 {playerStats && lastSeasonFantasyPoints > 0 && (
-                    <div className="absolute bottom-4 right-4 z-30 text-right">
-                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                            Last Season:
+                    <div className="absolute bottom-3 right-3 z-30 text-right">
+                        <div className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">
+                            Fantasy Points:
                         </div>
-                        <div className="text-3xl font-black text-white leading-none drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                        <div className="text-5xl font-black text-white leading-none drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
                             {lastSeasonFantasyPoints}
                         </div>
                     </div>
