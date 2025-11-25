@@ -50,6 +50,18 @@ export default function PlayerCard({
         ? (playerStats?.goals || 0) + (playerStats?.assists || 0)
         : (playerStats?.wins || 0) * 2;
 
+    // Color coding based on fantasy points
+    // 100+ = gold (exceptional), 60-99 = green (good), 30-59 = blue (normal), <30 = red (bad)
+    const getFantasyPointsColor = (points: number) => {
+        if (points >= 100) return { text: 'text-amber-400', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.6)]', border: 'border-amber-400/70' };
+        if (points >= 60) return { text: 'text-emerald-400', glow: 'shadow-[0_0_15px_rgba(52,211,153,0.4)]', border: 'border-emerald-400/50' };
+        if (points >= 30) return { text: 'text-blue-400', glow: 'shadow-[0_0_10px_rgba(96,165,250,0.3)]', border: 'border-blue-400/50' };
+        return { text: 'text-red-400', glow: '', border: '' };
+    };
+
+    const fpColor = getFantasyPointsColor(lastSeasonFantasyPoints);
+    const isExceptional = lastSeasonFantasyPoints >= 100;
+
     const statDisplay = (value: number | undefined | null, formatter: (val: number) => string = (val) => val.toString()) => {
         if (value === undefined || value === null || Number.isNaN(value)) return 'N/A';
         return formatter(value);
@@ -100,10 +112,12 @@ export default function PlayerCard({
                 className={cn(
                     'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
                     'border-2 transition-all duration-300 bg-slate-900',
-                    'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/20',
+                    'hover:-translate-y-1',
                     isDrafted
                         ? 'border-slate-700/60 opacity-80 grayscale-[0.35]'
-                        : 'border-slate-700/50 hover:border-blue-400/70 shadow-xl'
+                        : isExceptional
+                            ? 'border-amber-400/70 shadow-[0_0_30px_rgba(251,191,36,0.4)] hover:shadow-[0_0_40px_rgba(251,191,36,0.6)]'
+                            : 'border-slate-700/50 hover:border-blue-400/70 shadow-xl hover:shadow-lg hover:shadow-blue-500/20'
                 )}
                 style={{ background: '#0f172a' }}
             >
@@ -223,9 +237,13 @@ export default function PlayerCard({
                 {playerStats && lastSeasonFantasyPoints > 0 && (
                     <div className="absolute bottom-3 right-3 z-30 text-right">
                         <div className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">
-                            Fantasy Points:
+                            Last Season:
                         </div>
-                        <div className="text-5xl font-black text-white leading-none drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                        <div className={cn(
+                            "text-4xl font-black leading-none",
+                            fpColor.text,
+                            isExceptional && "drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]"
+                        )}>
                             {lastSeasonFantasyPoints}
                         </div>
                     </div>
