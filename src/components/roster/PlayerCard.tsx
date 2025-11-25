@@ -51,16 +51,22 @@ export default function PlayerCard({
         : (playerStats?.wins || 0) * 2;
 
     // Color coding based on fantasy points
-    // 100+ = gold (exceptional), 60-99 = green (good), 30-59 = blue (normal), <30 = red (bad)
+    // Skaters: 100+ = gold, 60-99 = green, 30-59 = blue, <30 = white
+    // Goalies: 70+ = gold (lower threshold since wins*2 caps lower)
+    const isGoalie = position === 'G';
     const getFantasyPointsColor = (points: number) => {
-        if (points >= 100) return { text: 'text-amber-400', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.6)]', border: 'border-amber-400/70' };
-        if (points >= 60) return { text: 'text-emerald-400', glow: 'shadow-[0_0_15px_rgba(52,211,153,0.4)]', border: 'border-emerald-400/50' };
-        if (points >= 30) return { text: 'text-blue-400', glow: 'shadow-[0_0_10px_rgba(96,165,250,0.3)]', border: 'border-blue-400/50' };
-        return { text: 'text-red-400', glow: '', border: '' };
+        const exceptionalThreshold = isGoalie ? 70 : 100;
+        const goodThreshold = isGoalie ? 50 : 60;
+        const normalThreshold = isGoalie ? 25 : 30;
+        
+        if (points >= exceptionalThreshold) return { text: 'text-amber-400', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.6)]', border: 'border-amber-400/70' };
+        if (points >= goodThreshold) return { text: 'text-emerald-400', glow: 'shadow-[0_0_15px_rgba(52,211,153,0.4)]', border: 'border-emerald-400/50' };
+        if (points >= normalThreshold) return { text: 'text-blue-400', glow: 'shadow-[0_0_10px_rgba(96,165,250,0.3)]', border: 'border-blue-400/50' };
+        return { text: 'text-white', glow: '', border: '' };
     };
 
     const fpColor = getFantasyPointsColor(lastSeasonFantasyPoints);
-    const isExceptional = lastSeasonFantasyPoints >= 100;
+    const isExceptional = lastSeasonFantasyPoints >= (isGoalie ? 70 : 100);
 
     const statDisplay = (value: number | undefined | null, formatter: (val: number) => string = (val) => val.toString()) => {
         if (value === undefined || value === null || Number.isNaN(value)) return 'N/A';
