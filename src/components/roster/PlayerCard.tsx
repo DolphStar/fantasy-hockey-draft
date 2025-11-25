@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getPlayerFullName, type RosterPerson } from '../../utils/nhlApi';
 import { cn } from '../../lib/utils';
 import { useComparison } from '../../context/ComparisonContext';
@@ -9,9 +10,7 @@ interface PlayerCardProps {
     isDrafted: boolean;
     isDrafting: boolean;
     isMyTurn: boolean;
-    isAdmin: boolean;
     onDraft: (player: RosterPerson) => void;
-    onPickUp: (player: RosterPerson) => void;
     playerStats: any;
     injury: any;
     draftState: any;
@@ -22,9 +21,7 @@ export default function PlayerCard({
     isDrafted,
     isDrafting,
     isMyTurn,
-    isAdmin,
     onDraft,
-    onPickUp,
     playerStats,
     injury,
     draftState
@@ -46,6 +43,13 @@ export default function PlayerCard({
             ? Number((playerStats.points / 82).toFixed(1))
             : undefined;
 
+    // Calculate last season fantasy points
+    // Skaters: 1pt per goal, 1pt per assist
+    // Goalies: 2pts per win
+    const lastSeasonFantasyPoints = isForward || position === 'D'
+        ? (playerStats?.goals || 0) + (playerStats?.assists || 0)
+        : (playerStats?.wins || 0) * 2;
+
     const statDisplay = (value: number | undefined | null, formatter: (val: number) => string = (val) => val.toString()) => {
         if (value === undefined || value === null || Number.isNaN(value)) return 'N/A';
         return formatter(value);
@@ -59,9 +63,38 @@ export default function PlayerCard({
                 ? 'Not your turn'
                 : null;
 
+    // 3D Tilt Effect State
+    const [rotateX, setRotateX] = useState(0);
+    const [rotateY, setRotateY] = useState(0);
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        const card = e.currentTarget;
+        const box = card.getBoundingClientRect();
+        const x = e.clientX - box.left;
+        const y = e.clientY - box.top;
+        const centerX = box.width / 2;
+        const centerY = box.height / 2;
+        const rotateXVal = (y - centerY) / 25;
+        const rotateYVal = (centerX - x) / 25;
+
+        setRotateX(rotateXVal);
+        setRotateY(rotateYVal);
+    };
+
+    const handleMouseLeave = () => {
+        setRotateX(0);
+        setRotateY(0);
+    };
+
     return (
         <div
-            className="relative group transition-all duration-300 h-[420px] w-full"
+            className="relative group transition-all duration-300 h-[420px] w-full perspective-1000 cursor-pointer"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{
+                transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`,
+                transition: 'transform 0.1s ease-out'
+            }}
         >
             <div
                 className={cn(
@@ -87,11 +120,21 @@ export default function PlayerCard({
                 <div className="relative h-64 w-full overflow-visible shrink-0">
                     <PlayerPositionBadge position={position} />
 
-                    {/* Injury Badge */}
+                    {/* Injury Badge with Tooltip */}
                     {injury && (
-                        <div className="absolute top-3 left-3 z-30">
-                            <div className="bg-red-600 text-white px-2 py-1 rounded-sm text-xs font-black uppercase tracking-wider shadow-lg border border-red-400">
-                                {injury.status === 'Injured Reserve' ? 'IR' : injury.status === 'Day To Day' ? 'DTD' : injury.status?.slice(0, 3).toUpperCase()}
+                        <div className="absolute top-3 left-3 z-20 group/injury">
+                            <div className="bg-red-600 text-white px-2 py-1 rounded-sm text-xs font-black uppercase tracking-wider shadow-lg border border-red-400 cursor-help">
+                                {injury.status === 'Injured Reserve' ? 'IR' : 'INJ'}
+                            </div>
+                            {/* Tooltip */}
+                            <div className="absolute left-0 top-full mt-2 w-48 p-2 bg-slate-800 border border-slate-600 rounded-lg shadow-xl opacity-0 invisible group-hover/injury:opacity-100 group-hover/injury:visible transition-all duration-200 z-50">
+                                <p className="text-white text-xs font-semibold mb-1">{injury.status}</p>
+                                {injury.description && (
+                                    <p className="text-gray-400 text-xs">{injury.description}</p>
+                                )}
+                                {injury.date && (
+                                    <p className="text-gray-500 text-[10px] mt-1">Since: {injury.date}</p>
+                                )}
                             </div>
                         </div>
                     )}
@@ -115,11 +158,11 @@ export default function PlayerCard({
                 </div>
 
                 {/* Team Logo bottom-left */}
-                <div className="absolute bottom-3 left-3 z-30">
+                <div className="absolute bottom-4 left-4 z-30">
                     <img
                         src={teamLogoUrl}
                         alt="Team Logo"
-                        className="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                        className="w-14 h-14 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
                     />
                 </div>
 
@@ -173,18 +216,20 @@ export default function PlayerCard({
                             </button>
                         )}
 
-                        {isAdmin && !isDrafted && (
-                            <button
-                                onClick={() => onPickUp(player)}
-                                disabled={isDrafting}
-                                className="w-full py-1.5 rounded-full bg-violet-600/90 hover:bg-violet-500 text-xs font-bold tracking-wide shadow-[0_4px_12px_rgba(139,92,246,0.35)]"
-                            >
-                                {isDrafting ? 'Picking Up…' : '👑 Pick Up (Admin)'}
-                            </button>
-                        )}
-
                     </div>
                 </div>
+
+                {/* Fantasy Points - Bottom Right */}
+                {playerStats && lastSeasonFantasyPoints > 0 && (
+                    <div className="absolute bottom-4 right-4 z-30 text-right">
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+                            Last Season:
+                        </div>
+                        <div className="text-3xl font-black text-white leading-none drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                            {lastSeasonFantasyPoints}
+                        </div>
+                    </div>
+                )}
 
                 {/* Compare button - absolute bottom center */}
                 <button
@@ -199,7 +244,7 @@ export default function PlayerCard({
                             stats: playerStats
                         });
                     }}
-                    className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full border border-slate-700/60 text-[10px] font-semibold text-gray-400 hover:text-white hover:border-slate-400 transition-colors z-30"
+                    className="absolute bottom-3 left-1/2 -translate-x-1/2 px-5 py-1.5 rounded-full border border-slate-700/60 text-xs font-semibold text-gray-400 hover:text-white hover:border-slate-400 transition-colors z-30"
                 >
                     ⚖️ Compare
                 </button>
