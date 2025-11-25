@@ -3,34 +3,6 @@ import { cn } from '../../lib/utils';
 import PlayerGameLogPopup from './PlayerGameLogPopup';
 import { useState } from 'react';
 
-// Position color logic - User Defined Palette
-const getPositionTheme = (pos: string) => {
-    // Updated color mapping per user request
-    if (['C', 'L', 'R'].includes(pos)) return {
-        // Centers and Wingers: Blue-ish (using blue-400)
-        color: "blue-400",
-        rgb: "96,165,250",
-        graph: "#60a5fa"
-    };
-    if (pos === 'D') return {
-        // Defense: Green-ish (using green-400)
-        color: "green-400",
-        rgb: "74,222,128",
-        graph: "#4ade80"
-    };
-    if (pos === 'G') return {
-        // Goalies: Yellow (using yellow-400)
-        color: "yellow-400",
-        rgb: "234,179,8",
-        graph: "#eab308"
-    };
-    return {
-        color: "gray-400",
-        rgb: "156,163,175",
-        graph: "#9ca3af"
-    };
-};
-
 interface MyPlayerCardProps {
     player: {
         id: string;
@@ -49,6 +21,7 @@ interface MyPlayerCardProps {
     stats?: { goals: number; assists: number; gamesPlayed: number; avgPoints: number };
     history?: { points: number }[];
     injury?: { status: string };
+    isPlayingToday?: boolean;
     // Swap props
     onSwap?: (player: any) => void;
     onCancelSwap?: (player: any) => void;
@@ -62,6 +35,7 @@ export default function MyPlayerCard({
     stats = { goals: 0, assists: 0, gamesPlayed: 0, avgPoints: 0 },
     history = [],
     injury,
+    isPlayingToday = false,
     onSwap,
     onCancelSwap,
     isSelected,
@@ -72,7 +46,6 @@ export default function MyPlayerCard({
     const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.playerId}.png`;
     const fallbackHeadshot = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
     const teamLogoUrl = `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_light.svg`;
-    const theme = getPositionTheme(player.position);
 
     // Color-code AVG based on performance (Updated to Cyan/Blue per user request)
     const getAvgColor = (avg: number) => {
@@ -175,13 +148,14 @@ export default function MyPlayerCard({
             <div
                 className={cn(
                     'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
-                    'border-4 transition-all duration-300 bg-slate-900',
+                    'border-2 transition-all duration-300 bg-slate-900',
+                    'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/20',
                     isSelected
                         ? 'border-amber-300 shadow-[0_0_30px_rgba(251,191,36,0.6),0_0_60px_rgba(251,191,36,0.3)]'
-                        : 'border-slate-700/50 hover:border-blue-400/50 shadow-xl'
+                        : 'border-slate-700/50 hover:border-blue-400/70 shadow-xl'
                 )}
                 style={{
-                    background: `radial-gradient(circle at 50% 0%, rgba(${theme.rgb}, 0.15) 0%, #0f172a 60%, #020617 100%)`
+                    background: '#0f172a'
                 }}
             >
                 {/* Holographic Foil Overlay */}
@@ -212,10 +186,10 @@ export default function MyPlayerCard({
                     <div
                         className={cn(
                             'absolute top-3 right-3 z-30 w-12 h-14 flex items-center justify-center shadow-[0_4px_6px_rgba(0,0,0,0.3)]',
-                            // Color coding logic matching filters: F=blue, D=green, G=yellow
+                            // Color coding: F=blue-600, D=emerald-500, G=amber-400
                             ['C', 'L', 'R'].includes(player.position) ? 'bg-gradient-to-b from-blue-400 via-blue-600 to-slate-900' :
-                                player.position === 'D' ? 'bg-gradient-to-b from-green-400 via-green-600 to-slate-900' :
-                                    'bg-gradient-to-b from-yellow-400 via-yellow-600 to-slate-900'
+                                player.position === 'D' ? 'bg-gradient-to-b from-emerald-300 via-emerald-500 to-slate-900' :
+                                    'bg-gradient-to-b from-amber-300 via-amber-400 to-slate-900'
                         )}
                         style={{
                             clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)'
@@ -227,8 +201,8 @@ export default function MyPlayerCard({
                             className={cn(
                                 "absolute inset-[2px] z-0 bg-gradient-to-br",
                                 ['C', 'L', 'R'].includes(player.position) ? 'from-blue-600/50 to-slate-900' :
-                                    player.position === 'D' ? 'from-green-600/50 to-slate-900' :
-                                        'from-yellow-600/50 to-slate-900'
+                                    player.position === 'D' ? 'from-emerald-500/50 to-slate-900' :
+                                        'from-amber-400/50 to-slate-900'
                             )}
                             style={{ clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)' }}
                         />
@@ -246,9 +220,8 @@ export default function MyPlayerCard({
                         </div>
                     )}
 
-                    {/* Player Image - Break the Frame */}
-                    {/* Player Image - Break the Frame */}
-                    <div className="relative top-[60px] left-1/2 -translate-x-1/2 w-[240px] h-[240px] flex items-start justify-center z-10 pointer-events-none">
+                    {/* Player Image - Anchored 25% from top (towards chest), mild zoom */}
+                    <div className="relative top-[10px] left-1/2 -translate-x-1/2 w-[220px] h-[220px] overflow-hidden z-10 pointer-events-none">
                         <img
                             src={headshotUrl}
                             alt={player.name}
@@ -256,20 +229,31 @@ export default function MyPlayerCard({
                             onError={(e) => {
                                 e.currentTarget.src = fallbackHeadshot;
                             }}
-                            className={cn(
-                                "w-[240px] h-[240px] object-contain object-top rounded-full drop-shadow-[0_5px_10px_rgba(0,0,0,0.5)] transition-all duration-300",
-                                injury ? "grayscale contrast-125" : ""
-                            )}
+                            className="w-full h-full object-cover object-[50%_25%] scale-110 drop-shadow-[0_5px_10px_rgba(0,0,0,0.5)] transition-all duration-300"
                             style={{
-                                maskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
-                                WebkitMaskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
-                                transform: `translateY(${rotateX * -2}px) translateX(${rotateY * -2}px) scale(1.9)` // Parallax movement
+                                maskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)',
+                                WebkitMaskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)',
+                                transform: `translateY(${rotateX * -2}px) translateX(${rotateY * -2}px) scale(1.1)` // Parallax + mild zoom
                             }}
                         />
-                        {/* Team logo overlay in bottom left */}
-                        <img src={teamLogoUrl} alt="Team Logo" className="absolute bottom-4 left-4 w-[72px] h-[72px] rounded-full border-2 border-white/40 shadow-lg" />
                     </div>
                 </div>
+
+                {/* Team Logo - Bottom Left with white glow for dark logos */}
+                <div className="absolute bottom-4 left-4 z-30">
+                    <img 
+                        src={teamLogoUrl} 
+                        alt="Team Logo" 
+                        className="w-14 h-14 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" 
+                    />
+                </div>
+
+                {/* Bottom Status Bar - Playing Today indicator */}
+                {isPlayingToday ? (
+                    <div className="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-xl bg-gradient-to-r from-green-500 via-emerald-400 to-green-500 shadow-[0_0_8px_rgba(74,222,128,0.6)]" />
+                ) : (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl bg-slate-700/50" />
+                )}
 
                 {/* Content Section */}
                 <div className="flex-1 flex flex-col px-4 pb-3 relative z-20 mt-[-20px]">
@@ -283,8 +267,8 @@ export default function MyPlayerCard({
                         </h2>
                     </div>
 
-                    {/* Stats Pill - Dark Glossy with Lightning Icons */}
-                    <div className="flex items-center justify-center gap-3 text-xs font-bold tracking-wider text-gray-300 bg-black/60 backdrop-blur-xl py-2 px-5 rounded-full mx-auto w-fit border border-white/20 shadow-lg mb-auto relative overflow-hidden group-hover:bg-black/80 transition-colors">
+                    {/* Stats Pill - Semi-transparent dark blue */}
+                    <div className="flex items-center justify-center gap-3 text-xs font-bold tracking-wider text-gray-300 bg-slate-900/70 backdrop-blur-xl py-2 px-5 rounded-full mx-auto w-fit border border-white/10 shadow-lg mb-auto relative overflow-hidden group-hover:bg-slate-800/80 transition-colors">
                         {/* Inner glow */}
                         <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
 
@@ -318,7 +302,7 @@ export default function MyPlayerCard({
                     </div>
 
                     {/* Action Buttons - Blue Glowing */}
-                    {player.pendingSlot ? (
+                    {player.pendingSlot && (
                         <div className="absolute bottom-[-24px] left-1/2 -translate-x-1/2 w-[85%] z-30">
                             <button
                                 onClick={(e) => {
@@ -343,10 +327,6 @@ export default function MyPlayerCard({
                                 </svg>
                                 <span className="drop-shadow-md">Pending Swap</span>
                             </button>
-                        </div>
-                    ) : (
-                        <div className="absolute bottom-[-120px] left-1/2 -translate-x-1/2 w-[85%] z-30 opacity-0 group-hover:opacity-100 group-hover:bottom-[-24px] transition-all duration-300 pointer-events-none">
-                            {/* Button removed, functionality moved to card click */}
                         </div>
                     )}
                 </div>

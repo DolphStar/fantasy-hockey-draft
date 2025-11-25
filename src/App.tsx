@@ -82,34 +82,52 @@ function App() {
         {/* Toast Notifications */}
         <Toaster position="top-right" richColors />
 
-        {/* Header with User Info */}
-        <div className="max-w-6xl mx-auto px-6 mb-8">
-          <div className="flex justify-between items-center">
-            <div className="text-center flex-1">
-              <h1 className="text-5xl font-bold text-white mb-2">Fantasy Hockey Draft</h1>
-              <p className="text-gray-400">Browse NHL rosters and manage your draft picks</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-white font-semibold">{user?.displayName || user?.email || 'User'}</p>
-                <p className="text-gray-400 text-sm">Signed in</p>
+        {/* Header with User Info - 3-column grid for perfect centering */}
+        <header className="max-w-6xl mx-auto px-6 mb-8 grid grid-cols-3 items-center">
+          {/* Left Column - Empty for balance */}
+          <div className="justify-self-start" />
+
+          {/* Center Column - Logo Lockup (Icon + Title) */}
+          <div className="justify-self-center text-center">
+            <div className="flex items-center justify-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-white/15 flex items-center justify-center shadow-inner shadow-blue-900/40">
+                <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 4l7.5 13" className="text-blue-400" stroke="currentColor" strokeWidth="1.6" />
+                  <path d="M9 4h3l7 13h-3z" className="text-blue-200/80" fill="currentColor" fillOpacity="0.15" />
+                  <path d="M19 4L11.5 17" className="text-cyan-300" stroke="currentColor" strokeWidth="1.6" />
+                  <ellipse cx="12" cy="19" rx="4" ry="1.4" className="text-blue-500/60" fill="currentColor" />
+                </svg>
               </div>
-              {user?.photoURL && (
-                <img
-                  src={user.photoURL}
-                  alt="Profile"
-                  className="w-10 h-10 rounded-full"
-                />
-              )}
-              <button
-                onClick={() => signOut()}
-                className="bg-transparent hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium border border-white/10 hover:border-white/30"
-              >
-                Sign Out
-              </button>
+              <h1 className="text-3xl font-bold text-white">Fantasy Hockey Draft</h1>
             </div>
+            <p className="text-gray-400 text-sm">Browse NHL rosters and manage your draft picks</p>
           </div>
-        </div>
+
+          {/* Right Column - User Profile */}
+          <div className="justify-self-end flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-white font-semibold">{user?.displayName || user?.email || 'User'}</p>
+              <p className="text-gray-400 text-sm">Signed in</p>
+            </div>
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt="Profile"
+                className="w-10 h-10 rounded-full border-2 border-white/20"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                {(user?.displayName || user?.email || 'U')[0].toUpperCase()}
+              </div>
+            )}
+            <button
+              onClick={() => signOut()}
+              className="bg-transparent hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium border border-white/10 hover:border-white/30"
+            >
+              Sign Out
+            </button>
+          </div>
+        </header>
 
         {/* Tab Navigation */}
         <Navbar

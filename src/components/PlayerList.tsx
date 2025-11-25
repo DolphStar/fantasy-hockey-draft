@@ -359,38 +359,52 @@ export default function PlayerList() {
 
   return (
     <div className="max-w-[1600px] mx-auto p-6">
-      {/* Header Section */}
-      <div className="flex flex-col items-center justify-center mb-8 relative">
-        <h2 className="text-4xl font-extrabold text-white tracking-tight mb-2 text-center drop-shadow-lg font-sans">
-          {myTeam.teamName}'s Roster
-        </h2>
-        {teamStats && (
-          <div className="w-full max-w-3xl mx-auto mb-8">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900/90 to-slate-900/50 border border-white/10 backdrop-blur-xl shadow-[0_0_40px_rgba(0,0,0,0.6)]">
-              <div className="absolute inset-0 opacity-20 pointer-events-none">
-                {dailyTeamTotals.length > 1 && (
-                  <svg className="w-full h-full" preserveAspectRatio="none" viewBox={`0 0 1000 100`}>
-                    <defs>
-                      <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.5" />
-                        <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d={getSparklineArea(dailyTeamTotals, 1000, 100)} fill="url(#sparkGradient)" />
-                    <path d={getSparklinePath(dailyTeamTotals, 1000, 100)} fill="none" stroke="#22d3ee" strokeWidth="2" />
-                  </svg>
-                )}
+      {/* Hero Dashboard Header - Combined Title & Stats */}
+      <div className="w-full mb-8">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900/90 to-slate-900/50 border border-white/10 backdrop-blur-xl shadow-[0_0_40px_rgba(0,0,0,0.6)]">
+          {/* Background sparkline */}
+          <div className="absolute inset-0 opacity-20 pointer-events-none">
+            {dailyTeamTotals.length > 1 && (
+              <svg className="w-full h-full" preserveAspectRatio="none" viewBox={`0 0 1000 100`}>
+                <defs>
+                  <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.5" />
+                    <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d={getSparklineArea(dailyTeamTotals, 1000, 100)} fill="url(#sparkGradient)" />
+                <path d={getSparklinePath(dailyTeamTotals, 1000, 100)} fill="none" stroke="#22d3ee" strokeWidth="2" />
+              </svg>
+            )}
+          </div>
+          
+          {/* Content: Flex row - stacks on mobile */}
+          <div className="relative z-10 px-8 py-6 flex flex-col md:flex-row items-center gap-6">
+            {/* Left Side: Avatar + Team Name */}
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-3xl font-light text-white shadow-lg">
+                {myTeam.teamName[0].toUpperCase()}
               </div>
-              <div className="relative z-10 px-10 py-6 flex items-center justify-between">
-                <div className="flex flex-col items-center flex-1 border-r border-white/10">
-                  <span className="text-xs text-cyan-200/70 uppercase tracking-[0.2em] font-bold mb-1">Season Points</span>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight uppercase">
+                  {myTeam.teamName}'s Roster
+                </h1>
+                <p className="text-blue-100/80 text-xs uppercase tracking-[0.3em] drop-shadow-[0_0_6px_rgba(59,130,246,0.4)]">Fantasy Hockey Team</p>
+              </div>
+            </div>
+            
+            {/* Right Side: Stats - pushed right on desktop */}
+            {teamStats && (
+              <div className="flex items-center gap-8 md:ml-auto">
+                <div className="flex flex-col items-center px-6 border-r border-white/10">
+                  <span className="text-xs text-cyan-200/70 uppercase tracking-[0.15em] font-bold mb-1">Season Points</span>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                    <span className="text-4xl font-black text-white drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]">
                       {teamStats.totalPoints.toLocaleString()}
                     </span>
                     {lastGamePoints > 0 && (
                       <div className={cn(
-                        "flex items-center text-sm font-bold px-2 py-0.5 rounded-full",
+                        "flex items-center text-xs font-bold px-2 py-0.5 rounded-full",
                         trend === 'up' ? "text-green-400 bg-green-500/10" :
                           trend === 'down' ? "text-red-400 bg-red-500/10" : "text-gray-400 bg-gray-500/10"
                       )}>
@@ -399,45 +413,70 @@ export default function PlayerList() {
                       </div>
                     )}
                   </div>
-                  <span className="text-[10px] text-gray-500 mt-1 font-medium">
-                    {dailyTeamTotals.length > 0 ? 'Last Game Points' : 'No games played yet'}
-                  </span>
                 </div>
-                <div className="flex flex-col items-center flex-1">
-                  <span className="text-xs text-green-200/70 uppercase tracking-[0.2em] font-bold mb-1">League Rank</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]">
-                      {teamStats.rank}<sup className="text-2xl align-top opacity-60">{getOrdinalSuffix(teamStats.rank)}</sup>
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-gray-500 mt-1 font-medium">
-                    {teamStats.rank === 1 ? 'League Leader 👑' : `Top ${Math.round((teamStats.rank / 12) * 100)}% of League`}
+                <div className="flex flex-col items-center px-6">
+                  <span className="text-xs text-emerald-200/70 uppercase tracking-[0.15em] font-bold mb-1">League Rank</span>
+                  <span className="text-4xl font-black text-white drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]">
+                    {teamStats.rank}<sup className="text-xl align-top opacity-60">{getOrdinalSuffix(teamStats.rank)}</sup>
                   </span>
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-green-500 opacity-50" />
-            </div>
+            )}
           </div>
-        )}
+          
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-emerald-500 opacity-50" />
+        </div>
       </div>
 
       {/* Active Roster */}
       <GlassCard className="p-6 mb-6 bg-gray-900/40 border-gray-700/30 backdrop-blur-md">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4">
-          <div className="flex items-center gap-4">
-            <h3 className="text-2xl font-bold text-white flex items-center gap-3">
-              <span className="bg-green-500/20 text-green-400 p-2 rounded-lg shadow-[0_0_15px_rgba(74,222,128,0.2)]">🏒</span>
-              Active Roster
-              <span className="text-gray-500 text-lg font-normal">({activePlayers.length})</span>
-            </h3>
-            {league?.rosterSettings && (
-              <div className="flex gap-2 text-xs bg-gray-800/50 p-1.5 rounded-lg border border-gray-700/50">
-                <button onClick={() => setFilterBy('F')} className={cn("px-3 py-1 rounded-md font-semibold transition-all", filterBy === 'F' ? "bg-blue-600 text-white shadow-lg" : "bg-blue-600/20 text-blue-300 hover:bg-blue-600/40")}>F ({rosterCounts.forwards}/{league.rosterSettings.forwards})</button>
-                <button onClick={() => setFilterBy('D')} className={cn("px-3 py-1 rounded-md font-semibold transition-all", filterBy === 'D' ? "bg-green-600 text-white shadow-lg" : "bg-green-600/20 text-green-300 hover:bg-green-600/40")}>D ({rosterCounts.defense}/{league.rosterSettings.defensemen})</button>
-                <button onClick={() => setFilterBy('G')} className={cn("px-3 py-1 rounded-md font-semibold transition-all", filterBy === 'G' ? "bg-yellow-600 text-white shadow-lg" : "bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/40")}>G ({rosterCounts.goalies}/{league.rosterSettings.goalies})</button>
-                <button onClick={() => setFilterBy('all')} className={cn("px-3 py-1 rounded-md font-semibold transition-all", filterBy === 'all' ? "bg-cyan-600 text-white shadow-lg" : "bg-gray-600/20 text-gray-300 hover:bg-gray-600/40")}>All</button>
-              </div>
-            )}
+          {/* Color-Coded Filter Navigation - Synced with card badge colors */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setFilterBy('all')} 
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-semibold transition-all border",
+                filterBy === 'all' 
+                  ? "bg-white text-slate-900 border-white shadow-lg" 
+                  : "text-gray-300 border-gray-500/50 hover:text-white hover:border-gray-400"
+              )}
+            >
+              All <span className="ml-1 opacity-70">{activePlayers.length + reservePlayers.length}</span>
+            </button>
+            <button 
+              onClick={() => setFilterBy('F')} 
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-semibold transition-all border",
+                filterBy === 'F' 
+                  ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/30" 
+                  : "text-blue-300 border-blue-500/40 hover:bg-blue-600/10 hover:border-blue-500/60"
+              )}
+            >
+              Forwards <span className="ml-1 opacity-70">{rosterCounts.forwards}</span>
+            </button>
+            <button 
+              onClick={() => setFilterBy('D')} 
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-semibold transition-all border",
+                filterBy === 'D' 
+                  ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/30" 
+                  : "text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10 hover:border-emerald-500/60"
+              )}
+            >
+              Defense <span className="ml-1 opacity-70">{rosterCounts.defense}</span>
+            </button>
+            <button 
+              onClick={() => setFilterBy('G')} 
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-semibold transition-all border",
+                filterBy === 'G' 
+                  ? "bg-amber-400 text-slate-900 border-amber-300 shadow-lg shadow-amber-400/30" 
+                  : "text-amber-300 border-amber-400/40 hover:bg-amber-400/10 hover:border-amber-400/60"
+              )}
+            >
+              Goalies <span className="ml-1 opacity-70">{rosterCounts.goalies}</span>
+            </button>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-gray-300 text-sm">
@@ -468,7 +507,9 @@ export default function PlayerList() {
           viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
               {activePlayers.map(player => (
-                <MyPlayerCard key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
+                <div key={`${player.id}-${sortBy}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <MyPlayerCard player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(player.playerId)} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
+                </div>
               ))}
             </div>
           ) : (
@@ -501,7 +542,7 @@ export default function PlayerList() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
             {reservePlayers.map(player => (
-              <MyPlayerCard key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)] || 0} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
+              <MyPlayerCard key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)] || 0} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(player.playerId)} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
             ))}
           </div>
         )}
