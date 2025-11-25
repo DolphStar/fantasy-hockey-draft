@@ -18,7 +18,7 @@ export default function BestAvailable({ allPlayers, draftedPlayerIds, lastSeason
     const best = useBestAvailable(allPlayers, draftedPlayerIds, lastSeasonStats);
     const scarcity = usePositionScarcity(allPlayers, draftedPlayerIds);
     const [filter, setFilter] = useState<'overall' | 'forwards' | 'defense' | 'goalies'>('overall');
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(true); // Closed by default
 
     if (!best) return null;
 
@@ -31,21 +31,33 @@ export default function BestAvailable({ allPlayers, draftedPlayerIds, lastSeason
     };
 
     return (
-        <GlassCard className="p-4 mb-6 border-amber-500/30">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    🔥 Best Available
+        <GlassCard className={`mb-6 transition-all duration-300 ${isCollapsed ? 'p-3' : 'p-4'} border-amber-500/20 hover:border-amber-500/40`}>
+            {/* Header - clickable to toggle */}
+            <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="w-full flex justify-between items-center group"
+            >
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span className="text-amber-400">🔥</span> Best Available
+                    {isCollapsed && (
+                        <span className="text-xs font-normal text-slate-500 ml-2">
+                            Click to expand
+                        </span>
+                    )}
                 </h3>
                 <div className="flex items-center gap-2">
                     {!isCollapsed && (
-                        <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg">
+                        <div className="flex gap-1 bg-slate-800/60 p-0.5 rounded-lg" onClick={e => e.stopPropagation()}>
                             {(['overall', 'forwards', 'defense', 'goalies'] as const).map(f => (
                                 <button
                                     key={f}
-                                    onClick={() => setFilter(f)}
-                                    className={`px-3 py-1 text-xs font-bold rounded transition-colors ${filter === f
-                                        ? 'bg-amber-500 text-black'
-                                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFilter(f);
+                                    }}
+                                    className={`px-2.5 py-1 text-[10px] font-bold rounded transition-all ${filter === f
+                                        ? 'bg-amber-500 text-slate-900 shadow-sm'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                                         }`}
                                 >
                                     {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -53,90 +65,108 @@ export default function BestAvailable({ allPlayers, draftedPlayerIds, lastSeason
                             ))}
                         </div>
                     )}
-                    <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="text-slate-400 hover:text-white transition-colors px-2 py-1 hover:bg-slate-700/50 rounded"
-                        title={isCollapsed ? "Expand" : "Collapse"}
-                    >
-                        {isCollapsed ? '▼' : '▲'}
-                    </button>
+                    <span className={`text-slate-500 group-hover:text-slate-300 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`}>
+                        ▼
+                    </span>
                 </div>
-            </div>
+            </button>
 
-            {!isCollapsed && (
-                <>
-                    <div className="space-y-2 mb-4">
-                        {playersToShow.map((player, i) => {
-                            const stats = lastSeasonStats[player.person.id];
-                            const isGoalie = player.position.code === 'G';
+            {/* Expandable content */}
+            <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[800px] opacity-100 mt-4'}`}>
+                <div className="space-y-1.5">
+                    {playersToShow.map((player, i) => {
+                        const stats = lastSeasonStats[player.person.id];
+                        const isGoalie = player.position.code === 'G';
+                        const teamAbbrev = (player as any).teamAbbrev;
+                        const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.person.id}.png`;
 
-                            return (
-                                <div key={player.person.id} className="flex items-center justify-between bg-slate-800/30 hover:bg-slate-700/50 p-2 rounded border border-slate-700/30 transition-colors group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-slate-500 font-mono text-xs w-4">{i + 1}</div>
-                                        <div>
-                                            <div className="font-bold text-slate-200 text-sm group-hover:text-white">
-                                                {getPlayerFullName(player)}
-                                            </div>
-                                            <div className="flex gap-2 text-[10px] text-slate-400">
-                                                <Badge variant="outline" className="scale-75 origin-left">{player.position.code}</Badge>
-                                                <span>{(player as any).teamAbbrev}</span>
-                                            </div>
+                        return (
+                            <div 
+                                key={player.person.id} 
+                                className="flex items-center justify-between bg-slate-800/40 hover:bg-slate-700/60 px-3 py-2 rounded-lg border border-slate-700/30 hover:border-slate-600/50 transition-all group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="text-slate-600 font-mono text-[10px] w-3 text-right">{i + 1}</div>
+                                    <img 
+                                        src={headshotUrl} 
+                                        alt="" 
+                                        className="w-8 h-8 rounded-full object-cover bg-slate-700/50 border border-slate-600/30"
+                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                    />
+                                    <div>
+                                        <div className="font-semibold text-slate-200 text-sm group-hover:text-white transition-colors">
+                                            {getPlayerFullName(player)}
                                         </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-right">
-                                            <div className="text-amber-400 font-bold font-mono text-sm">
-                                                {isGoalie ? (stats?.wins || 0) : (stats?.points || 0)}
-                                            </div>
-                                            <div className="text-[9px] text-slate-500 uppercase">
-                                                {isGoalie ? 'Wins' : 'Pts'}
-                                            </div>
-                                        </div>
-
-                                        {isMyTurn && (
-                                            <button
-                                                onClick={() => onDraft(player)}
-                                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                                            <Badge 
+                                                variant="outline" 
+                                                className={`text-[9px] px-1.5 py-0 h-4 ${
+                                                    ['C', 'L', 'R'].includes(player.position.code) 
+                                                        ? 'border-blue-500/40 text-blue-400' 
+                                                        : player.position.code === 'D' 
+                                                            ? 'border-emerald-500/40 text-emerald-400'
+                                                            : 'border-amber-500/40 text-amber-400'
+                                                }`}
                                             >
-                                                Draft
-                                            </button>
-                                        )}
+                                                {player.position.code}
+                                            </Badge>
+                                            <span className="text-slate-500">{teamAbbrev}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            );
-                        })}
-                    </div>
 
-                    {/* Position Scarcity Section */}
-                    {scarcity && (
-                        <>
-                            <div className="border-t border-slate-700/50 my-4"></div>
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-                                    📊 Position Scarcity
-                                </h3>
-                                <div className="grid grid-cols-5 gap-2 text-center">
-                                    {(['C', 'L', 'R', 'D', 'G'] as const).map(pos => (
-                                        <div key={pos} className="bg-slate-800/50 rounded p-2 border border-slate-700">
-                                            <div className={`text-xs font-bold mb-1 ${pos === 'C' || pos === 'L' || pos === 'R' ? 'text-red-400' :
-                                                    pos === 'D' ? 'text-green-400' : 'text-blue-400'
-                                                }`}>
-                                                {pos}
-                                            </div>
-                                            <div className={`text-xl font-black ${getScarcityColor(scarcity.remainingCounts[pos])}`}>
-                                                {scarcity.remainingCounts[pos]}
-                                            </div>
-                                            <div className="text-[10px] text-slate-500">left</div>
+                                <div className="flex items-center gap-3">
+                                    <div className="text-right min-w-[40px]">
+                                        <div className="text-amber-400 font-bold font-mono text-sm">
+                                            {isGoalie ? (stats?.wins || 0) : (stats?.points || 0)}
                                         </div>
-                                    ))}
+                                        <div className="text-[8px] text-slate-500 uppercase tracking-wide">
+                                            {isGoalie ? 'Wins' : 'Pts'}
+                                        </div>
+                                    </div>
+
+                                    {isMyTurn && (
+                                        <button
+                                            onClick={() => onDraft(player)}
+                                            className="bg-emerald-600/80 hover:bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-md transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                                        >
+                                            Draft
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                        </>
-                    )}
-                </>
-            )}
+                        );
+                    })}
+                </div>
+
+                {/* Position Scarcity Section */}
+                {scarcity && (
+                    <div className="mt-4 pt-4 border-t border-slate-700/40">
+                        <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                            <span className="text-blue-400">📊</span> Position Scarcity
+                        </h4>
+                        <div className="grid grid-cols-5 gap-2 text-center">
+                            {(['C', 'L', 'R', 'D', 'G'] as const).map(pos => (
+                                <div 
+                                    key={pos} 
+                                    className="bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/40 hover:border-slate-600/50 transition-colors"
+                                >
+                                    <div className={`text-[10px] font-bold mb-0.5 ${
+                                        pos === 'C' || pos === 'L' || pos === 'R' ? 'text-blue-400' :
+                                        pos === 'D' ? 'text-emerald-400' : 'text-amber-400'
+                                    }`}>
+                                        {pos}
+                                    </div>
+                                    <div className={`text-lg font-black ${getScarcityColor(scarcity.remainingCounts[pos])}`}>
+                                        {scarcity.remainingCounts[pos]}
+                                    </div>
+                                    <div className="text-[8px] text-slate-500 uppercase tracking-wide">left</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
         </GlassCard>
     );
 }

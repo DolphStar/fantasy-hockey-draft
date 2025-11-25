@@ -2,6 +2,8 @@ import { cn } from '../../lib/utils';
 
 import PlayerGameLogPopup from './PlayerGameLogPopup';
 import { useState } from 'react';
+import { PlayerPositionBadge } from './PlayerPositionBadge';
+import { PlayerStatsPill } from './PlayerStatsPill';
 
 interface MyPlayerCardProps {
     player: {
@@ -182,34 +184,7 @@ export default function MyPlayerCard({
 
                 {/* Top Section: Image and Badges */}
                 <div className="relative h-64 w-full overflow-visible shrink-0">
-                    {/* Shield Position Badge */}
-                    <div
-                        className={cn(
-                            'absolute top-3 right-3 z-30 w-12 h-14 flex items-center justify-center shadow-[0_4px_6px_rgba(0,0,0,0.3)]',
-                            // Color coding: F=blue-600, D=emerald-500, G=amber-400
-                            ['C', 'L', 'R'].includes(player.position) ? 'bg-gradient-to-b from-blue-400 via-blue-600 to-slate-900' :
-                                player.position === 'D' ? 'bg-gradient-to-b from-emerald-300 via-emerald-500 to-slate-900' :
-                                    'bg-gradient-to-b from-amber-300 via-amber-400 to-slate-900'
-                        )}
-                        style={{
-                            clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)'
-                        }}
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none mix-blend-overlay" />
-                        <div className="absolute inset-[1px] bg-slate-900 z-0" style={{ clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)' }} />
-                        <div
-                            className={cn(
-                                "absolute inset-[2px] z-0 bg-gradient-to-br",
-                                ['C', 'L', 'R'].includes(player.position) ? 'from-blue-600/50 to-slate-900' :
-                                    player.position === 'D' ? 'from-emerald-500/50 to-slate-900' :
-                                        'from-amber-400/50 to-slate-900'
-                            )}
-                            style={{ clipPath: 'polygon(50% 0%, 100% 20%, 100% 85%, 50% 100%, 0% 85%, 0% 20%)' }}
-                        />
-                        <span className="font-black font-heading text-lg drop-shadow-md mt-[-2px] relative z-10 text-white">
-                            {player.position}
-                        </span>
-                    </div>
+                    <PlayerPositionBadge position={player.position} />
 
                     {/* Injury Badge - Grayscale Effect */}
                     {injury && (
@@ -267,26 +242,12 @@ export default function MyPlayerCard({
                         </h2>
                     </div>
 
-                    {/* Stats Pill - Semi-transparent dark blue */}
-                    <div className="flex items-center justify-center gap-3 text-xs font-bold tracking-wider text-gray-300 bg-slate-900/70 backdrop-blur-xl py-2 px-5 rounded-full mx-auto w-fit border border-white/10 shadow-lg mb-auto relative overflow-hidden group-hover:bg-slate-800/80 transition-colors">
-                        {/* Inner glow */}
-                        <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
-
-                        <span className="flex items-center gap-1">
-                            <span className="text-gray-400">G:</span>
-                            <span className="text-white">{stats?.goals ?? 0}</span>
-                        </span>
-                        <span className="text-yellow-400">⚡</span>
-                        <span className="flex items-center gap-1">
-                            <span className="text-gray-400">A:</span>
-                            <span className="text-white">{stats?.assists ?? 0}</span>
-                        </span>
-                        <span className="text-yellow-400">⚡</span>
-                        <span className="flex items-center gap-1">
-                            <span className="text-gray-400">AVG:</span>
-                            <span className={getAvgColor(stats?.avgPoints ?? 0)}>{stats?.avgPoints?.toFixed(1) ?? '0.0'}</span>
-                        </span>
-                    </div>
+                    <PlayerStatsPill
+                        goals={stats?.goals ?? 0}
+                        assists={stats?.assists ?? 0}
+                        avg={(stats?.avgPoints ?? 0).toFixed(1)}
+                        avgClassName={getAvgColor(stats?.avgPoints ?? 0)}
+                    />
 
                     {/* Stats Area */}
                     <div className="w-full flex items-center justify-end mb-3 mt-auto transition-transform duration-300 group-hover:translate-y-[-2px]">

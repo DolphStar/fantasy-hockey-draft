@@ -1,10 +1,8 @@
 import { getPlayerFullName, type RosterPerson } from '../../utils/nhlApi';
-import { getInjuryIcon } from '../../services/injuryService';
-import { GlassCard } from '../ui/GlassCard';
-import { Badge } from '../ui/Badge';
-
 import { cn } from '../../lib/utils';
 import { useComparison } from '../../context/ComparisonContext';
+import { PlayerPositionBadge } from './PlayerPositionBadge';
+import { PlayerStatsPill } from './PlayerStatsPill';
 
 interface PlayerCardProps {
     player: RosterPerson;
@@ -33,286 +31,179 @@ export default function PlayerCard({
 }: PlayerCardProps) {
     const { addPlayerToCompare } = useComparison();
     const teamAbbrev = (player as any).teamAbbrev || 'UNK';
+    const position = player.position.code;
+    const isForward = ['C', 'L', 'R'].includes(position);
 
-    // --- 1. Rarity & Tier Logic ---
-    const getCardTier = () => {
-        if (!playerStats) return 'standard';
-
-        const pos = player.position.code;
-        const points = playerStats.points || 0;
-        const wins = playerStats.wins || 0;
-        const svPct = playerStats.savePct || 0;
-
-        // Forward (C, L, R)
-        if (['C', 'L', 'R'].includes(pos)) {
-            if (points >= 100) return 'legendary';
-            if (points >= 70) return 'elite';
-            if (points >= 40) return 'good';
-            return 'standard';
-        }
-
-        // Defenseman (D)
-        if (pos === 'D') {
-            if (points >= 50) return 'elite-d';
-            if (points >= 30) return 'good-d';
-            return 'standard-d';
-        }
-
-        // Goalie (G)
-        if (pos === 'G') {
-            if (wins >= 30 || svPct > 0.915) return 'elite-g';
-            if ((wins >= 15 && wins < 30) || (svPct >= 0.900 && svPct <= 0.915)) return 'good-g';
-            return 'standard-g';
-        }
-
-        return 'standard';
-    };
-
-    const tier = getCardTier();
-
-    // --- 2. Style Configuration ---
-    const styles = {
-        // Tier 1: Legendary / Superstar (Amber/Gold) - ONLY tier with colored border
-        'legendary': {
-            card: "bg-gray-800 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.15)] bg-gradient-to-br from-gray-900 via-amber-900/10 to-gray-900",
-            foil: "absolute inset-0 opacity-30 bg-[linear-gradient(110deg,transparent_25%,rgba(251,191,36,0.3)_45%,rgba(245,158,11,0.5)_50%,rgba(251,191,36,0.3)_55%,transparent_75%)] bg-[length:250%_100%] animate-shimmer pointer-events-none mix-blend-overlay",
-            accentText: "text-amber-400",
-            statBorder: "border-amber-500/30",
-            avatarRing: "from-amber-400 to-orange-600"
-        },
-        // Tier 2: Elite - No colored border
-        'elite': {
-            card: "bg-gray-800 border-gray-700/50",
-            foil: "",
-            accentText: "text-emerald-400",
-            statBorder: "border-gray-700/50",
-            avatarRing: ""
-        },
-        // Tier 3: Good - No colored border
-        'good': {
-            card: "bg-gray-800 border-gray-700/50",
-            foil: "",
-            accentText: "text-sky-400",
-            statBorder: "border-gray-700/50",
-            avatarRing: ""
-        },
-        // Standard
-        'standard': {
-            card: "bg-gray-800 border-gray-700/50",
-            foil: "",
-            accentText: "text-white",
-            statBorder: "border-gray-700/50",
-            avatarRing: ""
-        }
-    };
-
-    // Map specific logic to shared styles
-    let styleKey = 'standard';
-    if (tier === 'legendary') styleKey = 'legendary';
-    else if (tier === 'elite' || tier === 'elite-d' || tier === 'elite-g') styleKey = 'elite';
-    else if (tier === 'good' || tier === 'good-d' || tier === 'good-g') styleKey = 'good';
-
-    const currentStyle = styles[styleKey as keyof typeof styles];
-
-    // NHL headshot URL (with fallback)
     const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.person.id}.png`;
-    const fallbackHeadshot = "https://assets.nhle.com/mugs/nhl/default-skater.png";
-    const teamLogoUrl = `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_dark.svg`;
+    const fallbackHeadshot = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
+    const teamLogoUrl = `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_light.svg`;
 
+    const goals = playerStats?.goals;
+    const assists = playerStats?.assists;
+    const avgPoints = typeof playerStats?.pointsPerGame === 'number'
+        ? playerStats.pointsPerGame
+        : typeof playerStats?.points === 'number'
+            ? Number((playerStats.points / 82).toFixed(1))
+            : undefined;
 
+    const statDisplay = (value: number | undefined | null, formatter: (val: number) => string = (val) => val.toString()) => {
+        if (value === undefined || value === null || Number.isNaN(value)) return 'N/A';
+        return formatter(value);
+    };
+
+    const draftStatusLabel = !draftState || draftState.isComplete
+        ? null
+        : isDrafted
+            ? 'Already Drafted'
+            : !isMyTurn
+                ? 'Not your turn'
+                : null;
 
     return (
-        <GlassCard
-            hoverEffect={!isDrafted}
-            className={
-                cn(
-                    "relative flex h-full flex-col p-0 transition-all overflow-hidden group/card",
-                    isDrafted ? "opacity-80 grayscale-[0.6] bg-gray-800/50 border-gray-700" : currentStyle.card
-                )
-            }
+        <div
+            className="relative group transition-all duration-300 h-[420px] w-full"
         >
-            {/* Foil Effect Overlay */}
-            {
-                !isDrafted && currentStyle.foil && (
-                    <div className={currentStyle.foil} />
-                )
-            }
-
-            {/* Top Right Badges (IR/OUT/Lock) */}
-            <div className="absolute top-2 right-2 z-20 flex flex-col gap-1 items-end">
-                {isDrafted && (
-                    <div className="bg-gray-900/90 p-1.5 rounded-full border border-gray-700 shadow-sm">
-                        <span className="text-xs leading-none">🔒</span>
-                    </div>
+            <div
+                className={cn(
+                    'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
+                    'border-2 transition-all duration-300 bg-slate-900',
+                    'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/20',
+                    isDrafted
+                        ? 'border-slate-700/60 opacity-80 grayscale-[0.35]'
+                        : 'border-slate-700/50 hover:border-blue-400/70 shadow-xl'
                 )}
-                {injury && (
-                    <Badge variant="danger" className="shadow-md">
-                        {getInjuryIcon(injury.status)} {
-                            injury.status === 'Injured Reserve' ? 'IR' :
-                                injury.status === 'Day To Day' ? 'DTD' :
-                                    injury.status === 'Out' ? 'OUT' :
-                                        injury.status.toUpperCase().substring(0, 3)
-                        }
-                    </Badge>
-                )}
-            </div>
+                style={{ background: '#0f172a' }}
+            >
+                {/* Noise texture overlay */}
+                <div className="absolute inset-0 opacity-[0.05] pointer-events-none z-0 mix-blend-overlay rounded-xl"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
+                />
 
-            {/* --- Card Content --- */}
-            <div className="flex flex-col h-full">
+                {/* Team Logo Blend */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none z-0 mix-blend-overlay overflow-hidden rounded-xl">
+                    <img src={teamLogoUrl} alt="Team Logo" className="w-full h-full object-contain scale-[1.85]" />
+                </div>
 
-                {/* 1. Header Section: Headshot & Name (Horizontal) */}
-                <div className="flex items-center p-4 pb-3 gap-3">
-                    {/* Avatar with Team Logo */}
-                    <div className="relative flex-shrink-0">
-                        <div className={cn(
-                            "w-16 h-16 rounded-full overflow-hidden bg-gray-900 border-2",
-                            currentStyle.avatarRing ? "border-transparent p-0.5 bg-gradient-to-br " + currentStyle.avatarRing : "border-gray-700"
-                        )}>
-                            <img
-                                src={headshotUrl}
-                                alt={getPlayerFullName(player)}
-                                loading="lazy"
-                                onError={(e) => { e.currentTarget.src = fallbackHeadshot; }}
-                                className="w-full h-full object-cover bg-gray-900"
-                            />
+                <div className="relative h-64 w-full overflow-visible shrink-0">
+                    <PlayerPositionBadge position={position} />
+
+                    {/* Injury Badge */}
+                    {injury && (
+                        <div className="absolute top-3 left-3 z-30">
+                            <div className="bg-red-600 text-white px-2 py-1 rounded-sm text-xs font-black uppercase tracking-wider shadow-lg border border-red-400">
+                                {injury.status === 'Injured Reserve' ? 'IR' : injury.status === 'Day To Day' ? 'DTD' : injury.status?.slice(0, 3).toUpperCase()}
+                            </div>
                         </div>
-                        {/* Team Logo Badge (Overlapping) */}
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gray-900 rounded-full p-1 border border-gray-700 flex items-center justify-center">
-                            <img
-                                src={teamLogoUrl}
-                                alt={teamAbbrev}
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
+                    )}
+
+                    {/* Player Image */}
+                    <div className="relative top-[10px] left-1/2 -translate-x-1/2 w-[220px] h-[220px] overflow-hidden z-10 pointer-events-none">
+                        <img
+                            src={headshotUrl}
+                            alt={getPlayerFullName(player)}
+                            loading="lazy"
+                            onError={(e) => {
+                                e.currentTarget.src = fallbackHeadshot;
+                            }}
+                            className="w-full h-full object-cover object-[50%_25%] scale-110 drop-shadow-[0_5px_10px_rgba(0,0,0,0.5)] transition-all duration-300"
+                            style={{
+                                maskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)',
+                                WebkitMaskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)'
+                            }}
+                        />
                     </div>
+                </div>
 
-                    {/* Player Name & Position */}
-                    <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-heading font-bold text-xl leading-tight truncate mb-1">
-                            {getPlayerFullName(player)}
+                {/* Team Logo bottom-left */}
+                <div className="absolute bottom-3 left-3 z-30">
+                    <img
+                        src={teamLogoUrl}
+                        alt="Team Logo"
+                        className="w-10 h-10 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                    />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 flex flex-col px-4 pb-3 relative z-20 mt-[-20px]">
+                    <div className="text-center w-full mb-3">
+                        <h3 className="text-white/70 font-heading font-medium text-sm uppercase tracking-[0.3em] leading-none mb-1 drop-shadow-md">
+                            {player.person.firstName.default}
                         </h3>
-                        <div className="flex items-center gap-2">
-                            <span className="text-gray-400 text-sm font-medium tracking-wide">
-                                {teamAbbrev} • {player.position.code}
-                            </span>
-                            <div className={cn(
-                                "w-2 h-2 rounded-full",
-                                player.position.code === 'D' ? "bg-green-500" :
-                                    player.position.code === 'G' ? "bg-blue-500" : "bg-red-500"
-                            )} />
-                        </div>
+                        <h2 className="text-white font-heading font-black text-4xl uppercase tracking-wider leading-none drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
+                            {player.person.lastName.default}
+                        </h2>
+                    </div>
+
+                    <PlayerStatsPill
+                        goals={statDisplay(isForward || position === 'D' ? goals : playerStats?.wins, (val) => `${val}`)}
+                        assists={statDisplay(
+                            isForward || position === 'D'
+                                ? assists
+                                : playerStats?.savePct
+                                    ? Number((playerStats.savePct * 100).toFixed(1))
+                                    : undefined,
+                            (val) => (isForward || position === 'D') ? `${val}` : `${val}%`
+                        )}
+                        avg={statDisplay(
+                            isForward || position === 'D'
+                                ? avgPoints
+                                : (playerStats?.goalsAgainstAverage ?? undefined),
+                            (val) => (isForward || position === 'D') ? Number(val).toFixed(1) : Number(val).toFixed(2)
+                        )}
+                        goalsLabel={isForward || position === 'D' ? 'G' : 'W'}
+                        assistsLabel={isForward || position === 'D' ? 'A' : 'SV%'}
+                        avgLabel={isForward || position === 'D' ? 'AVG' : 'GAA'}
+                    />
+
+                    {/* Actions */}
+                    <div className="mt-4 space-y-2">
+                        {draftStatusLabel && (
+                            <div className="text-center text-xs text-slate-400 font-semibold py-1.5 border border-slate-700/60 rounded-full">
+                                {draftStatusLabel}
+                            </div>
+                        )}
+
+                        {!draftStatusLabel && draftState && !draftState.isComplete && (
+                            <button
+                                onClick={() => onDraft(player)}
+                                disabled={isDrafting}
+                                className="w-full py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-bold tracking-wide shadow-[0_5px_15px_rgba(37,99,235,0.35)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.5)] transition-all disabled:cursor-not-allowed"
+                            >
+                                {isDrafting ? 'Drafting…' : 'Draft Player'}
+                            </button>
+                        )}
+
+                        {isAdmin && !isDrafted && (
+                            <button
+                                onClick={() => onPickUp(player)}
+                                disabled={isDrafting}
+                                className="w-full py-1.5 rounded-full bg-violet-600/90 hover:bg-violet-500 text-xs font-bold tracking-wide shadow-[0_4px_12px_rgba(139,92,246,0.35)]"
+                            >
+                                {isDrafting ? 'Picking Up…' : '👑 Pick Up (Admin)'}
+                            </button>
+                        )}
+
                     </div>
                 </div>
 
-                {/* 2. Stat Block (Horizontal) */}
-                <div className="px-0 py-1.5 mt-0.5 mb-auto">
-                    {playerStats ? (
-                        <div className="bg-gray-900/40 border-y border-gray-700/50 py-2 px-4">
-                            {player.position.code === 'G' ? (
-                                <div className="flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className={cn("text-2xl font-black leading-none", currentStyle.accentText)}>
-                                            {playerStats.wins || 0}
-                                        </span>
-                                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Wins</span>
-                                    </div>
-                                    <div className="h-8 w-px bg-gray-700/50 mx-4" />
-                                    <div className="flex items-center gap-4 text-sm">
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-100 font-mono font-bold">{(playerStats.savePct || 0).toFixed(3)}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase">SV%</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-100 font-mono font-bold">{(playerStats.goalsAgainstAverage || 0).toFixed(2)}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase">GAA</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className={cn("text-2xl font-black leading-none", currentStyle.accentText)}>
-                                            {playerStats.points || 0}
-                                        </span>
-                                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Points</span>
-                                    </div>
-                                    <div className="h-8 w-px bg-gray-700/50 mx-4" />
-                                    <div className="flex items-center gap-4 text-sm">
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-100 font-mono font-bold">{playerStats.goals || 0}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase">G</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-100 font-mono font-bold">{playerStats.assists || 0}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase">A</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="bg-gray-900/40 border-y border-gray-700/50 py-2.5 px-4 flex flex-col items-center justify-center">
-                            <div className="w-8 h-0.5 bg-gray-600 mb-1 rounded-full" />
-                            <span className="text-[10px] text-gray-500 uppercase font-medium">No 23-24 Stats</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* 3. Actions Footer */}
-                <div className="p-3 pt-1.5 space-y-1.5">
-                    {/* Draft Button */}
-                    {draftState && !draftState.isComplete && (
-                        <>
-                            {isDrafted ? (
-                                <div className="w-full text-center py-1.5 text-xs text-gray-600 font-medium">
-                                    Already Drafted
-                                </div>
-                            ) : !isMyTurn ? (
-                                <div className="w-full text-center py-1.5 text-xs text-gray-600 font-medium opacity-40">
-                                    Not your turn
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => onDraft(player)}
-                                    disabled={isDrafting}
-                                    className="w-full py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 shadow-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-900/20"
-                                >
-                                    {isDrafting ? 'Drafting...' : 'Draft Player'}
-                                </button>
-                            )}
-                        </>
-                    )}
-
-                    {/* Admin Pick Up */}
-                    {isAdmin && !isDrafted && (
-                        <button
-                            onClick={() => onPickUp(player)}
-                            disabled={isDrafting}
-                            className="w-full py-1.5 px-3 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors shadow-sm"
-                        >
-                            {isDrafting ? 'Picking Up...' : '👑 Pick Up (Admin)'}
-                        </button>
-                    )}
-
-                    {/* Compare Button */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            addPlayerToCompare({
-                                id: player.person.id,
-                                name: getPlayerFullName(player),
-                                headshot: headshotUrl,
-                                positionCode: player.position.code,
-                                teamAbbrev: teamAbbrev,
-                                stats: playerStats
-                            });
-                        }}
-                        className="w-full py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors"
-                    >
-                        ⚖️ Compare
-                    </button>
-                </div>
+                {/* Compare button - absolute bottom center */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        addPlayerToCompare({
+                            id: player.person.id,
+                            name: getPlayerFullName(player),
+                            headshot: headshotUrl,
+                            positionCode: player.position.code,
+                            teamAbbrev,
+                            stats: playerStats
+                        });
+                    }}
+                    className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full border border-slate-700/60 text-[10px] font-semibold text-gray-400 hover:text-white hover:border-slate-400 transition-colors z-30"
+                >
+                    ⚖️ Compare
+                </button>
             </div>
-        </GlassCard >
+        </div>
     );
 }
