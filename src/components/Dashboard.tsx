@@ -10,7 +10,7 @@ import { useInjuries } from '../queries/useInjuries';
 import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import type { LivePlayerStats } from '../utils/liveStats';
 import { db } from '../firebase';
-import { getInjuryColor } from '../services/injuryService';
+import { getInjuryColor, type InjuryReport } from '../services/injuryService';
 
 const MAX_FEED_ITEMS = 6;
 const MAX_TREND_DAYS = 7;
@@ -384,8 +384,17 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         if (normalized.includes('day-to-day') || normalized.includes('day to day')) return 'DTD';
         if (normalized.includes('questionable')) return 'Q';
         if (normalized.includes('doubtful')) return 'D';
+        if (normalized.includes('susp')) return 'SUS';
         return status.toUpperCase();
     };
+
+    const handleInjuryCardClick = useCallback((injury: InjuryReport) => {
+        if (typeof window !== 'undefined') {
+            const focusValue = injury.playerId ? String(injury.playerId) : injury.playerName;
+            window.sessionStorage.setItem('focusedInjuryPlayerId', focusValue);
+        }
+        goToInjuries();
+    }, [goToInjuries]);
 
     const heroState = (() => {
         if (liveStats.length > 0) {
@@ -579,14 +588,18 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                             </div>
                         ) : (
                             myInjuryReports.slice(0, 3).map((injury) => (
-                                <div key={injury.playerId} className="rounded-xl border border-slate-800 p-3 bg-slate-900/40">
+                                <button
+                                    key={injury.playerId}
+                                    onClick={() => handleInjuryCardClick(injury)}
+                                    className="rounded-xl border border-slate-800 p-3 bg-slate-900/40 text-left hover:border-blue-400/70 hover:bg-slate-900/60 transition-colors cursor-pointer"
+                                >
                                     <div className="flex items-center gap-2">
                                         <span className={`inline-flex items-center gap-1 ${getInjuryColor(injury.status)} text-white text-[10px] px-2.5 py-0.5 rounded-full font-semibold tracking-wide uppercase`}>🩹 {formatStatusLabel(injury.status)}</span>
                                         <p className="text-white font-medium text-sm">{injury.playerName}</p>
                                     </div>
                                     <p className="text-xs text-slate-400 mt-1">{injury.teamAbbrev} • {injury.injuryType}</p>
                                     <p className="text-xs text-slate-500 mt-2 line-clamp-2">{injury.description}</p>
-                                </div>
+                                </button>
                             ))
                         )}
                     </div>

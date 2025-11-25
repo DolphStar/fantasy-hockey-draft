@@ -358,7 +358,7 @@ export default function PlayerList() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6">
+    <div className="max-w-[1600px] mx-auto">
       {/* Hero Dashboard Header - Combined Title & Stats */}
       <div className="w-full mb-8">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900/90 to-slate-900/50 border border-white/10 backdrop-blur-xl shadow-[0_0_40px_rgba(0,0,0,0.6)]">
