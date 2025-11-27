@@ -18,7 +18,7 @@ export default async function handler(
   }
 
   try {
-    const seasonId = "20242025"; // Current season
+    const seasonId = "20252026"; // Current season (2025-2026)
     const gameTypeId = "2"; // Regular season
 
     // Fetch both skaters and goalies in parallel
