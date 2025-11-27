@@ -19,13 +19,13 @@ export default async function handler(
   }
 
   try {
-    // Calculate date range for last 7 days (Vercel Pro allows 60s timeout)
+    // Calculate date range for last 3 days (reduced to prevent timeouts)
     const today = new Date();
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(today.getDate() - 7);
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(today.getDate() - 3);
     
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
-    const startDate = formatDate(sevenDaysAgo);
+    const startDate = formatDate(threeDaysAgo);
     
     // Fetch schedule
     const scheduleRes = await fetch(
@@ -53,8 +53,9 @@ export default async function handler(
       }
     }
 
-    // Limit to last 40 games (Vercel Pro supports 60s execution)
-    const gamesToProcess = gameIds.slice(-40); 
+    // Limit to last 15 games max to ensure we finish before timeout
+    const gamesToProcess = gameIds.slice(-15); 
+    console.log(`Processing ${gamesToProcess.length} games...`);
     
     // Aggregation map
     const playerStats = new Map<number, {
@@ -81,8 +82,8 @@ export default async function handler(
       }
     };
 
-    // Fetch in batches of 5 to avoid rate limits/timeouts
-    const batchSize = 5;
+    // Fetch in smaller batches of 3 to be gentle on API limits
+    const batchSize = 3;
     for (let i = 0; i < gamesToProcess.length; i += batchSize) {
       const batch = gamesToProcess.slice(i, i + batchSize);
       const boxscores = await Promise.all(batch.map(id => fetchBoxscore(id)));
@@ -146,7 +147,7 @@ export default async function handler(
     return res.status(200).json({
       players,
       gamesProcessed: gamesToProcess.length,
-      period: 'Last 7 Days'
+      period: 'Last 3 Days'
     });
 
   } catch (error) {
