@@ -316,10 +316,10 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         }
         const loadHot = async () => {
             try {
-                // Fetch current season stats from NHL API
+                // Fetch last 7 days stats from NHL API
                 const response = await fetch('/api/current-season-stats');
                 if (!response.ok) {
-                    console.error('Failed to fetch current season stats');
+                    console.error('Failed to fetch weekly stats');
                     setHotPickups([]);
                     return;
                 }
@@ -327,42 +327,20 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                 const data = await response.json();
                 const freeAgents: HotPickupData[] = [];
                 
-                // Process skaters - calculate fantasy points (goals + assists)
-                if (data.skaters) {
-                    data.skaters.forEach((player: any) => {
+                // Process players from the aggregated weekly stats
+                if (data.players) {
+                    data.players.forEach((player: any) => {
                         // Skip if player is already drafted
                         if (draftedPlayerIds.has(player.playerId)) return;
                         
-                        const fantasyPoints = (player.goals || 0) + (player.assists || 0);
-                        if (fantasyPoints > 0) {
+                        if (player.points > 0) {
                             freeAgents.push({
                                 id: player.playerId,
-                                name: `${player.skaterFullName}`,
-                                team: player.teamAbbrevs || 'FA',
-                                position: player.positionCode || 'F',
-                                points: fantasyPoints,
-                                trend: fantasyPoints >= 30 ? 'rising' : fantasyPoints >= 15 ? 'steady' : 'cooling',
-                                percentRostered: Math.round(Math.random() * 40 + 10),
-                            });
-                        }
-                    });
-                }
-                
-                // Process goalies - calculate fantasy points (wins * 2)
-                if (data.goalies) {
-                    data.goalies.forEach((player: any) => {
-                        // Skip if player is already drafted
-                        if (draftedPlayerIds.has(player.playerId)) return;
-                        
-                        const fantasyPoints = (player.wins || 0) * 2;
-                        if (fantasyPoints > 0) {
-                            freeAgents.push({
-                                id: player.playerId,
-                                name: `${player.goalieFullName}`,
-                                team: player.teamAbbrevs || 'FA',
-                                position: 'G',
-                                points: fantasyPoints,
-                                trend: fantasyPoints >= 20 ? 'rising' : fantasyPoints >= 10 ? 'steady' : 'cooling',
+                                name: player.name,
+                                team: player.team || 'FA',
+                                position: player.position || 'F',
+                                points: player.points,
+                                trend: player.points >= 6 ? 'rising' : player.points >= 3 ? 'steady' : 'cooling',
                                 percentRostered: Math.round(Math.random() * 40 + 10),
                             });
                         }
@@ -687,7 +665,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                                 <div className="mt-4 flex items-center justify-between text-sm">
                                     <div>
                                         <p className="text-slate-400 text-xs">Last 7 days</p>
-                                        <p className="text-2xl font-black text-green-400">{pickup.points.toFixed(1)}</p>
+                                        <p className="text-2xl font-black text-green-400">{pickup.points}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-slate-400 text-xs">Rostered</p>
