@@ -310,33 +310,67 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
     }, [league, myTeam]);
 
     useEffect(() => {
-        if (!league || draftedPlayerIds.size === 0) {
+        if (!league) {
             setHotPickups([]);
             return;
         }
         const loadHot = async () => {
-            const playersRef = collection(db, 'players');
-            const snapshot = await getDocs(playersRef);
-            const freeAgents: HotPickupData[] = [];
-            snapshot.docs.forEach(docSnap => {
-                const data = docSnap.data() as any;
-                if (!draftedPlayerIds.has(data.id)) {
-                    const recentPoints = data.last7Points ?? data.points ?? 0;
-                    const trend = recentPoints >= 8 ? 'rising' : recentPoints >= 4 ? 'steady' : 'cooling';
-                    const percentRostered = data.percentRostered ?? Math.round(Math.random() * 40 + 10);
-                    freeAgents.push({
-                        id: data.id,
-                        name: data.name,
-                        team: data.teamAbbrev || 'FA',
-                        position: data.position,
-                        points: recentPoints,
-                        trend,
-                        percentRostered,
-                    });
-                }
-            });
-            freeAgents.sort((a, b) => b.points - a.points);
-            setHotPickups(freeAgents.slice(0, 6));
+            try {
+                // Query playerDailyScores to find top performers
+                const scoresRef = collection(db, `leagues/${league.id}/playerDailyScores`);
+                const snapshot = await getDocs(query(scoresRef, orderBy('date', 'desc')));
+                
+                // Aggregate points by player (undrafted only)
+                const playerPointsMap = new Map<number, { 
+                    playerId: number; 
+                    playerName: string; 
+                    nhlTeam: string; 
+                    position: string;
+                    totalPoints: number; 
+                    gamesPlayed: number;
+                }>();
+                
+                snapshot.docs.forEach(docSnap => {
+                    const data = docSnap.data() as any;
+                    const playerId = data.playerId;
+                    
+                    // Skip if player is already drafted
+                    if (draftedPlayerIds.has(playerId)) return;
+                    
+                    if (!playerPointsMap.has(playerId)) {
+                        playerPointsMap.set(playerId, {
+                            playerId,
+                            playerName: data.playerName || 'Unknown',
+                            nhlTeam: data.nhlTeam || 'FA',
+                            position: data.position || 'F',
+                            totalPoints: 0,
+                            gamesPlayed: 0
+                        });
+                    }
+                    const player = playerPointsMap.get(playerId)!;
+                    player.totalPoints += data.points || 0;
+                    player.gamesPlayed += 1;
+                });
+                
+                // Convert to array and sort by total points
+                const freeAgents: HotPickupData[] = Array.from(playerPointsMap.values())
+                    .filter(p => p.totalPoints > 0) // Only show players with points
+                    .map(p => ({
+                        id: p.playerId,
+                        name: p.playerName,
+                        team: p.nhlTeam,
+                        position: p.position,
+                        points: p.totalPoints,
+                        trend: p.totalPoints >= 8 ? 'rising' as const : p.totalPoints >= 4 ? 'steady' as const : 'cooling' as const,
+                        percentRostered: Math.round(Math.random() * 40 + 10), // Placeholder
+                    }))
+                    .sort((a, b) => b.points - a.points);
+                
+                setHotPickups(freeAgents.slice(0, 6));
+            } catch (error) {
+                console.error('Error loading hot pickups:', error);
+                setHotPickups([]);
+            }
         };
         loadHot();
     }, [league, draftedPlayerIds]);

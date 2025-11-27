@@ -281,7 +281,7 @@ export default function Standings() {
       {/* Live Stats Section - Show all teams' stats on Standings page */}
       <LiveStats showAllTeams={true} />
 
-      {/* Player Performance Details - Grouped by Team */}
+      {/* Player Performance Details - Grouped by Team, Aggregated by Player */}
       {playerPerformances.length > 0 && (
         <GlassCard className="overflow-hidden">
           <div className="flex items-center justify-between p-6 border-b border-slate-700/50 bg-slate-900/30">
@@ -289,7 +289,7 @@ export default function Standings() {
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
                 <span>🏒</span> Player Performances
               </h3>
-              <p className="text-slate-400 text-sm mt-1">Recent games and fantasy points</p>
+              <p className="text-slate-400 text-sm mt-1">Season totals by player</p>
             </div>
             <button
               onClick={() => setShowDetails(!showDetails)}
@@ -306,6 +306,52 @@ export default function Standings() {
                 const teamPerfs = playerPerformances.filter(p => p.teamName === team.teamName);
                 if (teamPerfs.length === 0) return null;
 
+                // Aggregate stats by player
+                const playerAggregates = teamPerfs.reduce((acc, perf) => {
+                  if (!acc[perf.playerId]) {
+                    acc[perf.playerId] = {
+                      playerId: perf.playerId,
+                      playerName: perf.playerName,
+                      nhlTeam: perf.nhlTeam,
+                      totalPoints: 0,
+                      goals: 0,
+                      assists: 0,
+                      hits: 0,
+                      blockedShots: 0,
+                      wins: 0,
+                      saves: 0,
+                      shutouts: 0,
+                      gamesPlayed: 0
+                    };
+                  }
+                  acc[perf.playerId].totalPoints += perf.points;
+                  acc[perf.playerId].goals += perf.stats.goals || 0;
+                  acc[perf.playerId].assists += perf.stats.assists || 0;
+                  acc[perf.playerId].hits += perf.stats.hits || 0;
+                  acc[perf.playerId].blockedShots += perf.stats.blockedShots || 0;
+                  acc[perf.playerId].wins += perf.stats.wins || 0;
+                  acc[perf.playerId].saves += perf.stats.saves || 0;
+                  acc[perf.playerId].shutouts += perf.stats.shutouts || 0;
+                  acc[perf.playerId].gamesPlayed += 1;
+                  return acc;
+                }, {} as Record<number, {
+                  playerId: number;
+                  playerName: string;
+                  nhlTeam: string;
+                  totalPoints: number;
+                  goals: number;
+                  assists: number;
+                  hits: number;
+                  blockedShots: number;
+                  wins: number;
+                  saves: number;
+                  shutouts: number;
+                  gamesPlayed: number;
+                }>);
+
+                // Convert to array and sort by total points
+                const aggregatedPlayers = Object.values(playerAggregates).sort((a, b) => b.totalPoints - a.totalPoints);
+
                 return (
                   <div key={team.teamName} className="space-y-3">
                     {/* Team Header */}
@@ -320,6 +366,7 @@ export default function Standings() {
                       <table className="w-full">
                         <thead className="bg-slate-800/50 text-xs uppercase">
                           <tr>
+                            <th className="text-left p-3 text-slate-400 font-medium w-8">#</th>
                             <th className="text-left p-3 text-slate-400 font-medium">Player</th>
                             <th className="text-center p-3 text-slate-400 font-medium">NHL</th>
                             <th className="text-center p-3 text-slate-400 font-medium">G</th>
@@ -333,39 +380,36 @@ export default function Standings() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/30">
-                          {teamPerfs.map((perf, index) => {
-                            // Check if this is a "big night" (goal or 2+ points)
-                            const isBigNight = (perf.stats.goals && perf.stats.goals > 0) || perf.points >= 2;
+                          {aggregatedPlayers.map((player, index) => {
+                            // Highlight top performers
+                            const isTopPerformer = player.totalPoints >= 10;
 
                             return (
                               <tr
-                                key={`${perf.playerId}-${perf.date}-${index}`}
-                                className={`hover:bg-slate-800/30 transition-colors ${isBigNight ? 'bg-green-900/10' : ''
-                                  }`}
+                                key={player.playerId}
+                                className={`hover:bg-slate-800/30 transition-colors ${isTopPerformer ? 'bg-green-900/10' : ''}`}
                               >
+                                <td className="p-3 text-slate-500 text-sm font-medium">
+                                  {index + 1}.
+                                </td>
                                 <td className="p-3">
-                                  <div>
-                                    <div className="text-white font-medium flex items-center gap-2">
-                                      {perf.playerName}
-                                      {(() => {
-                                        const injury = isPlayerInjuredByName(perf.playerName, injuries);
-                                        return injury && (
-                                          <span className={`${getInjuryColor(injury.status)} text-white text-xs px-1.5 py-0.5 rounded text-[10px] font-bold`} title={`${injury.injuryType} - ${injury.description}`}>
-                                            {getInjuryIcon(injury.status)}
-                                          </span>
-                                        );
-                                      })()}
-                                    </div>
-                                    <div className="text-slate-500 text-xs">
-                                      {new Date(perf.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                    </div>
+                                  <div className="text-white font-medium flex items-center gap-2">
+                                    {player.playerName}
+                                    {(() => {
+                                      const injury = isPlayerInjuredByName(player.playerName, injuries);
+                                      return injury && (
+                                        <span className={`${getInjuryColor(injury.status)} text-white text-xs px-1.5 py-0.5 rounded text-[10px] font-bold`} title={`${injury.injuryType} - ${injury.description}`}>
+                                          {getInjuryIcon(injury.status)}
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
                                 </td>
                                 <td className="p-3 text-center">
                                   <div className="flex items-center justify-center">
                                     <img
-                                      src={`https://assets.nhle.com/logos/nhl/svg/${perf.nhlTeam}_dark.svg`}
-                                      alt={perf.nhlTeam}
+                                      src={`https://assets.nhle.com/logos/nhl/svg/${player.nhlTeam}_dark.svg`}
+                                      alt={player.nhlTeam}
                                       className="w-6 h-6 opacity-80"
                                       onError={(e) => {
                                         const target = e.currentTarget as HTMLImageElement;
@@ -374,17 +418,17 @@ export default function Standings() {
                                     />
                                   </div>
                                 </td>
-                                <td className={`p-3 text-center ${isBigNight ? 'text-white font-bold' : 'text-slate-400'}`}>{perf.stats.goals || 0}</td>
-                                <td className={`p-3 text-center ${isBigNight ? 'text-white font-bold' : 'text-slate-400'}`}>{perf.stats.assists || 0}</td>
-                                <td className={`p-3 text-center ${isBigNight ? 'text-white font-bold' : 'text-slate-400'}`}>{perf.stats.hits || 0}</td>
-                                <td className={`p-3 text-center ${isBigNight ? 'text-white font-bold' : 'text-slate-400'}`}>{perf.stats.blockedShots || 0}</td>
-                                <td className={`p-3 text-center ${isBigNight ? 'text-white font-bold' : 'text-slate-400'}`}>{perf.stats.wins || 0}</td>
-                                <td className={`p-3 text-center ${isBigNight ? 'text-white font-bold' : 'text-slate-400'}`}>{perf.stats.saves || 0}</td>
-                                <td className={`p-3 text-center ${isBigNight ? 'text-white font-bold' : 'text-slate-400'}`}>{perf.stats.shutouts || 0}</td>
+                                <td className={`p-3 text-center ${player.goals > 0 ? 'text-white font-bold' : 'text-slate-400'}`}>{player.goals}</td>
+                                <td className={`p-3 text-center ${player.assists > 0 ? 'text-white font-bold' : 'text-slate-400'}`}>{player.assists}</td>
+                                <td className={`p-3 text-center ${player.hits > 0 ? 'text-white' : 'text-slate-400'}`}>{player.hits}</td>
+                                <td className={`p-3 text-center ${player.blockedShots > 0 ? 'text-white' : 'text-slate-400'}`}>{player.blockedShots}</td>
+                                <td className={`p-3 text-center ${player.wins > 0 ? 'text-white font-bold' : 'text-slate-400'}`}>{player.wins}</td>
+                                <td className={`p-3 text-center ${player.saves > 0 ? 'text-white' : 'text-slate-400'}`}>{player.saves}</td>
+                                <td className={`p-3 text-center ${player.shutouts > 0 ? 'text-yellow-400 font-bold' : 'text-slate-400'}`}>{player.shutouts}</td>
                                 <td className="p-3 text-center">
-                                  <Badge variant={perf.points > 0 ? 'success' : perf.points < 0 ? 'danger' : 'default'}>
-                                    {perf.points > 0 ? '+' : ''}{perf.points.toFixed(2)}
-                                  </Badge>
+                                  <span className={`font-bold text-lg ${player.totalPoints >= 10 ? 'text-green-400' : player.totalPoints > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                    {player.totalPoints.toFixed(1)}
+                                  </span>
                                 </td>
                               </tr>
                             );
