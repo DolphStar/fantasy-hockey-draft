@@ -316,57 +316,63 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         }
         const loadHot = async () => {
             try {
-                // Query playerDailyScores to find top performers
-                const scoresRef = collection(db, `leagues/${league.id}/playerDailyScores`);
-                const snapshot = await getDocs(query(scoresRef, orderBy('date', 'desc')));
+                // Fetch current season stats from NHL API
+                const response = await fetch('/api/current-season-stats');
+                if (!response.ok) {
+                    console.error('Failed to fetch current season stats');
+                    setHotPickups([]);
+                    return;
+                }
                 
-                // Aggregate points by player (undrafted only)
-                const playerPointsMap = new Map<number, { 
-                    playerId: number; 
-                    playerName: string; 
-                    nhlTeam: string; 
-                    position: string;
-                    totalPoints: number; 
-                    gamesPlayed: number;
-                }>();
+                const data = await response.json();
+                const freeAgents: HotPickupData[] = [];
                 
-                snapshot.docs.forEach(docSnap => {
-                    const data = docSnap.data() as any;
-                    const playerId = data.playerId;
-                    
-                    // Skip if player is already drafted
-                    if (draftedPlayerIds.has(playerId)) return;
-                    
-                    if (!playerPointsMap.has(playerId)) {
-                        playerPointsMap.set(playerId, {
-                            playerId,
-                            playerName: data.playerName || 'Unknown',
-                            nhlTeam: data.nhlTeam || 'FA',
-                            position: data.position || 'F',
-                            totalPoints: 0,
-                            gamesPlayed: 0
-                        });
-                    }
-                    const player = playerPointsMap.get(playerId)!;
-                    player.totalPoints += data.points || 0;
-                    player.gamesPlayed += 1;
-                });
+                // Process skaters - calculate fantasy points (goals + assists)
+                if (data.skaters) {
+                    data.skaters.forEach((player: any) => {
+                        // Skip if player is already drafted
+                        if (draftedPlayerIds.has(player.playerId)) return;
+                        
+                        const fantasyPoints = (player.goals || 0) + (player.assists || 0);
+                        if (fantasyPoints > 0) {
+                            freeAgents.push({
+                                id: player.playerId,
+                                name: `${player.skaterFullName}`,
+                                team: player.teamAbbrevs || 'FA',
+                                position: player.positionCode || 'F',
+                                points: fantasyPoints,
+                                trend: fantasyPoints >= 30 ? 'rising' : fantasyPoints >= 15 ? 'steady' : 'cooling',
+                                percentRostered: Math.round(Math.random() * 40 + 10),
+                            });
+                        }
+                    });
+                }
                 
-                // Convert to array and sort by total points
-                const freeAgents: HotPickupData[] = Array.from(playerPointsMap.values())
-                    .filter(p => p.totalPoints > 0) // Only show players with points
-                    .map(p => ({
-                        id: p.playerId,
-                        name: p.playerName,
-                        team: p.nhlTeam,
-                        position: p.position,
-                        points: p.totalPoints,
-                        trend: p.totalPoints >= 8 ? 'rising' as const : p.totalPoints >= 4 ? 'steady' as const : 'cooling' as const,
-                        percentRostered: Math.round(Math.random() * 40 + 10), // Placeholder
-                    }))
-                    .sort((a, b) => b.points - a.points);
+                // Process goalies - calculate fantasy points (wins * 2)
+                if (data.goalies) {
+                    data.goalies.forEach((player: any) => {
+                        // Skip if player is already drafted
+                        if (draftedPlayerIds.has(player.playerId)) return;
+                        
+                        const fantasyPoints = (player.wins || 0) * 2;
+                        if (fantasyPoints > 0) {
+                            freeAgents.push({
+                                id: player.playerId,
+                                name: `${player.goalieFullName}`,
+                                team: player.teamAbbrevs || 'FA',
+                                position: 'G',
+                                points: fantasyPoints,
+                                trend: fantasyPoints >= 20 ? 'rising' : fantasyPoints >= 10 ? 'steady' : 'cooling',
+                                percentRostered: Math.round(Math.random() * 40 + 10),
+                            });
+                        }
+                    });
+                }
                 
+                // Sort by fantasy points and take top 6
+                freeAgents.sort((a, b) => b.points - a.points);
                 setHotPickups(freeAgents.slice(0, 6));
+                
             } catch (error) {
                 console.error('Error loading hot pickups:', error);
                 setHotPickups([]);
