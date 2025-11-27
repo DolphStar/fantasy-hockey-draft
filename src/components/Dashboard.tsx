@@ -340,7 +340,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                                 team: player.team || 'FA',
                                 position: player.position || 'F',
                                 points: player.points,
-                                trend: player.points >= 6 ? 'rising' : player.points >= 3 ? 'steady' : 'cooling',
+                                trend: player.points >= 25 ? 'rising' : player.points >= 15 ? 'steady' : 'cooling',
                                 percentRostered: Math.round(Math.random() * 40 + 10),
                             });
                         }
@@ -664,7 +664,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                                 </div>
                                 <div className="mt-4 flex items-center justify-between text-sm">
                                     <div>
-                                        <p className="text-slate-400 text-xs">Last 7 days</p>
+                                        <p className="text-slate-400 text-xs">Season FP</p>
                                         <p className="text-2xl font-black text-green-400">{pickup.points}</p>
                                     </div>
                                     <div className="text-right">
