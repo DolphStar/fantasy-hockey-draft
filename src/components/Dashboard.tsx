@@ -664,7 +664,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                                 </div>
                                 <div className="mt-4 flex items-center justify-between text-sm">
                                     <div>
-                                        <p className="text-slate-400 text-xs">Season FP</p>
+                                        <p className="text-slate-400 text-xs">Last 7 Days</p>
                                         <p className="text-2xl font-black text-green-400">{pickup.points}</p>
                                     </div>
                                     <div className="text-right">

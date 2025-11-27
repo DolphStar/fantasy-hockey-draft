@@ -19,7 +19,7 @@ export default async function handler(
   }
 
   try {
-    // Calculate date range for last 7 days
+    // Calculate date range for last 7 days (Vercel Pro allows 60s timeout)
     const today = new Date();
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(today.getDate() - 7);
@@ -53,8 +53,8 @@ export default async function handler(
       }
     }
 
-    // Limit to last 25 games to prevent timeouts if week is busy
-    const gamesToProcess = gameIds.slice(-25); 
+    // Limit to last 40 games (Vercel Pro supports 60s execution)
+    const gamesToProcess = gameIds.slice(-40); 
     
     // Aggregation map
     const playerStats = new Map<number, {
