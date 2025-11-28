@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { collection, doc, getDocs, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { GlassCard } from './ui/GlassCard';
@@ -65,6 +65,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
     const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
     const [trend, setTrend] = useState<TrendPoint[]>([]);
     const [hotPickups, setHotPickups] = useState<HotPickupData[]>([]);
+    const [hotPickupsLabel, setHotPickupsLabel] = useState('Season Leaders');
     const [teamPoints, setTeamPoints] = useState<number>(0);
     const [leagueAveragePoints, setLeagueAveragePoints] = useState<number>(0);
     const [rosterEvents, setRosterEvents] = useState<RosterEvent[]>([]);
@@ -309,6 +310,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         loadTrend();
     }, [league, myTeam]);
 
+    // Waiver Wire / Hot Pickups Logic
     useEffect(() => {
         if (!league) {
             setHotPickups([]);
@@ -316,40 +318,75 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         }
         const loadHot = async () => {
             try {
-                // Fetch last 7 days stats from NHL API
-                const response = await fetch('/api/current-season-stats');
-                if (!response.ok) {
-                    console.error('Failed to fetch weekly stats');
-                    setHotPickups([]);
+                // 1. Try fetching last 7 days from Firestore "nhl_daily_stats"
+                const today = new Date();
+                const sevenDaysAgo = new Date(today);
+                sevenDaysAgo.setDate(today.getDate() - 7);
+                const dateStr = sevenDaysAgo.toISOString().split('T')[0];
+
+                const statsRef = collection(db, 'nhl_daily_stats');
+                const q = query(statsRef, where('date', '>=', dateStr));
+                const snapshot = await getDocs(q);
+
+                const playerTotals = new Map<number, any>();
+                let hasFirestoreData = false;
+
+                                    name: p.name,
+                                    team: p.team,
+                                    position: p.pos,
+                                    points: 0,
+                                    games: 0
+                                });
+                            }
+                            const entry = playerTotals.get(p.id);
+                            entry.points += p.fp || 0;
+                            entry.games += 1;
+                        });
+                    }
+                });
+
+                if (hasFirestoreData) {
+                    const freeAgents = Array.from(playerTotals.values())
+                        .filter(p => p.points > 0)
+                        .map(p => ({
+                            id: p.id,
+                            name: p.name,
+                            team: p.team,
+                            position: p.position,
+                            points: Number(p.points.toFixed(1)),
+                            trend: p.points >= 15 ? 'rising' as const : p.points >= 8 ? 'steady' as const : 'cooling' as const,
+                            percentRostered: Math.round(Math.random() * 40 + 10),
+                        }))
+                        .sort((a, b) => b.points - a.points)
+                        .slice(0, 6);
+                    
+                    setHotPickups(freeAgents);
+                    setHotPickupsLabel('Last 7 Days');
                     return;
                 }
-                
-                const data = await response.json();
-                const freeAgents: HotPickupData[] = [];
-                
-                // Process players from the aggregated weekly stats
-                if (data.players) {
-                    data.players.forEach((player: any) => {
-                        // Skip if player is already drafted
-                        if (draftedPlayerIds.has(player.playerId)) return;
-                        
-                        if (player.points > 0) {
-                            freeAgents.push({
-                                id: player.playerId,
-                                name: player.name,
-                                team: player.team || 'FA',
-                                position: player.position || 'F',
-                                points: player.points,
-                                trend: player.points >= 25 ? 'rising' : player.points >= 15 ? 'steady' : 'cooling',
-                                percentRostered: Math.round(Math.random() * 40 + 10),
-                            });
-                        }
-                    });
+
+                // 2. Fallback to Season Leaders API if Firestore is empty
+                console.log('No weekly stats in Firestore, falling back to season API...');
+                const response = await fetch('/api/current-season-stats');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.players) {
+                        const seasonAgents = data.players
+                            .filter((p: any) => !draftedPlayerIds.has(p.playerId))
+                            .slice(0, 6)
+                            .map((p: any) => ({
+                                id: p.playerId,
+                                name: p.name,
+                                team: p.team,
+                                position: p.position,
+                                points: p.points,
+                                trend: p.points >= 25 ? 'rising' as const : 'steady' as const,
+                                percentRostered: Math.round(Math.random() * 40 + 10)
+                            }));
+                        setHotPickups(seasonAgents);
+                        setHotPickupsLabel('Season Leaders');
+                    }
                 }
-                
-                // Sort by fantasy points and take top 6
-                freeAgents.sort((a, b) => b.points - a.points);
-                setHotPickups(freeAgents.slice(0, 6));
                 
             } catch (error) {
                 console.error('Error loading hot pickups:', error);
@@ -662,20 +699,27 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                                         {pickup.trend === 'rising' ? 'Trending ↑' : pickup.trend === 'steady' ? 'Steady' : 'Cooling'}
                                     </span>
                                 </div>
-                                <div className="mt-4 flex items-center justify-between text-sm">
-                                    <div>
-                                        <p className="text-slate-400 text-xs">Last 3 Days</p>
-                                        <p className="text-2xl font-black text-green-400">{pickup.points}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-slate-400 text-xs">Rostered</p>
-                                        <p className="text-white font-semibold">{pickup.percentRostered}%</p>
-                                    </div>
+                                <p className="text-xs text-slate-400 mt-1">{injury.teamAbbrev} • {injury.injuryType}</p>
+                                <p className="text-xs text-slate-500 mt-2 line-clamp-2">{injury.description}</p>
+                            </button>
+                        ))
+                    )}
+                </div>
+
+                <div className="mt-4">
+                    <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">7-day trend</p>
+                    <div className="grid grid-cols-7 gap-2">
+                        {trend.length === 0 ? (
+                            <div className="col-span-7 text-slate-500 text-sm">Not enough games yet.</div>
+                        ) : (
+                            trend.map(point => (
+                                <div key={point.date} className="bg-slate-900/50 rounded-lg p-2 text-center">
+                                    <p className="text-[10px] uppercase text-slate-500">{new Date(point.date).toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                                    <div className="mt-1 text-white font-semibold">{point.myTeam.toFixed(1)}</div>
+                                    <p className="text-[10px] text-slate-500">Avg {point.leagueAvg.toFixed(1)}</p>
                                 </div>
-                                <button
-                                    onClick={goToRoster}
-                                    className="mt-4 text-sm font-semibold text-left text-blue-400 hover:text-blue-300"
-                                >
+                            ))
+                        )}
                                     View player card →
                                 </button>
                             </div>
