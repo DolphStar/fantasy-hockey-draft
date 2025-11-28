@@ -25,7 +25,12 @@ import RosterFilters from './roster/RosterFilters';
 import DraftStatus from './draft/DraftStatus';
 import BestAvailable from './draft/BestAvailable';
 
-export default function NHLRoster() {
+interface NHLRosterProps {
+  initialSearchQuery?: string;
+  onSearchQueryUsed?: () => void;
+}
+
+export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }: NHLRosterProps) {
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
   const [myTeamPositions, setMyTeamPositions] = useState({
@@ -33,7 +38,7 @@ export default function NHLRoster() {
     reserve: 0,
     total: 0
   });
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ALL'); // Default to all teams
   const [lastSeasonStats, setLastSeasonStats] = useState<StatsMap>({}); // Last season stats
@@ -44,6 +49,14 @@ export default function NHLRoster() {
   // Draft context
   const { draftState, currentPick, isMyTurn } = useDraft();
   const { playSound } = useSound();
+
+  // Update search query when navigating from Dashboard with a player name
+  useEffect(() => {
+    if (initialSearchQuery) {
+      setSearchQuery(initialSearchQuery);
+      onSearchQueryUsed?.();
+    }
+  }, [initialSearchQuery, onSearchQueryUsed]);
 
   // React Query hooks - automatic caching and refetching!
   const { data: injuries = [] } = useInjuries();

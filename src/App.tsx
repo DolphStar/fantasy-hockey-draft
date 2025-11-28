@@ -26,6 +26,7 @@ function App() {
   const [isNavOpen, setIsNavOpen] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationPlayer, setCelebrationPlayer] = useState('')
+  const [rosterSearchQuery, setRosterSearchQuery] = useState('')
   const { user, loading: authLoading, signOut } = useAuth()
   const { draftState } = useDraft()
 
@@ -145,8 +146,8 @@ function App() {
             </div>
           }
         >
-          {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} />}
-          {activeTab === 'roster' && <NHLRoster />}
+          {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} setRosterSearchQuery={setRosterSearchQuery} />}
+          {activeTab === 'roster' && <NHLRoster initialSearchQuery={rosterSearchQuery} onSearchQueryUsed={() => setRosterSearchQuery('')} />}
           {activeTab === 'draftBoard' && (
             <div className="max-w-6xl mx-auto px-6">
               <DraftBoardGrid />

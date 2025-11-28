@@ -54,7 +54,12 @@ interface RosterEvent {
     timestamp: string;
 }
 
-export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) => void }) {
+interface DashboardProps {
+    setActiveTab: (tab: any) => void;
+    setRosterSearchQuery: (query: string) => void;
+}
+
+export default function Dashboard({ setActiveTab, setRosterSearchQuery }: DashboardProps) {
     const { league } = useLeague();
     const { user } = useAuth();
     const { draftedPlayers, draftedPlayerIds } = useDraftedPlayers();
@@ -79,6 +84,10 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
     const goToRoster = useCallback(() => setActiveTab('roster'), [setActiveTab]);
     const goToChat = useCallback(() => setActiveTab('chat'), [setActiveTab]);
     const goToInjuries = useCallback(() => setActiveTab('injuries'), [setActiveTab]);
+    const goToPlayerCard = useCallback((playerName: string) => {
+        setRosterSearchQuery(playerName);
+        setActiveTab('roster');
+    }, [setActiveTab, setRosterSearchQuery]);
 
     const activeRoster = useMemo(() => {
         if (!myTeam) return [];
@@ -729,7 +738,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                                     </div>
                                 </div>
                                 <button
-                                    onClick={goToRoster}
+                                    onClick={() => goToPlayerCard(pickup.name)}
                                     className="mt-4 text-sm font-semibold text-left text-blue-400 hover:text-blue-300"
                                 >
                                     View player card →
