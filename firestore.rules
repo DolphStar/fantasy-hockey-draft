@@ -117,6 +117,14 @@ service cloud.firestore {
       allow delete: if isLeagueAdmin(leagueId);
     }
     
+    // NHL Daily Stats - Global collection for stats cache
+    match /nhl_daily_stats/{date} {
+      // Anyone authenticated can read stats
+      allow read: if isSignedIn();
+      // Only admin service account (bypass rules) or specific admin UID can write
+      allow write: if false; 
+    }
+
     // Deny everything else by default
     match /{document=**} {
       allow read, write: if false;

@@ -379,8 +379,12 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                 // 2. Fallback to Season Leaders API if Firestore is empty
                 console.log('No weekly stats in Firestore, falling back to season API...');
                 const response = await fetch('/api/current-season-stats');
+                console.log('Season API Response Status:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Season API Data Players:', data.players?.length || 0);
+                    
                     if (data.players) {
                         const seasonAgents = data.players
                             .filter((p: any) => !draftedPlayerIds.has(p.playerId))
@@ -394,9 +398,13 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                                 trend: p.points >= 25 ? 'rising' as const : 'steady' as const,
                                 percentRostered: Math.round(Math.random() * 40 + 10)
                             }));
+                        
+                        console.log('Filtered Season Agents:', seasonAgents.length);
                         setHotPickups(seasonAgents);
                         setHotPickupsLabel('Season Leaders');
                     }
+                } else {
+                    console.error('Season API failed with status:', response.status);
                 }
                 
             } catch (error) {
