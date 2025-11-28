@@ -1,19 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Default scoring rules for waiver wire ranking (standard league settings)
+// Default scoring rules matching league settings (from Scoring Rules UI)
 const STANDARD_SCORING = {
-  goal: 3,
-  assist: 2,
-  shortHandedGoal: 2,
+  // Skaters
+  goal: 1,
+  assist: 1,
+  shortHandedGoal: 1,
   overtimeGoal: 1,
-  fight: 5,
-  blockedShot: 0.5,
-  hit: 0.2,
-  win: 4,
-  save: 0.2,
-  shutout: 3,
-  goalieGoal: 10,
-  goalieAssist: 3
+  fight: 2,
+  // Defense only
+  blockedShot: 0.15,
+  hit: 0.1,
+  // Goalies
+  win: 1,
+  save: 0.04,
+  shutout: 2,
+  goalieGoal: 20,
 };
 
 export default async function handler(
@@ -90,29 +92,39 @@ export default async function handler(
           if (!teamInfo || !teamStats) return;
           const teamAbbrev = teamInfo.abbrev || 'UNK';
 
-          // Process Skaters
-          ['forwards', 'defense'].forEach(group => {
-            (teamStats[group] || []).forEach((p: any) => {
-              // Calculate fantasy points
-              let points = 0;
-              points += (p.goals || 0) * STANDARD_SCORING.goal;
-              points += (p.assists || 0) * STANDARD_SCORING.assist;
-              // Note: boxscore doesn't always have SHG/OTG detailed easily, sticking to basics for waiver wire
-              // We can try to get hits/blocks if available
-              // API v1 boxscore fields: goals, assists, points, shots, hits, blockedShots, plusMinus, pim
-              points += (p.blockedShots || 0) * STANDARD_SCORING.blockedShot;
-              points += (p.hits || 0) * STANDARD_SCORING.hit;
+          // Process Forwards (no hits/blocks scoring)
+          (teamStats.forwards || []).forEach((p: any) => {
+            let points = 0;
+            points += (p.goals || 0) * STANDARD_SCORING.goal;
+            points += (p.assists || 0) * STANDARD_SCORING.assist;
+            // Note: SHG/OTG/Fights not easily available in boxscore, using basics
 
-              // Save player stat
-              dailyStats[p.playerId] = {
-                id: p.playerId,
-                name: p.name?.default,
-                team: teamAbbrev,
-                pos: p.position,
-                stats: { g: p.goals, a: p.assists, h: p.hits, bs: p.blockedShots },
-                fp: Number(points.toFixed(1))
-              };
-            });
+            dailyStats[p.playerId] = {
+              id: p.playerId,
+              name: p.name?.default,
+              team: teamAbbrev,
+              pos: p.position,
+              stats: { g: p.goals, a: p.assists },
+              fp: Number(points.toFixed(2))
+            };
+          });
+
+          // Process Defense (includes hits/blocks scoring)
+          (teamStats.defense || []).forEach((p: any) => {
+            let points = 0;
+            points += (p.goals || 0) * STANDARD_SCORING.goal;
+            points += (p.assists || 0) * STANDARD_SCORING.assist;
+            points += (p.blockedShots || 0) * STANDARD_SCORING.blockedShot;
+            points += (p.hits || 0) * STANDARD_SCORING.hit;
+
+            dailyStats[p.playerId] = {
+              id: p.playerId,
+              name: p.name?.default,
+              team: teamAbbrev,
+              pos: p.position,
+              stats: { g: p.goals, a: p.assists, h: p.hits, bs: p.blockedShots },
+              fp: Number(points.toFixed(2))
+            };
           });
 
           // Process Goalies
