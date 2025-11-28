@@ -41,26 +41,29 @@ export default async function handler(
 
     console.log(`Fetching NHL stats for ${dateStr}...`);
 
-    // Fetch schedule for yesterday
-    const scheduleRes = await fetch(`https://api-web.nhle.com/v1/schedule/${dateStr}`);
+    // Fetch schedule/scores for date (Using /score endpoint as requested)
+    const scheduleRes = await fetch(`https://api-web.nhle.com/v1/score/${dateStr}`);
     if (!scheduleRes.ok) throw new Error(`Schedule API error: ${scheduleRes.status}`);
     const scheduleData = await scheduleRes.json();
 
     const gameIds: number[] = [];
-    const gameDay = scheduleData.gameWeek?.[0]; // Should be the requested day
+    // /score endpoint returns { games: [...] } directly
+    const games = scheduleData.games || [];
 
-    if (gameDay && gameDay.date === dateStr && gameDay.games) {
-      for (const game of gameDay.games) {
+    console.log(`API returned ${games.length} games for ${dateStr}`);
+
+    for (const game of games) {
+        // gameState can be 'OFF', 'FINAL', 'LIVE', 'CRIT' (critical?), 'FUT' (future)
+        // We only want completed games for stats
         if (game.gameState === 'OFF' || game.gameState === 'FINAL') {
           gameIds.push(game.id);
         }
-      }
     }
 
-    console.log(`Found ${gameIds.length} games for ${dateStr}`);
+    console.log(`Found ${gameIds.length} completed games for ${dateStr}`);
 
     if (gameIds.length === 0) {
-      return res.status(200).json({ message: 'No games played yesterday', date: dateStr });
+      return res.status(200).json({ message: 'No completed games found for date', date: dateStr, rawGamesFound: games.length });
     }
 
     // Fetch boxscores and process stats
