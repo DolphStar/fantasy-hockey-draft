@@ -31,10 +31,15 @@ export default async function handler(
   }
 
   try {
-    // Calculate yesterday's date
-    const date = new Date();
-    date.setDate(date.getDate() - 1);
-    const dateStr = date.toISOString().split('T')[0];
+    // Get date from query param OR default to yesterday
+    let dateStr: string;
+    if (req.query.date && typeof req.query.date === 'string') {
+      dateStr = req.query.date;
+    } else {
+      const date = new Date();
+      date.setDate(date.getDate() - 1);
+      dateStr = date.toISOString().split('T')[0];
+    }
 
     console.log(`Fetching NHL stats for ${dateStr}...`);
 
