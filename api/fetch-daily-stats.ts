@@ -22,11 +22,13 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  // Verify this is called by Vercel Cron (security check)
+  // Vercel Cron jobs automatically include CRON_SECRET in authorization header
+  // Manual calls with returnOnly=true are allowed for backfill UI
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
+  const isManualBackfill = req.query.returnOnly === 'true';
   
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !isManualBackfill) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
