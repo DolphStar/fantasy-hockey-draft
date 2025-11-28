@@ -121,8 +121,8 @@ service cloud.firestore {
     match /nhl_daily_stats/{date} {
       // Anyone authenticated can read stats
       allow read: if isSignedIn();
-      // Only admin service account (bypass rules) or specific admin UID can write
-      allow write: if false; 
+      // Allow authenticated users to write (for manual backfill via Admin UI)
+      allow write: if isSignedIn(); 
     }
 
     // Deny everything else by default

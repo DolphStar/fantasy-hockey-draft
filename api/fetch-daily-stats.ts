@@ -135,6 +135,21 @@ export default async function handler(
       }
     }
 
+    // Check if we should just return the data (for client-side saving)
+    const returnOnly = req.query.returnOnly === 'true';
+
+    if (returnOnly) {
+      return res.status(200).json({
+        success: true,
+        date: dateStr,
+        data: {
+          date: dateStr,
+          players: dailyStats,
+          updatedAt: new Date().toISOString()
+        }
+      });
+    }
+
     // Save to Firestore
     // Collection: nhl_daily_stats, Doc ID: YYYY-MM-DD
     // Storing as a single map might be too big (1MB limit)? 

@@ -5,6 +5,7 @@ import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
 import TestScoring from './TestScoring';
 import TestLiveStats from './TestLiveStats';
+import BackfillStats from './BackfillStats';
 import AdminPlayerManagement from './AdminPlayerManagement';
 import type { LeagueTeam } from '../types/league';
 import { GlassCard } from './ui/GlassCard';
@@ -573,6 +574,7 @@ export default function LeagueSettings() {
                 <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider px-2">Developer Tools</h3>
                 <TestScoring />
                 <TestLiveStats />
+                <BackfillStats />
                 <AdminPlayerManagement />
               </div>
 
