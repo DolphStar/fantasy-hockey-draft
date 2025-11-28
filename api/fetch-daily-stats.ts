@@ -1,6 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db } from '../src/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 
 // Default scoring rules for waiver wire ranking (standard league settings)
 const STANDARD_SCORING = {
@@ -152,8 +150,9 @@ export default async function handler(
 
     // Save to Firestore
     // Collection: nhl_daily_stats, Doc ID: YYYY-MM-DD
-    // Storing as a single map might be too big (1MB limit)? 
-    // 30 teams * 20 players = 600 players. 600 * ~100 bytes = 60KB. It fits easily.
+    const { db } = await import('../src/firebase');
+    const { doc, setDoc } = await import('firebase/firestore');
+
     const docRef = doc(db, 'nhl_daily_stats', dateStr);
     await setDoc(docRef, {
       date: dateStr,
