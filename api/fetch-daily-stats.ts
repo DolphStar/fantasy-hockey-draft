@@ -80,14 +80,19 @@ export default async function handler(
       for (const boxscore of boxscores) {
         if (!boxscore) continue;
 
+        // playerByGameStats is at root level, with homeTeam/awayTeam inside
+        const playerStats = boxscore.playerByGameStats;
+        if (!playerStats) continue;
+
         ['homeTeam', 'awayTeam'].forEach(teamKey => {
-          const team = boxscore[teamKey];
-          if (!team) return;
-          const teamAbbrev = team.abbrev || 'UNK';
+          const teamInfo = boxscore[teamKey];
+          const teamStats = playerStats[teamKey];
+          if (!teamInfo || !teamStats) return;
+          const teamAbbrev = teamInfo.abbrev || 'UNK';
 
           // Process Skaters
           ['forwards', 'defense'].forEach(group => {
-            (team.playerByGameStats?.[group] || []).forEach((p: any) => {
+            (teamStats[group] || []).forEach((p: any) => {
               // Calculate fantasy points
               let points = 0;
               points += (p.goals || 0) * STANDARD_SCORING.goal;
@@ -111,7 +116,7 @@ export default async function handler(
           });
 
           // Process Goalies
-          (team.playerByGameStats?.goalies || []).forEach((g: any) => {
+          (teamStats.goalies || []).forEach((g: any) => {
             let points = 0;
             if (g.decision === 'W') points += STANDARD_SCORING.win;
             points += (g.saveShotsAgainst || 0) * STANDARD_SCORING.save; // Verify field name
