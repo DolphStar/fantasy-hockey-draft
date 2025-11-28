@@ -331,6 +331,17 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                 const playerTotals = new Map<number, any>();
                 let hasFirestoreData = false;
 
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    if (data.players) {
+                        hasFirestoreData = true;
+                        Object.values(data.players).forEach((p: any) => {
+                            // Skip drafted players
+                            if (draftedPlayerIds.has(p.id)) return;
+
+                            if (!playerTotals.has(p.id)) {
+                                playerTotals.set(p.id, {
+                                    id: p.id,
                                     name: p.name,
                                     team: p.team,
                                     position: p.pos,
@@ -699,27 +710,20 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
                                         {pickup.trend === 'rising' ? 'Trending ↑' : pickup.trend === 'steady' ? 'Steady' : 'Cooling'}
                                     </span>
                                 </div>
-                                <p className="text-xs text-slate-400 mt-1">{injury.teamAbbrev} • {injury.injuryType}</p>
-                                <p className="text-xs text-slate-500 mt-2 line-clamp-2">{injury.description}</p>
-                            </button>
-                        ))
-                    )}
-                </div>
-
-                <div className="mt-4">
-                    <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">7-day trend</p>
-                    <div className="grid grid-cols-7 gap-2">
-                        {trend.length === 0 ? (
-                            <div className="col-span-7 text-slate-500 text-sm">Not enough games yet.</div>
-                        ) : (
-                            trend.map(point => (
-                                <div key={point.date} className="bg-slate-900/50 rounded-lg p-2 text-center">
-                                    <p className="text-[10px] uppercase text-slate-500">{new Date(point.date).toLocaleDateString('en-US', { weekday: 'short' })}</p>
-                                    <div className="mt-1 text-white font-semibold">{point.myTeam.toFixed(1)}</div>
-                                    <p className="text-[10px] text-slate-500">Avg {point.leagueAvg.toFixed(1)}</p>
+                                <div className="mt-4 flex items-center justify-between text-sm">
+                                    <div>
+                                        <p className="text-slate-400 text-xs">{hotPickupsLabel}</p>
+                                        <p className="text-2xl font-black text-green-400">{pickup.points}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-slate-400 text-xs">Rostered</p>
+                                        <p className="text-white font-semibold">{pickup.percentRostered}%</p>
+                                    </div>
                                 </div>
-                            ))
-                        )}
+                                <button
+                                    onClick={goToRoster}
+                                    className="mt-4 text-sm font-semibold text-left text-blue-400 hover:text-blue-300"
+                                >
                                     View player card →
                                 </button>
                             </div>

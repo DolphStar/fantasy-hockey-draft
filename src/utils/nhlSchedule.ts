@@ -45,10 +45,9 @@ export async function fetchTodaySchedule(): Promise<Game[]> {
     const data: ScheduleResponse = await response.json();
     
     // Get today's date in Eastern Time (NHL's timezone)
-    const now = new Date();
-    const etOffset = -5; // EST is UTC-5
-    const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
-    const today = etTime.toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { 
+      timeZone: 'America/New_York' 
+    });
     
     // Find today's games
     const todaySchedule = data.gameWeek.find(day => day.date === today);
@@ -89,7 +88,8 @@ export function getUpcomingMatchups(
       const gameTime = gameDate.toLocaleTimeString([], { 
         hour: 'numeric', 
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZoneName: 'short'
       });
 
       return {
