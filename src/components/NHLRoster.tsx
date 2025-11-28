@@ -336,7 +336,25 @@ export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }
   // Filter roster based on search, position, and team
   const filteredRoster = roster.filter(player => {
     const playerName = getPlayerFullName(player).toLowerCase();
-    const matchesSearch = searchQuery === '' || playerName.includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase().trim();
+    
+    // Check for abbreviated name format like "B. Hagel" or "B Hagel"
+    const abbrevMatch = query.match(/^([a-z])\.?\s+(.+)$/i);
+    let matchesSearch = false;
+    
+    if (query === '') {
+      matchesSearch = true;
+    } else if (abbrevMatch) {
+      // Handle "B. Hagel" format - match first initial + last name
+      const firstInitial = abbrevMatch[1].toLowerCase();
+      const lastName = abbrevMatch[2].toLowerCase();
+      const [playerFirst, ...playerLastParts] = playerName.split(' ');
+      const playerLastName = playerLastParts.join(' ').toLowerCase();
+      matchesSearch = playerFirst.startsWith(firstInitial) && playerLastName.includes(lastName);
+    } else {
+      // Standard search - includes any part of the name
+      matchesSearch = playerName.includes(query);
+    }
 
     const matchesPosition = positionFilter === 'ALL' ||
       (positionFilter === 'F' && ['C', 'L', 'R'].includes(player.position.code)) ||
