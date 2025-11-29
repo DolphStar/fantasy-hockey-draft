@@ -734,13 +734,18 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                             {trend.length === 0 ? (
                                 <div className="col-span-7 text-slate-500 text-sm">Not enough games yet.</div>
                             ) : (
-                                trend.map(point => (
-                                    <div key={point.date} className="bg-slate-900/50 rounded-lg p-2 text-center">
-                                        <p className="text-[10px] uppercase text-slate-500">{new Date(point.date).toLocaleDateString('en-US', { weekday: 'short' })}</p>
-                                        <div className="mt-1 text-white font-semibold">{point.myTeam.toFixed(1)}</div>
-                                        <p className="text-[10px] text-slate-500">Avg {point.leagueAvg.toFixed(1)}</p>
-                                    </div>
-                                ))
+                                trend.map(point => {
+                                    // Parse date as local time to avoid timezone shift
+                                    const [year, month, day] = point.date.split('-').map(Number);
+                                    const localDate = new Date(year, month - 1, day);
+                                    return (
+                                        <div key={point.date} className="bg-slate-900/50 rounded-lg p-2 text-center">
+                                            <p className="text-[10px] uppercase text-slate-500">{localDate.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                                            <div className="mt-1 text-white font-semibold">{point.myTeam.toFixed(1)}</div>
+                                            <p className="text-[10px] text-slate-500">Avg {point.leagueAvg.toFixed(1)}</p>
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
                     </div>
