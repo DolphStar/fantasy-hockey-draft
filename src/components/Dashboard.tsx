@@ -20,6 +20,7 @@ interface FeedItem {
     icon: string;
     title: string;
     description: string;
+    timestamp?: Date;
     cta?: string;
     onClick?: () => void;
 }
@@ -38,7 +39,32 @@ interface HotPickupData {
     points: number;
     trend: 'rising' | 'steady' | 'cooling';
     percentRostered: number;
+    headshot?: string;
 }
+
+// Position badge color helper
+const getPositionBadgeClass = (position: string) => {
+    const pos = position?.toUpperCase();
+    if (['C', 'L', 'R', 'LW', 'RW', 'F'].includes(pos)) return 'bg-blue-500/20 text-blue-300';
+    if (['D', 'LD', 'RD'].includes(pos)) return 'bg-green-500/20 text-green-300';
+    if (pos === 'G') return 'bg-amber-500/20 text-amber-300';
+    return 'bg-slate-500/20 text-slate-300';
+};
+
+// Relative time helper
+const getRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+};
 
 type RosterEventType = 'add' | 'drop' | 'activate' | 'bench';
 
@@ -280,6 +306,7 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                     icon: '💬',
                     title: chirp.teamName || 'Chirp',
                     description: chirp.text,
+                    timestamp: chirp.createdAt?.toDate?.() || new Date(),
                     cta: 'Reply',
                     onClick: goToChat
                 });
@@ -376,6 +403,7 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                             points: Number(p.points.toFixed(1)),
                             trend: p.points >= 15 ? 'rising' as const : p.points >= 8 ? 'steady' as const : 'cooling' as const,
                             percentRostered: Math.round(Math.random() * 40 + 10),
+                            headshot: `https://assets.nhle.com/mugs/nhl/20242025/${p.team}/${p.id}.png`,
                         }))
                         .sort((a, b) => b.points - a.points)
                         .slice(0, 6);
@@ -405,7 +433,8 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                                 position: p.position,
                                 points: p.points,
                                 trend: p.points >= 25 ? 'rising' as const : 'steady' as const,
-                                percentRostered: Math.round(Math.random() * 40 + 10)
+                                percentRostered: Math.round(Math.random() * 40 + 10),
+                                headshot: `https://assets.nhle.com/mugs/nhl/20242025/${p.team}/${p.playerId}.png`,
                             }));
                         
                         console.log('Filtered Season Agents:', seasonAgents.length);
@@ -638,16 +667,23 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                             feedItems.map(item => (
                                 <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-800">
                                     <div className="text-2xl leading-none">{item.icon}</div>
-                                    <div className="flex-1">
-                                        <p className="text-white font-medium">
-                                            {item.title}
-                                        </p>
-                                        <p className="text-slate-400 text-xs">{item.description}</p>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-white font-medium truncate">
+                                                {item.title}
+                                            </p>
+                                            {item.timestamp && (
+                                                <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                                                    {getRelativeTime(item.timestamp)}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-slate-400 text-xs truncate">{item.description}</p>
                                     </div>
                                     {item.cta && (
                                         <button
                                             onClick={item.onClick}
-                                            className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+                                            className="text-xs font-semibold text-blue-400 hover:text-blue-300 whitespace-nowrap"
                                         >
                                             {item.cta}
                                         </button>
@@ -681,7 +717,12 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                                         <p className="text-white font-medium text-sm">{injury.playerName}</p>
                                     </div>
                                     <p className="text-xs text-slate-400 mt-1">{injury.teamAbbrev} • {injury.injuryType}</p>
-                                    <p className="text-xs text-slate-500 mt-2 line-clamp-2">{injury.description}</p>
+                                    <p 
+                                        className="text-xs text-slate-500 mt-2 line-clamp-2"
+                                        title={injury.description}
+                                    >
+                                        {injury.description}
+                                    </p>
                                 </button>
                             ))
                         )}
@@ -718,13 +759,37 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4">
                         {hotPickups.map(pickup => (
                             <div key={pickup.id} className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950/60 p-4 flex flex-col">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-white font-semibold">{pickup.name}</p>
-                                        <p className="text-xs text-slate-400">{pickup.position} • {pickup.team}</p>
+                                <div className="flex items-center gap-3">
+                                    {/* Player Headshot */}
+                                    {pickup.headshot ? (
+                                        <img 
+                                            src={pickup.headshot} 
+                                            alt={pickup.name}
+                                            className="w-12 h-12 rounded-full object-cover bg-slate-800"
+                                        />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-lg">
+                                            🏒
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-white font-semibold truncate">{pickup.name}</p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getPositionBadgeClass(pickup.position)}`}>
+                                                {pickup.position}
+                                            </span>
+                                            <span className="text-xs text-slate-400">{pickup.team}</span>
+                                        </div>
                                     </div>
-                                    <span className={`text-xs px-2 py-1 rounded-full ${pickup.trend === 'rising' ? 'bg-amber-500/20 text-amber-200' : pickup.trend === 'steady' ? 'bg-blue-500/20 text-blue-200' : 'bg-slate-600/30 text-slate-200'}`}>
-                                        {pickup.trend === 'rising' ? 'Trending ↑' : pickup.trend === 'steady' ? 'Steady' : 'Cooling'}
+                                    {/* Trend Badge with glow for rising */}
+                                    <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
+                                        pickup.trend === 'rising' 
+                                            ? 'bg-amber-500/20 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.3)]' 
+                                            : pickup.trend === 'steady' 
+                                                ? 'bg-blue-500/20 text-blue-200' 
+                                                : 'bg-slate-600/30 text-slate-300'
+                                    }`}>
+                                        {pickup.trend === 'rising' ? '🔥 Hot' : pickup.trend === 'steady' ? 'Steady' : 'Cooling'}
                                     </span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between text-sm">
