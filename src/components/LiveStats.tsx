@@ -157,10 +157,22 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     return () => clearInterval(countdown);
   }, []);
 
-  // Auto-refresh live stats every 5 minutes
+  // Initial fetch + Auto-refresh live stats every 5 minutes
   useEffect(() => {
     if (!league) return;
 
+    // Fetch immediately on mount to populate data
+    const initialFetch = async () => {
+      console.log('🔄 Initial live stats fetch...');
+      try {
+        await processLiveStats(league.id);
+      } catch (error) {
+        console.error('Initial fetch failed:', error);
+      }
+    };
+    initialFetch();
+
+    // Then auto-refresh every 5 minutes
     const autoRefresh = setInterval(async () => {
       console.log('🔄 Auto-refreshing live stats...');
       setRefreshing(true);

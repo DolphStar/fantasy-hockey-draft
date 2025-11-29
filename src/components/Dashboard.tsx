@@ -758,20 +758,34 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4">
                         {hotPickups.map(pickup => (
-                            <div key={pickup.id} className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950/60 p-4 flex flex-col">
+                            <div key={pickup.id} className="rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900 to-slate-950/80 p-4 flex flex-col shadow-lg shadow-black/20 hover:border-slate-600/70 hover:shadow-xl hover:shadow-black/30 transition-all duration-200">
                                 <div className="flex items-center gap-3">
                                     {/* Player Headshot */}
-                                    {pickup.headshot ? (
+                                    <div className="relative">
+                                        {pickup.headshot ? (
+                                            <img 
+                                                src={pickup.headshot} 
+                                                alt={pickup.name}
+                                                className="w-12 h-12 rounded-full object-cover bg-slate-800 border border-slate-700"
+                                                onError={(e) => {
+                                                    e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-lg border border-slate-700">
+                                                🏒
+                                            </div>
+                                        )}
+                                        {/* Team Logo overlay */}
                                         <img 
-                                            src={pickup.headshot} 
-                                            alt={pickup.name}
-                                            className="w-12 h-12 rounded-full object-cover bg-slate-800"
+                                            src={`https://assets.nhle.com/logos/nhl/svg/${pickup.team}_dark.svg`}
+                                            alt={pickup.team}
+                                            className="absolute -bottom-1 -right-1 w-5 h-5 bg-slate-900 rounded-full p-0.5 border border-slate-700"
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = 'none';
+                                            }}
                                         />
-                                    ) : (
-                                        <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-lg">
-                                            🏒
-                                        </div>
-                                    )}
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-white font-semibold truncate">{pickup.name}</p>
                                         <div className="flex items-center gap-2 mt-0.5">
