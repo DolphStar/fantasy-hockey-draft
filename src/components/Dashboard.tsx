@@ -301,12 +301,22 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
             const chirps = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...(docSnap.data() as any) }));
             const next = [...baseItems];
             chirps.forEach(chirp => {
+                // Handle Firestore timestamp - could be Timestamp object or plain {seconds, nanoseconds}
+                let timestamp: Date | undefined;
+                if (chirp.createdAt) {
+                    if (typeof chirp.createdAt.toDate === 'function') {
+                        timestamp = chirp.createdAt.toDate();
+                    } else if (chirp.createdAt.seconds) {
+                        timestamp = new Date(chirp.createdAt.seconds * 1000);
+                    }
+                }
+                
                 next.push({
                     id: `chat-${chirp.id}`,
                     icon: '💬',
                     title: chirp.teamName || 'Chirp',
                     description: chirp.text,
-                    timestamp: chirp.createdAt?.toDate?.() || new Date(),
+                    timestamp,
                     cta: 'Reply',
                     onClick: goToChat
                 });
