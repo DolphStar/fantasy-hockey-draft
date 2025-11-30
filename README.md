@@ -30,12 +30,13 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 - **Idempotent scoring** - prevents duplicate scoring for same date
 
 ### 3. **Live Stats Tracking** 
-- **Real-time game stats** - updates every 15 minutes during game hours (5 PM - 2 AM ET)
-- **Today's games only** - tracks all games happening TODAY
-- **Live game indicators** - shows which games are LIVE vs FINAL
+- **Real-time game stats** - updates every 5 minutes with manual refresh option
+- **Hockey day logic** - games show until 3 AM ET to ensure all games finish before day rolls over
+- **Today's Matchups** - see your players' games with team logos and game times
+- **Player Performance** - detailed stats table (G, A, H, BS, F, W, Sv, Pts) for all teams
+- **Live game indicators** - shows which games are LIVE vs FINAL with color-coded borders
 - **Auto-updating UI** - stats update automatically via Firestore real-time listeners
-- **Team aggregates** - see total stats for each fantasy team today
-- **No refresh needed** - updates appear instantly when cron runs
+- **Team totals** - see each fantasy team's total points for the day
 
 ### 4. **Roster Management**
 - **Active/Reserve system** - 17 active players (9F/6D/2G) + 5 reserves
@@ -64,11 +65,14 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 - **Emoji support** - full emoji support in messages
 
 ### 7. **Dashboard**
-- **Draft status overview** - current pick, round, team on the clock
-- **Your roster summary** - position counts (F: X/9, D: X/6, G: X/2)
-- **Recent picks** - see the last 5 picks made
-- **Quick navigation** - shortcuts to main app sections
-- **League info** - league name, number of teams, draft progress
+- **Season points display** - your total points vs league average
+- **Today's live stats** - real-time points from games in progress
+- **Player matchups** - see which of your players are playing today with game times
+- **7-day trend chart** - visual graph of your team's performance vs league average
+- **League Feed** - real-time activity feed with roster moves, injuries, and chat messages
+- **Waiver Wire / Hot Pickups** - top available free agents with player headshots and team logos
+- **Team Health card** - injury status for your roster with quick navigation to IR management
+- **Quick actions** - "Set Lines" and "View Schedule" buttons
 
 ### 8. **Player Browsing**
 - **Browse by NHL team** - dropdown selector for all 32 NHL teams
@@ -270,6 +274,45 @@ See [SECURITY_SETUP.md](./SECURITY_SETUP.md) for detailed security configuration
 
 ---
 
+## 📁 Project Structure
+
+```
+fantasy-hockey-draft/
+├── api/                      # Vercel serverless functions
+│   ├── calculate-scores.ts   # Daily scoring cron job
+│   ├── fetch-daily-stats.ts  # NHL stats backfill
+│   ├── live-stats.ts         # Live game stats endpoint
+│   └── nhl-schedule.ts       # NHL schedule proxy
+├── src/
+│   ├── components/           # React components
+│   │   ├── admin/            # Admin-only components (future)
+│   │   ├── draft/            # Draft-related components
+│   │   ├── roster/           # Player cards and roster UI
+│   │   ├── ui/               # Reusable UI components
+│   │   ├── Dashboard.tsx     # Main dashboard
+│   │   ├── LiveStats.tsx     # Live game stats
+│   │   ├── Standings.tsx     # League standings
+│   │   └── ...
+│   ├── context/              # React contexts
+│   │   ├── AuthContext.tsx   # Firebase auth
+│   │   ├── DraftContext.tsx  # Draft state management
+│   │   ├── LeagueContext.tsx # League data
+│   │   └── ...
+│   ├── hooks/                # Custom React hooks
+│   ├── utils/                # Utility functions
+│   │   ├── liveStats.ts      # Live stats processing
+│   │   ├── scoringEngine.ts  # Fantasy point calculation
+│   │   ├── nhlApi.ts         # NHL API helpers
+│   │   └── ...
+│   ├── types/                # TypeScript type definitions
+│   └── queries/              # React Query hooks
+├── firestore.rules           # Firestore security rules
+├── vercel.json               # Vercel config (crons, rewrites)
+└── README.md
+```
+
+---
+
 ## 📈 Performance
 
 - **Code splitting** - Lazy loading of components with retry logic
@@ -277,7 +320,7 @@ See [SECURITY_SETUP.md](./SECURITY_SETUP.md) for detailed security configuration
 - **Virtualized lists** - React Virtuoso for large player lists
 - **Firestore listeners** - Efficient real-time subscriptions
 - **Indexed queries** - Optimized Firestore queries
-- **Image optimization** - NHL team logos from CDN
+- **Image optimization** - NHL team logos and player headshots from CDN
 
 ---
 
