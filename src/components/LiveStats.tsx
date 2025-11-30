@@ -48,9 +48,8 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
 
       // If showAllTeams, get ALL active players from ALL teams
       // Otherwise, just get the current user's active roster
-      const constraints = [
-        where('leagueId', '==', league.id),
-        where('rosterSlot', '==', 'active')
+      const constraints: any[] = [
+        where('leagueId', '==', league.id)
       ];
 
       if (!showAllTeams && myTeam) {
@@ -60,25 +59,42 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
       const draftedSnapshot = await getDocs(
         query(collection(db, 'draftedPlayers'), ...constraints)
       );
-      return new Set(draftedSnapshot.docs.map((doc: any) => doc.data().playerId));
+      
+      // Filter for active players (rosterSlot === 'active' or undefined/missing)
+      // Players without rosterSlot field are treated as active (legacy data)
+      return new Set(
+        draftedSnapshot.docs
+          .filter((doc: any) => {
+            const slot = doc.data().rosterSlot;
+            return !slot || slot === 'active';
+          })
+          .map((doc: any) => doc.data().playerId)
+      );
     };
 
     // Set up real-time listener
     const setupListener = async () => {
       const activePlayerIds = await getActivePlayerIds();
+      console.log(`📊 LiveStats: Tracking ${activePlayerIds.size} active players for date ${today}`);
 
       const unsubscribe = onSnapshot(liveStatsRef, (snapshot) => {
         const stats: LivePlayerStats[] = [];
+        let totalDocs = 0;
+        let todayDocs = 0;
 
         snapshot.forEach(doc => {
+          totalDocs++;
           // Only include today's stats for ACTIVE roster players
           if (doc.id.startsWith(today)) {
+            todayDocs++;
             const stat = doc.data() as LivePlayerStats;
             if (activePlayerIds.has(stat.playerId)) {
               stats.push(stat);
             }
           }
         });
+
+        console.log(`📊 LiveStats: Found ${totalDocs} total docs, ${todayDocs} for today, ${stats.length} matching active players`);
 
         // Sort by points descending
         stats.sort((a, b) => b.points - a.points);
