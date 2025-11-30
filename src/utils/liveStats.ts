@@ -148,23 +148,28 @@ export async function processLiveStats(leagueId: string) {
           }
         }
 
-        // 3. Handle the "Stuck FINAL Game" (The TBL vs FLA issue)
-        // If the game is FINAL, check if we need to update it
+        // 3. Handle FINAL games
         const isFinal = game.gameState === 'FINAL' || game.gameState === 'OFF';
         if (isFinal && existingStat) {
+          // Check if existing stats have 0 points - if so, we need to re-fetch
+          const hasZeroPoints = existingStat.goals === 0 && existingStat.assists === 0;
+          
           // If API has different scores (e.g., OT goal) we must update
           if (apiAwayScore !== existingStat.awayScore || apiHomeScore !== existingStat.homeScore) {
             console.warn(`🔄 FINAL game ${game.id} score changed: ${existingStat.awayScore}-${existingStat.homeScore} → ${apiAwayScore}-${apiHomeScore}`);
             awayScore = apiAwayScore;
             homeScore = apiHomeScore;
             // Continue processing to update
+          } else if (hasZeroPoints) {
+            // Re-fetch if we have 0 points - might have been fetched before game data was ready
+            console.log(`🔄 LIVE STATS: Re-fetching FINAL game ${game.id} - existing stats show 0 points`);
           } else if (apiAwayScore > 0 || apiHomeScore > 0) {
             console.log(`✓ LIVE STATS: Skipping FINAL game ${game.id} with unchanged scores: ${apiAwayScore}-${apiHomeScore}`);
             continue;
           }
         } else if (isFinal && !existingStat) {
-          // Final game with no existing stats should already be skipped earlier
-          continue;
+          // Final game with no existing stats - need to fetch it!
+          console.log(`🔄 LIVE STATS: Fetching FINAL game ${game.id} - no existing stats`);
         }
 
         // Add delay between API calls to avoid rate limiting (500ms)
