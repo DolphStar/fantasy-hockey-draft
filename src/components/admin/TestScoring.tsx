@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useLeague } from '../context/LeagueContext';
-import { processYesterdayScores } from '../utils/scoringEngine';
-import { db } from '../firebase';
+import { useLeague } from '../../context/LeagueContext';
+import { processYesterdayScores } from '../../utils/scoringEngine';
+import { db } from '../../firebase';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
-import { GlassCard } from './ui/GlassCard';
+import { GlassCard } from '../ui/GlassCard';
 
 export default function TestScoring() {
   const { league, isAdmin } = useLeague();

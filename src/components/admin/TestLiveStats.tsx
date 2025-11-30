@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useLeague } from '../context/LeagueContext';
-import { processLiveStats } from '../utils/liveStats';
-import { GlassCard } from './ui/GlassCard';
+import { useLeague } from '../../context/LeagueContext';
+import { processLiveStats } from '../../utils/liveStats';
+import { GlassCard } from '../ui/GlassCard';
 
 export default function TestLiveStats() {
   const { league } = useLeague();

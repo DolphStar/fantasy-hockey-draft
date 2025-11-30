@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { useLeague } from '../context/LeagueContext';
-import { GlassCard } from './ui/GlassCard';
-import { Badge } from './ui/Badge';
+import { useLeague } from '../../context/LeagueContext';
+import { GlassCard } from '../ui/GlassCard';
+import { Badge } from '../ui/Badge';
 
 interface DraftedPlayer {
   id: string;

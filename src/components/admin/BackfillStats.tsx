@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useLeague } from '../context/LeagueContext';
-import { db } from '../firebase';
+import { useLeague } from '../../context/LeagueContext';
+import { db } from '../../firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { GlassCard } from './ui/GlassCard';
+import { GlassCard } from '../ui/GlassCard';
 
 export default function BackfillStats() {
   const { isAdmin } = useLeague();
