@@ -115,25 +115,32 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
 
   // Fetch upcoming matchups (always, not just when no live stats)
   useEffect(() => {
-    if (!league || !myTeam) return;
+    if (!league) return;
+    // For showAllTeams (Standings page), we don't need myTeam
+    if (!showAllTeams && !myTeam) return;
 
     const fetchMatchups = async () => {
       try {
         // Fetch today's schedule
         const todaysGames = await fetchTodaySchedule();
 
-        // Get user's roster from drafted players (ONLY YOUR TEAM)
+        // Get roster from drafted players
         const draftedPlayersSnapshot = await onSnapshot(
           collection(db, 'draftedPlayers'),
           (snapshot) => {
             const roster = snapshot.docs
               .filter(doc => {
                 const data = doc.data();
-                return (
-                  data.leagueId === league.id &&
-                  data.rosterSlot === 'active' &&
-                  data.draftedByTeam === myTeam.teamName  // ← FILTER BY YOUR TEAM!
-                );
+                const slot = data.rosterSlot;
+                const isActive = !slot || slot === 'active'; // Include players without rosterSlot field
+                
+                if (showAllTeams) {
+                  // Standings page: show ALL teams' active players
+                  return data.leagueId === league.id && isActive;
+                } else {
+                  // Dashboard: show only your team's active players
+                  return data.leagueId === league.id && isActive && data.draftedByTeam === myTeam?.teamName;
+                }
               })
               .map(doc => {
                 const data = doc.data();
@@ -144,7 +151,9 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
                 };
               });
 
-            // Get matchups for user's roster
+            console.log(`📊 Matchups: Found ${roster.length} active players for matchups`);
+
+            // Get matchups for roster
             const matchups = getUpcomingMatchups(roster, todaysGames);
             setUpcomingMatchups(matchups);
           }
@@ -157,7 +166,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     };
 
     fetchMatchups();
-  }, [league, myTeam]);
+  }, [league, myTeam, showAllTeams]);
 
   // Auto-refresh countdown timer
   useEffect(() => {
