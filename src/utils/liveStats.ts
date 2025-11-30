@@ -4,6 +4,7 @@
 import { db } from '../firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getGamesForDate, getGameBoxscore, getAllPlayersFromBoxscore } from './nhlStats';
+import { HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
 
 export interface LivePlayerStats {
   playerId: number;
@@ -58,7 +59,7 @@ export async function processLiveStats(leagueId: string) {
     }));
     
     let etDateStr: string;
-    if (etHour < 3) {
+    if (etHour < HOCKEY_DAY_CUTOFF_HOUR) {
       // Before 3 AM ET - still use "yesterday's" date
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       etDateStr = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });

@@ -9,6 +9,7 @@ import type { LivePlayerStats } from '../utils/liveStats';
 import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
+import { LIVE_STATS_REFRESH_SECONDS, HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
 
 interface LiveStatsProps {
   showAllTeams?: boolean; // If true, show all teams' stats (for Standings page)
@@ -22,7 +23,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(300); // 5 minutes
+  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(LIVE_STATS_REFRESH_SECONDS);
 
   // Real-time listener for live stats
   useEffect(() => {
@@ -41,7 +42,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     }));
     
     let today: string;
-    if (etHour < 3) {
+    if (etHour < HOCKEY_DAY_CUTOFF_HOUR) {
       // Before 3 AM ET - still use "yesterday's" date
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       today = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -174,7 +175,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     const countdown = setInterval(() => {
       setSecondsUntilRefresh(prev => {
         if (prev <= 1) {
-          return 300; // Reset to 5 minutes
+          return LIVE_STATS_REFRESH_SECONDS;
         }
         return prev - 1;
       });
@@ -204,13 +205,13 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
       setRefreshing(true);
       try {
         await processLiveStats(league.id);
-        setSecondsUntilRefresh(300); // Reset countdown
+        setSecondsUntilRefresh(LIVE_STATS_REFRESH_SECONDS);
       } catch (error) {
         console.error('Auto-refresh failed:', error);
       } finally {
         setRefreshing(false);
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    }, LIVE_STATS_REFRESH_SECONDS * 1000);
 
     return () => clearInterval(autoRefresh);
   }, [league]);

@@ -1,4 +1,5 @@
 // Fetch and parse NHL schedule for upcoming matchups
+import { HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
 
 interface Game {
   id: number;
@@ -56,7 +57,7 @@ export async function fetchTodaySchedule(): Promise<Game[]> {
     // "Hockey day" logic: before 3 AM ET, use yesterday's date
     // This ensures we show today's games until they're all done
     let targetDate: string;
-    if (etHour < 3) {
+    if (etHour < HOCKEY_DAY_CUTOFF_HOUR) {
       // Before 3 AM ET - still show "yesterday's" games
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       targetDate = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
