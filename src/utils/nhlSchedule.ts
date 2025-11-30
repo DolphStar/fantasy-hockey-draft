@@ -33,6 +33,7 @@ export interface PlayerMatchup {
 
 /**
  * Fetch today's NHL schedule
+ * Uses "hockey day" logic: day doesn't change until 3 AM ET to ensure all games finish
  */
 export async function fetchTodaySchedule(): Promise<Game[]> {
   try {
@@ -44,15 +45,31 @@ export async function fetchTodaySchedule(): Promise<Game[]> {
     
     const data: ScheduleResponse = await response.json();
     
-    // Get today's date in Eastern Time (NHL's timezone)
-    const today = new Date().toLocaleDateString('en-CA', { 
-      timeZone: 'America/New_York' 
-    });
+    // Get current hour in Eastern Time
+    const now = new Date();
+    const etHour = parseInt(now.toLocaleString('en-US', { 
+      timeZone: 'America/New_York', 
+      hour: 'numeric', 
+      hour12: false 
+    }));
     
-    // Find today's games
-    const todaySchedule = data.gameWeek.find(day => day.date === today);
+    // "Hockey day" logic: before 3 AM ET, use yesterday's date
+    // This ensures we show today's games until they're all done
+    let targetDate: string;
+    if (etHour < 3) {
+      // Before 3 AM ET - still show "yesterday's" games
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      targetDate = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      console.log(`📅 Before 3 AM ET - using yesterday's date: ${targetDate}`);
+    } else {
+      // After 3 AM ET - show today's games
+      targetDate = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    }
     
-    return todaySchedule?.games || [];
+    // Find games for target date
+    const schedule = data.gameWeek.find(day => day.date === targetDate);
+    
+    return schedule?.games || [];
   } catch (error) {
     console.error('Error fetching NHL schedule:', error);
     return [];

@@ -31,15 +31,24 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
       return;
     }
 
-    // Get today's date in Eastern Time (NHL's timezone)
-    // Convert current time to ET (UTC-5 or UTC-4 depending on DST)
+    // Get "hockey day" date - before 3 AM ET, use yesterday's date
+    // This ensures we show today's games until they're all done
     const now = new Date();
-    const etOffset = -5; // EST is UTC-5 (adjust to -4 for EDT if needed)
-    const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
-    const year = etTime.getUTCFullYear();
-    const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(etTime.getUTCDate()).padStart(2, '0');
-    const today = `${year}-${month}-${day}`;
+    const etHour = parseInt(now.toLocaleString('en-US', { 
+      timeZone: 'America/New_York', 
+      hour: 'numeric', 
+      hour12: false 
+    }));
+    
+    let today: string;
+    if (etHour < 3) {
+      // Before 3 AM ET - still use "yesterday's" date
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      today = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    } else {
+      today = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    }
+    
     const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
 
     // Get active roster player IDs to filter live stats

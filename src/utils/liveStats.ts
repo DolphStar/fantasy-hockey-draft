@@ -48,25 +48,32 @@ export async function processLiveStats(leagueId: string) {
       return { success: false, gamesProcessed: 0, playersUpdated: 0, message: 'League not active' };
     }
 
-    // Get today's date in Eastern Time (NHL's timezone)
-    // Convert current time to ET (UTC-5 or UTC-4 depending on DST)
+    // Get "hockey day" date - before 3 AM ET, use yesterday's date
+    // This ensures we process today's games until they're all done
     const now = new Date();
-    const etOffset = -5; // EST is UTC-5 (adjust to -4 for EDT if needed)
-    const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
-    const year = etTime.getUTCFullYear();
-    const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(etTime.getUTCDate()).padStart(2, '0');
-    const etDateStr = `${year}-${month}-${day}`;
-
-    console.log(`🔴 LIVE STATS: Using ET date: ${etDateStr}`);
-    console.log(`🔴 LIVE STATS: ET time: ${etTime.toUTCString()}`);
+    const etHour = parseInt(now.toLocaleString('en-US', { 
+      timeZone: 'America/New_York', 
+      hour: 'numeric', 
+      hour12: false 
+    }));
+    
+    let etDateStr: string;
+    if (etHour < 3) {
+      // Before 3 AM ET - still use "yesterday's" date
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      etDateStr = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      console.log(`🔴 LIVE STATS: Before 3 AM ET - using yesterday's date: ${etDateStr}`);
+    } else {
+      etDateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      console.log(`🔴 LIVE STATS: Using ET date: ${etDateStr}`);
+    }
 
     // 1. Get today's games
     const todayGames = await getGamesForDate(etDateStr);
 
     // Also get yesterday's games (in case some FINAL games are still there)
-    const yesterday = new Date(etTime.getTime() - 24 * 60 * 60 * 1000);
-    const yesterdayStr = `${yesterday.getUTCFullYear()}-${String(yesterday.getUTCMonth() + 1).padStart(2, '0')}-${String(yesterday.getUTCDate()).padStart(2, '0')}`;
+    const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = yesterdayDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     const yesterdayGames = await getGamesForDate(yesterdayStr);
 
     const yesterdayFinals = yesterdayGames.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF');
