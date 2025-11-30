@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Lint reports and temp files
+lint_report*.json
+git_files.txt
