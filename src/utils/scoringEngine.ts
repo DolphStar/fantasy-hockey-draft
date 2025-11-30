@@ -1,3 +1,24 @@
+/**
+ * Fantasy Scoring Engine
+ * 
+ * Calculates fantasy points for all drafted players based on NHL game stats.
+ * Runs daily via Vercel cron job at 5 AM UTC to process yesterday's games.
+ * 
+ * Scoring categories:
+ * - Skaters: Goals, Assists, SH Goals (bonus), OT Goals (bonus), Fights
+ * - Defense: Blocked Shots, Hits (bonus on top of skater scoring)
+ * - Goalies: Wins, Shutouts, Saves, Goals, Assists, Fights
+ * 
+ * Data flow:
+ * 1. Fetch completed games from NHL API
+ * 2. Get boxscores with player stats
+ * 3. Map players to fantasy teams
+ * 4. Calculate fantasy points per player
+ * 5. Update team totals in Firestore
+ * 
+ * @module utils/scoringEngine
+ */
+
 import { db } from '../firebase';
 import { collection, getDocs, doc, getDoc, setDoc, updateDoc, increment, query, where } from 'firebase/firestore';
 import type { ScoringRules } from '../types/league';
@@ -10,26 +31,51 @@ import {
   countFightsFromPlayByPlay
 } from './nhlStats';
 
+/**
+ * Team score totals stored in Firestore
+ * Path: leagues/{leagueId}/teamScores/{teamName}
+ */
 export interface TeamScore {
+  /** Fantasy team name */
   teamName: string;
+  /** Cumulative fantasy points for the season */
   totalPoints: number;
+  /** Number of daily wins (highest scorer that day) */
   wins: number;
+  /** Number of daily losses */
   losses: number;
+  /** ISO timestamp of last update */
   lastUpdated: string;
 }
 
+/**
+ * Individual player's daily fantasy score
+ * Path: leagues/{leagueId}/playerDailyScores/{date}_{playerId}
+ */
 export interface PlayerDailyScore {
+  /** NHL player ID */
   playerId: number;
+  /** Player's full name */
   playerName: string;
-  teamName: string; // Fantasy team name
+  /** Fantasy team that owns this player */
+  teamName: string;
+  /** NHL team abbreviation */
   nhlTeam: string;
+  /** Game date in YYYY-MM-DD format */
   date: string;
+  /** Calculated fantasy points */
   points: number;
-  stats: Record<string, number>; // Dynamic stats object (only includes defined values)
+  /** Raw stats used for calculation */
+  stats: Record<string, number>;
 }
 
 /**
- * Calculate fantasy points for a skater
+ * Calculates fantasy points for a skater (forward or defenseman)
+ * 
+ * @param stats - Raw player stats from NHL API boxscore
+ * @param rules - League scoring rules
+ * @param isDefenseman - Whether player is a defenseman (gets hit/block bonuses)
+ * @returns Calculated fantasy points
  */
 function calculateSkaterPoints(
   stats: PlayerGameStats,

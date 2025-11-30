@@ -1,39 +1,91 @@
-// Live stats tracking for today's games
-// Updates multiple times per day to show real-time performance
+/**
+ * Live Stats Tracking Module
+ * 
+ * Fetches real-time game stats from NHL API and stores them in Firestore.
+ * Updates multiple times per day to show live player performance during games.
+ * 
+ * Key features:
+ * - Fetches boxscores for today's games (and yesterday's if before 3 AM ET)
+ * - Calculates NHL points (goals + assists) for each player
+ * - Stores stats in Firestore under leagues/{leagueId}/liveStats
+ * - Handles game state transitions (LIVE → FINAL)
+ * 
+ * @module utils/liveStats
+ */
 
 import { db } from '../firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getGamesForDate, getGameBoxscore, getAllPlayersFromBoxscore } from './nhlStats';
 import { HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
 
+/**
+ * Live player statistics for a single game
+ * Stored in Firestore with document ID: {dateKey}_{playerId}
+ */
 export interface LivePlayerStats {
+  /** NHL player ID */
   playerId: number;
+  /** Player's full name */
   playerName: string;
-  teamName: string; // Fantasy team name
+  /** Fantasy team name that drafted this player */
+  teamName: string;
+  /** NHL team abbreviation (e.g., "COL", "TOR") */
   nhlTeam: string;
+  /** NHL game ID */
   gameId: number;
+  /** Game state: "LIVE", "FINAL", "OFF", etc. */
   gameState: string;
+  /** Away team score */
   awayScore: number;
+  /** Home team score */
   homeScore: number;
+  /** Current period (1, 2, 3, OT) */
   period: number;
+  /** Time remaining in period */
   clock: string;
+  /** Goals scored in this game */
   goals: number;
+  /** Assists in this game */
   assists: number;
+  /** NHL points (goals + assists) - NOT fantasy points */
   points: number;
+  /** Shots on goal */
   shots: number;
+  /** Hits */
   hits: number;
+  /** Blocked shots */
   blockedShots: number;
+  /** Fighting majors (calculated from PIM) */
   fights: number;
+  /** Goalie wins */
   wins: number;
+  /** Goalie saves */
   saves: number;
+  /** Goalie shutouts */
   shutouts: number;
-  lastUpdated: any; // Firestore timestamp
-  dateKey: string; // YYYY-MM-DD of the actual game date
+  /** Firestore server timestamp */
+  lastUpdated: any;
+  /** Game date in YYYY-MM-DD format */
+  dateKey: string;
 }
 
 /**
- * Process live stats for today's games
- * Should be called multiple times per day (every 10-15 minutes)
+ * Fetches live game stats from NHL API and updates Firestore
+ * 
+ * This function:
+ * 1. Determines the "hockey day" (before 3 AM ET = yesterday's games)
+ * 2. Fetches boxscores for all games on that day
+ * 3. Maps players to their fantasy teams
+ * 4. Batch writes stats to Firestore
+ * 
+ * @param leagueId - Firestore league document ID
+ * @returns Promise with processing results (games processed, players updated)
+ * 
+ * @example
+ * ```typescript
+ * const result = await processLiveStats('league123');
+ * console.log(`Updated ${result.playersUpdated} players`);
+ * ```
  */
 export async function processLiveStats(leagueId: string) {
   try {

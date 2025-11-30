@@ -1,6 +1,16 @@
-// Fetch and parse NHL schedule for upcoming matchups
+/**
+ * NHL Schedule Module
+ * 
+ * Fetches and parses NHL game schedules to show player matchups.
+ * Uses "hockey day" logic - the day doesn't change until 3 AM ET
+ * to ensure late-night games are still visible.
+ * 
+ * @module utils/nhlSchedule
+ */
+
 import { HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
 
+/** NHL game data from schedule API */
 interface Game {
   id: number;
   startTimeUTC: string;
@@ -9,32 +19,53 @@ interface Game {
   gameState: string;
 }
 
+/** A single day's schedule */
 interface ScheduleDay {
   date: string;
   games: Game[];
 }
 
+/** Full schedule API response */
 interface ScheduleResponse {
   gameWeek: ScheduleDay[];
 }
 
+/**
+ * Player's game matchup information
+ * Used to display "Today's Matchups" on Dashboard and LiveStats
+ */
 export interface PlayerMatchup {
+  /** NHL player ID */
   playerId: number;
+  /** Player's full name */
   playerName: string;
+  /** Player's NHL team abbreviation */
   teamAbbrev: string;
+  /** Opponent team abbreviation */
   opponent: string;
+  /** Whether player's team is home */
   isHome: boolean;
+  /** Formatted game time in user's timezone */
   gameTime: string;
+  /** Raw UTC game time */
   gameTimeUTC: string;
+  /** Game state: "FUT", "LIVE", "FINAL", etc. */
   gameState: string;
+  /** NHL game ID */
   gameId: number;
+  /** Away team score (if game started) */
   awayScore?: number;
+  /** Home team score (if game started) */
   homeScore?: number;
 }
 
 /**
- * Fetch today's NHL schedule
- * Uses "hockey day" logic: day doesn't change until 3 AM ET to ensure all games finish
+ * Fetches today's NHL schedule from the API
+ * 
+ * Uses "hockey day" logic: before 3 AM ET, returns yesterday's games
+ * to ensure late-night games are still visible until they finish.
+ * 
+ * @returns Promise with array of today's games
  */
 export async function fetchTodaySchedule(): Promise<Game[]> {
   try {
@@ -78,7 +109,21 @@ export async function fetchTodaySchedule(): Promise<Game[]> {
 }
 
 /**
- * Get upcoming matchups for user's roster
+ * Maps a user's roster to their game matchups for today
+ * 
+ * For each player in the roster, finds if they have a game today
+ * and returns matchup details including opponent, game time, and scores.
+ * 
+ * @param roster - Array of player objects with playerId, name, and nhlTeam
+ * @param todaysGames - Array of games from fetchTodaySchedule()
+ * @returns Array of PlayerMatchup objects, sorted by game time
+ * 
+ * @example
+ * ```typescript
+ * const games = await fetchTodaySchedule();
+ * const matchups = getUpcomingMatchups(myRoster, games);
+ * // Returns: [{ playerName: "MacKinnon", opponent: "TOR", gameTime: "7:00 PM EST", ... }]
+ * ```
  */
 export function getUpcomingMatchups(
   roster: Array<{ playerId: number; name: string; nhlTeam: string }>,
