@@ -113,18 +113,16 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     return () => { if (unsubscribe) unsubscribe(); };
   }, [league]);
 
-  // Fetch upcoming matchups (always, not just when no live stats)
+  // Fetch upcoming matchups (always shows YOUR team's players only)
   useEffect(() => {
-    if (!league) return;
-    // For showAllTeams (Standings page), we don't need myTeam
-    if (!showAllTeams && !myTeam) return;
+    if (!league || !myTeam) return;
 
     const fetchMatchups = async () => {
       try {
         // Fetch today's schedule
         const todaysGames = await fetchTodaySchedule();
 
-        // Get roster from drafted players
+        // Get YOUR team's roster from drafted players
         const draftedPlayersSnapshot = await onSnapshot(
           collection(db, 'draftedPlayers'),
           (snapshot) => {
@@ -133,14 +131,8 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
                 const data = doc.data();
                 const slot = data.rosterSlot;
                 const isActive = !slot || slot === 'active'; // Include players without rosterSlot field
-                
-                if (showAllTeams) {
-                  // Standings page: show ALL teams' active players
-                  return data.leagueId === league.id && isActive;
-                } else {
-                  // Dashboard: show only your team's active players
-                  return data.leagueId === league.id && isActive && data.draftedByTeam === myTeam?.teamName;
-                }
+                // Always filter by YOUR team for "Today's Matchups"
+                return data.leagueId === league.id && isActive && data.draftedByTeam === myTeam.teamName;
               })
               .map(doc => {
                 const data = doc.data();
@@ -151,9 +143,9 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
                 };
               });
 
-            console.log(`📊 Matchups: Found ${roster.length} active players for matchups`);
+            console.log(`📊 Matchups: Found ${roster.length} active players for YOUR team's matchups`);
 
-            // Get matchups for roster
+            // Get matchups for your roster
             const matchups = getUpcomingMatchups(roster, todaysGames);
             setUpcomingMatchups(matchups);
           }
@@ -166,7 +158,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     };
 
     fetchMatchups();
-  }, [league, myTeam, showAllTeams]);
+  }, [league, myTeam]);
 
   // Auto-refresh countdown timer
   useEffect(() => {
