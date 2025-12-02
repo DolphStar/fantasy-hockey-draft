@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
@@ -36,6 +36,10 @@ export default function DraftBoardGrid() {
   const [animatingPick, setAnimatingPick] = useState<number | null>(null);
 
   // Listen to drafted players in real-time
+  // IMPORTANT: Empty dependency array - runs once on mount
+  // Using ref to track previous players for animation detection
+  const prevPlayersRef = useRef<DraftedPlayer[]>([]);
+  
   useEffect(() => {
     const q = query(
       collection(db, 'draftedPlayers'),
@@ -48,9 +52,9 @@ export default function DraftBoardGrid() {
         players.push({ id: doc.id, ...doc.data() } as DraftedPlayer);
       });
 
-      // Detect newly drafted players for animation
+      // Detect newly drafted players for animation using ref (not state)
       const newPlayers = players.filter(
-        p => !draftedPlayers.find(dp => dp.pickNumber === p.pickNumber)
+        p => !prevPlayersRef.current.find((dp: DraftedPlayer) => dp.pickNumber === p.pickNumber)
       );
       if (newPlayers.length > 0) {
         const latestPick = newPlayers[newPlayers.length - 1];
@@ -58,11 +62,12 @@ export default function DraftBoardGrid() {
         setTimeout(() => setAnimatingPick(null), 1000);
       }
 
+      prevPlayersRef.current = players;
       setDraftedPlayers(players);
     });
 
     return () => unsubscribe();
-  }, [draftedPlayers]);
+  }, []); // ← FIXED: Empty array - listener runs once, onSnapshot handles updates
 
   if (!league || !draftState) {
     return (

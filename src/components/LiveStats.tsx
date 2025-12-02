@@ -124,6 +124,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
   }, [league]);
 
   // Fetch upcoming matchups (always shows YOUR team's players only)
+  // FIXED: Use getDocs instead of onSnapshot to avoid nested listener issues
   useEffect(() => {
     if (!league || !myTeam) return;
 
@@ -132,36 +133,30 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
         // Fetch today's schedule
         const todaysGames = await fetchTodaySchedule();
 
-        // Get YOUR team's roster from drafted players
-        const draftedPlayersSnapshot = await onSnapshot(
-          collection(db, 'draftedPlayers'),
-          (snapshot) => {
-            const roster = snapshot.docs
-              .filter(doc => {
-                const data = doc.data();
-                const slot = data.rosterSlot;
-                const isActive = !slot || slot === 'active'; // Include players without rosterSlot field
-                // Always filter by YOUR team for "Today's Matchups"
-                return data.leagueId === league.id && isActive && data.draftedByTeam === myTeam.teamName;
-              })
-              .map(doc => {
-                const data = doc.data();
-                return {
-                  playerId: data.playerId,
-                  name: data.name,
-                  nhlTeam: data.nhlTeam
-                };
-              });
+        // Get YOUR team's roster from drafted players (one-time fetch, not listener)
+        const draftedSnapshot = await getDocs(collection(db, 'draftedPlayers'));
+        
+        const roster = draftedSnapshot.docs
+          .filter(doc => {
+            const data = doc.data();
+            const slot = data.rosterSlot;
+            const isActive = !slot || slot === 'active';
+            return data.leagueId === league.id && isActive && data.draftedByTeam === myTeam.teamName;
+          })
+          .map(doc => {
+            const data = doc.data();
+            return {
+              playerId: data.playerId,
+              name: data.name,
+              nhlTeam: data.nhlTeam
+            };
+          });
 
-            console.log(`📊 Matchups: Found ${roster.length} active players for YOUR team's matchups`);
+        console.log(`📊 Matchups: Found ${roster.length} active players for YOUR team's matchups`);
 
-            // Get matchups for your roster
-            const matchups = getUpcomingMatchups(roster, todaysGames);
-            setUpcomingMatchups(matchups);
-          }
-        );
-
-        return () => draftedPlayersSnapshot();
+        // Get matchups for your roster
+        const matchups = getUpcomingMatchups(roster, todaysGames);
+        setUpcomingMatchups(matchups);
       } catch (error) {
         console.error('Error fetching matchups:', error);
       }
