@@ -151,10 +151,10 @@ export default function MyPlayerCard({
                 className={cn(
                     'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
                     'border-2 transition-all duration-300 bg-slate-900',
-                    'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10',
+                    'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/20',
                     isSelected
                         ? 'border-amber-300 shadow-[0_0_30px_rgba(251,191,36,0.6),0_0_60px_rgba(251,191,36,0.3)]'
-                        : 'border-slate-700/50 hover:border-blue-400/70 shadow-md'
+                        : 'border-slate-700/50 hover:border-blue-400/70 shadow-xl'
                 )}
                 style={{
                     background: '#0f172a'
