@@ -166,7 +166,7 @@ export default function PlayerList() {
 
   const [playerPoints, setPlayerPoints] = useState<Record<number, number>>({});
   const [playerStats, setPlayerStats] = useState<Record<number, { goals: number; assists: number; gamesPlayed: number; avgPoints: number }>>({});
-  const [playerHistory, setPlayerHistory] = useState<Record<number, { points: number }[]>>({});
+  const [playerHistory, setPlayerHistory] = useState<Record<number, { points: number; date: string }[]>>({});
   const [dailyTeamTotals, setDailyTeamTotals] = useState<{ date: string; points: number }[]>([]);
   const [lastGamePoints, setLastGamePoints] = useState(0);
   const [trend, setTrend] = useState<'up' | 'down' | 'neutral'>('neutral');
@@ -216,10 +216,10 @@ export default function PlayerList() {
         });
         setPlayerPoints(pointsMap);
         setPlayerStats(statsMap);
-        const processedHistory: Record<number, { points: number }[]> = {};
+        const processedHistory: Record<number, { points: number; date: string }[]> = {};
         Object.keys(historyMap).forEach(pid => {
           const sorted = historyMap[Number(pid)].sort((a, b) => a.date.localeCompare(b.date));
-          processedHistory[Number(pid)] = sorted.slice(-5).map(h => ({ points: h.points }));
+          processedHistory[Number(pid)] = sorted.slice(-5).map(h => ({ points: h.points, date: h.date }));
         });
         setPlayerHistory(processedHistory);
         const sortedDates = Object.keys(dailyTotalsMap).sort();
