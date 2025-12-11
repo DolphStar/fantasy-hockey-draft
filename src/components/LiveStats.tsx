@@ -6,7 +6,7 @@ import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
 import { processLiveStats } from '../utils/liveStats';
 import type { LivePlayerStats } from '../utils/liveStats';
-import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
+import { fetchScheduleForDate, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
 import { LIVE_STATS_REFRESH_SECONDS, HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
@@ -183,15 +183,14 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     fetchHistoricalStats();
   }, [league, selectedDate, isViewingToday, showAllTeams, myTeam]);
 
-  // Fetch upcoming matchups (always shows YOUR team's players only)
-  // FIXED: Use getDocs instead of onSnapshot to avoid nested listener issues
+  // Fetch matchups for selected date (shows YOUR team's players only)
   useEffect(() => {
     if (!league || !myTeam) return;
 
     const fetchMatchups = async () => {
       try {
-        // Fetch today's schedule
-        const todaysGames = await fetchTodaySchedule();
+        // Fetch schedule for selected date
+        const games = await fetchScheduleForDate(selectedDate);
 
         // Get YOUR team's roster from drafted players (one-time fetch, not listener)
         const draftedSnapshot = await getDocs(collection(db, 'draftedPlayers'));
@@ -212,10 +211,10 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
             };
           });
 
-        console.log(`📊 Matchups: Found ${roster.length} active players for YOUR team's matchups`);
+        console.log(`📊 Matchups: Found ${roster.length} active players for ${selectedDate}`);
 
         // Get matchups for your roster
-        const matchups = getUpcomingMatchups(roster, todaysGames);
+        const matchups = getUpcomingMatchups(roster, games);
         setUpcomingMatchups(matchups);
       } catch (error) {
         console.error('Error fetching matchups:', error);
@@ -223,7 +222,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     };
 
     fetchMatchups();
-  }, [league, myTeam]);
+  }, [league, myTeam, selectedDate]);
 
   // Auto-refresh countdown timer
   useEffect(() => {
@@ -270,21 +269,6 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
 
     return () => clearInterval(autoRefresh);
   }, [league]);
-
-  // Manual refresh function
-  const handleManualRefresh = async () => {
-    if (!league || refreshing) return;
-
-    setRefreshing(true);
-    try {
-      await processLiveStats(league.id);
-      setSecondsUntilRefresh(300); // Reset countdown
-    } catch (error) {
-      console.error('Manual refresh failed:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   // Format countdown timer
   const formatCountdown = (seconds: number) => {
@@ -410,19 +394,6 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
               </div>
             )}
 
-            {/* Manual Refresh Button - only show for today */}
-            {isViewingToday && (
-              <button
-                onClick={handleManualRefresh}
-                disabled={refreshing}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors border ${refreshing
-                  ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500 hover:border-blue-400 shadow-lg shadow-blue-900/20'
-                  }`}
-              >
-                {refreshing ? 'Refreshing...' : '🔄 Refresh Now'}
-              </button>
-            )}
 
             {/* Last Updated */}
             {lastUpdate && (
@@ -523,14 +494,14 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
             </div>
           )}
 
-          {/* Upcoming Matchups Section - Always show */}
+          {/* Matchups Section - Shows games for selected date */}
           <div className={`p-6 ${liveStats.length > 0 ? 'border-t border-slate-700/50' : ''}`}>
             <div className="text-center py-4 mb-4">
               <h4 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
-                <span>🏒</span> Today's Matchups
+                <span>🏒</span> {isViewingToday ? "Today's Matchups" : `Matchups - ${formatDisplayDate(selectedDate)}`}
               </h4>
               <p className="text-slate-400 text-sm">
-                Your players' games for today
+                {isViewingToday ? "Your players' games for today" : `Your players' games for ${formatDisplayDate(selectedDate)}`}
               </p>
             </div>
 

@@ -109,6 +109,31 @@ export async function fetchTodaySchedule(): Promise<Game[]> {
 }
 
 /**
+ * Fetches NHL schedule for a specific date
+ * 
+ * @param dateStr - Date in YYYY-MM-DD format
+ * @returns Promise with array of games for that date
+ */
+export async function fetchScheduleForDate(dateStr: string): Promise<Game[]> {
+  try {
+    const response = await fetch('/api/nhl-schedule');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data: ScheduleResponse = await response.json();
+    
+    // Find games for the specified date
+    const schedule = data.gameWeek.find(day => day.date === dateStr);
+    
+    return schedule?.games || [];
+  } catch (error) {
+    console.error(`Error fetching NHL schedule for ${dateStr}:`, error);
+    return [];
+  }
+}
+
+/**
  * Maps a user's roster to their game matchups for today
  * 
  * For each player in the roster, finds if they have a game today
