@@ -376,6 +376,10 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                 const q = query(statsRef, where('date', '>=', dateStr));
                 const snapshot = await getDocs(q);
 
+                console.log(`🔥 Hot Pickups: Querying nhl_daily_stats >= ${dateStr}`);
+                console.log(`🔥 Hot Pickups: Found ${snapshot.docs.length} documents`);
+                snapshot.docs.forEach(d => console.log(`  - ${d.id}: ${Object.keys(d.data().players || {}).length} players`));
+
                 const playerTotals = new Map<number, any>();
                 let hasFirestoreData = false;
 

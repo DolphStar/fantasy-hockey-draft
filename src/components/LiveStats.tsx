@@ -15,6 +15,22 @@ interface LiveStatsProps {
   showAllTeams?: boolean; // If true, show all teams' stats (for Standings page)
 }
 
+// Helper to get "hockey day" date (before 3 AM ET = yesterday)
+function getHockeyDay(): string {
+  const now = new Date();
+  const etHour = parseInt(now.toLocaleString('en-US', { 
+    timeZone: 'America/New_York', 
+    hour: 'numeric', 
+    hour12: false 
+  }));
+  
+  if (etHour < HOCKEY_DAY_CUTOFF_HOUR) {
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  }
+  return now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
 export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {}) {
   const { league, myTeam } = useLeague();
   const { draftState } = useDraft();
@@ -24,44 +40,24 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(LIVE_STATS_REFRESH_SECONDS);
+  
+  // Date navigation state
+  const [selectedDate, setSelectedDate] = useState<string>(getHockeyDay());
+  const todayDate = getHockeyDay();
+  const isViewingToday = selectedDate === todayDate;
 
-  // Real-time listener for live stats
+  // Fetch stats for selected date (live listener for today, one-time fetch for historical)
   useEffect(() => {
     if (!league) {
       setLoading(false);
       return;
     }
 
-    // Get "hockey day" date - before 3 AM ET, use yesterday's date
-    // This ensures we show today's games until they're all done
-    const now = new Date();
-    const etHour = parseInt(now.toLocaleString('en-US', { 
-      timeZone: 'America/New_York', 
-      hour: 'numeric', 
-      hour12: false 
-    }));
-    
-    let today: string;
-    if (etHour < HOCKEY_DAY_CUTOFF_HOUR) {
-      // Before 3 AM ET - still use "yesterday's" date
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      today = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    } else {
-      today = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    }
-    
-    const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
+    setLoading(true);
 
-    // Get active roster player IDs to filter live stats
-    const getActivePlayerIds = async () => {
-      if (!myTeam && !showAllTeams) return new Set<number>();
-
-      // If showAllTeams, get ALL active players from ALL teams
-      // Otherwise, just get the current user's active roster
-      const constraints: any[] = [
-        where('leagueId', '==', league.id)
-      ];
-
+    // Get drafted players to map stats to teams
+    const getDraftedPlayersMap = async () => {
+      const constraints: any[] = [where('leagueId', '==', league.id)];
       if (!showAllTeams && myTeam) {
         constraints.push(where('draftedByTeam', '==', myTeam.teamName));
       }
@@ -70,58 +66,122 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
         query(collection(db, 'draftedPlayers'), ...constraints)
       );
       
-      // Filter for active players (rosterSlot === 'active' or undefined/missing)
-      // Players without rosterSlot field are treated as active (legacy data)
-      return new Set(
-        draftedSnapshot.docs
-          .filter((doc: any) => {
-            const slot = doc.data().rosterSlot;
-            return !slot || slot === 'active';
-          })
-          .map((doc: any) => doc.data().playerId)
-      );
+      const playerMap = new Map<number, { teamName: string; nhlTeam: string; name: string; isActive: boolean }>();
+      draftedSnapshot.docs.forEach((doc: any) => {
+        const data = doc.data();
+        const slot = data.rosterSlot;
+        playerMap.set(data.playerId, {
+          teamName: data.draftedByTeam,
+          nhlTeam: data.nhlTeam,
+          name: data.name,
+          isActive: !slot || slot === 'active'
+        });
+      });
+      return playerMap;
     };
 
-    // Set up real-time listener
-    const setupListener = async () => {
-      const activePlayerIds = await getActivePlayerIds();
-      console.log(`📊 LiveStats: Tracking ${activePlayerIds.size} active players for date ${today}`);
+    // For TODAY: Use real-time liveStats listener
+    if (isViewingToday) {
+      const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
 
-      const unsubscribe = onSnapshot(liveStatsRef, (snapshot) => {
-        const stats: LivePlayerStats[] = [];
-        let totalDocs = 0;
-        let todayDocs = 0;
+      const setupListener = async () => {
+        const playerMap = await getDraftedPlayersMap();
+        const activePlayerIds = new Set([...playerMap.entries()].filter(([_, p]) => p.isActive).map(([id]) => id));
+        console.log(`📊 LiveStats: Tracking ${activePlayerIds.size} active players for date ${selectedDate}`);
 
-        snapshot.forEach(doc => {
-          totalDocs++;
-          // Only include today's stats for ACTIVE roster players
-          if (doc.id.startsWith(today)) {
-            todayDocs++;
-            const stat = doc.data() as LivePlayerStats;
-            if (activePlayerIds.has(stat.playerId)) {
-              stats.push(stat);
+        const unsubscribe = onSnapshot(liveStatsRef, (snapshot) => {
+          const stats: LivePlayerStats[] = [];
+          let totalDocs = 0;
+          let matchingDocs = 0;
+
+          snapshot.forEach(doc => {
+            totalDocs++;
+            if (doc.id.startsWith(selectedDate)) {
+              matchingDocs++;
+              const stat = doc.data() as LivePlayerStats;
+              if (activePlayerIds.has(stat.playerId)) {
+                stats.push(stat);
+              }
             }
-          }
+          });
+
+          console.log(`📊 LiveStats: Found ${totalDocs} total docs, ${matchingDocs} for ${selectedDate}, ${stats.length} matching active players`);
+
+          // Sort by points descending
+          stats.sort((a, b) => b.points - a.points);
+
+          setLiveStats(stats);
+          setLastUpdate(new Date());
+          setLoading(false);
         });
 
-        console.log(`📊 LiveStats: Found ${totalDocs} total docs, ${todayDocs} for today, ${stats.length} matching active players`);
+        return unsubscribe;
+      };
 
-        // Sort by points descending
-        stats.sort((a, b) => b.points - a.points);
+      let unsubscribe: (() => void) | null = null;
+      setupListener().then(unsub => { unsubscribe = unsub; });
 
-        setLiveStats(stats);
-        setLastUpdate(new Date());
-        setLoading(false);
+      return () => { if (unsubscribe) unsubscribe(); };
+    }
+
+    // For HISTORICAL dates: Fetch from playerDailyScores (one-time fetch)
+    const fetchHistoricalStats = async () => {
+      const playerMap = await getDraftedPlayersMap();
+      console.log(`📊 LiveStats: Fetching historical stats for ${selectedDate}`);
+
+      // Query playerDailyScores for the selected date
+      const scoresRef = collection(db, `leagues/${league.id}/playerDailyScores`);
+      const snapshot = await getDocs(scoresRef);
+
+      const stats: LivePlayerStats[] = [];
+      snapshot.docs.forEach(doc => {
+        // Document IDs are formatted as {date}_{playerId}
+        if (doc.id.startsWith(selectedDate)) {
+          const data = doc.data();
+          const playerInfo = playerMap.get(data.playerId);
+          
+          // Only include if player is in our roster (or showAllTeams)
+          if (playerInfo) {
+            stats.push({
+              playerId: data.playerId,
+              playerName: data.playerName || playerInfo.name,
+              teamName: playerInfo.teamName,
+              nhlTeam: data.nhlTeam || playerInfo.nhlTeam,
+              gameId: 0,
+              gameState: 'FINAL',
+              awayScore: 0,
+              homeScore: 0,
+              period: 3,
+              clock: '00:00',
+              goals: data.stats?.goals || 0,
+              assists: data.stats?.assists || 0,
+              points: data.points || 0,
+              shots: data.stats?.shots || 0,
+              hits: data.stats?.hits || 0,
+              blockedShots: data.stats?.blockedShots || 0,
+              fights: data.stats?.fights || 0,
+              wins: data.stats?.wins || 0,
+              saves: data.stats?.saves || 0,
+              shutouts: data.stats?.shutouts || 0,
+              lastUpdated: data.lastUpdated || null,
+              dateKey: selectedDate,
+            });
+          }
+        }
       });
 
-      return unsubscribe;
+      console.log(`📊 LiveStats: Found ${stats.length} historical stats for ${selectedDate}`);
+
+      // Sort by points descending
+      stats.sort((a, b) => b.points - a.points);
+
+      setLiveStats(stats);
+      setLastUpdate(new Date());
+      setLoading(false);
     };
 
-    let unsubscribe: (() => void) | null = null;
-    setupListener().then(unsub => { unsubscribe = unsub; });
-
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, [league]);
+    fetchHistoricalStats();
+  }, [league, selectedDate, isViewingToday, showAllTeams, myTeam]);
 
   // Fetch upcoming matchups (always shows YOUR team's players only)
   // FIXED: Use getDocs instead of onSnapshot to avoid nested listener issues
@@ -252,18 +312,55 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     return null;
   }
 
+  // Date navigation helpers
+  const goToPreviousDay = () => {
+    const date = new Date(selectedDate + 'T12:00:00');
+    date.setDate(date.getDate() - 1);
+    setSelectedDate(date.toISOString().split('T')[0]);
+  };
+
+  const goToNextDay = () => {
+    const date = new Date(selectedDate + 'T12:00:00');
+    date.setDate(date.getDate() + 1);
+    const nextDate = date.toISOString().split('T')[0];
+    // Don't go past today
+    if (nextDate <= todayDate) {
+      setSelectedDate(nextDate);
+    }
+  };
+
+  const goToToday = () => {
+    setSelectedDate(todayDate);
+  };
+
+  // Format date for display
+  const formatDisplayDate = (dateStr: string) => {
+    const date = new Date(dateStr + 'T12:00:00');
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
   return (
     <GlassCard className="overflow-hidden mt-6">
       <div className="p-6 pb-4 border-b border-slate-700/50 bg-slate-900/30">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <div className="absolute inset-0 w-3 h-3 bg-red-500 rounded-full animate-ping opacity-75"></div>
-            </div>
-            <h3 className="text-xl font-bold text-white">Live Stats - Today's Games</h3>
-            {liveStats.length > 0 && (
-              <Badge variant="danger" className="animate-pulse">LIVE</Badge>
+            {isViewingToday ? (
+              <>
+                <div className="relative">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  <div className="absolute inset-0 w-3 h-3 bg-red-500 rounded-full animate-ping opacity-75"></div>
+                </div>
+                <h3 className="text-xl font-bold text-white">Live Stats - Today's Games</h3>
+                {liveStats.length > 0 && (
+                  <Badge variant="danger" className="animate-pulse">LIVE</Badge>
+                )}
+              </>
+            ) : (
+              <>
+                <span className="text-2xl">📅</span>
+                <h3 className="text-xl font-bold text-white">Game History - {formatDisplayDate(selectedDate)}</h3>
+                <Badge variant="default">FINAL</Badge>
+              </>
             )}
             {refreshing && (
               <span className="animate-spin text-blue-400 text-lg">🔄</span>
@@ -271,23 +368,61 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Countdown Timer */}
-            <div className="text-center">
-              <p className="text-slate-400 text-xs">Next refresh in</p>
-              <p className="text-green-400 text-sm font-mono font-bold">{formatCountdown(secondsUntilRefresh)}</p>
+            {/* Date Navigation */}
+            <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1">
+              <button
+                onClick={goToPreviousDay}
+                className="px-2 py-1 rounded text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                title="Previous day"
+              >
+                ◀
+              </button>
+              <span className="px-3 py-1 text-sm font-medium text-white min-w-[100px] text-center">
+                {formatDisplayDate(selectedDate)}
+              </span>
+              <button
+                onClick={goToNextDay}
+                disabled={selectedDate >= todayDate}
+                className={`px-2 py-1 rounded transition-colors ${
+                  selectedDate >= todayDate
+                    ? 'text-slate-600 cursor-not-allowed'
+                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                }`}
+                title="Next day"
+              >
+                ▶
+              </button>
+              {!isViewingToday && (
+                <button
+                  onClick={goToToday}
+                  className="px-2 py-1 rounded text-xs bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                >
+                  Today
+                </button>
+              )}
             </div>
 
-            {/* Manual Refresh Button */}
-            <button
-              onClick={handleManualRefresh}
-              disabled={refreshing}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors border ${refreshing
-                ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500 hover:border-blue-400 shadow-lg shadow-blue-900/20'
-                }`}
-            >
-              {refreshing ? 'Refreshing...' : '🔄 Refresh Now'}
-            </button>
+            {/* Countdown Timer - only show for today */}
+            {isViewingToday && (
+              <div className="text-center hidden sm:block">
+                <p className="text-slate-400 text-xs">Next refresh in</p>
+                <p className="text-green-400 text-sm font-mono font-bold">{formatCountdown(secondsUntilRefresh)}</p>
+              </div>
+            )}
+
+            {/* Manual Refresh Button - only show for today */}
+            {isViewingToday && (
+              <button
+                onClick={handleManualRefresh}
+                disabled={refreshing}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors border ${refreshing
+                  ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500 hover:border-blue-400 shadow-lg shadow-blue-900/20'
+                  }`}
+              >
+                {refreshing ? 'Refreshing...' : '🔄 Refresh Now'}
+              </button>
+            )}
 
             {/* Last Updated */}
             {lastUpdate && (
