@@ -170,13 +170,25 @@ export default async function handler(
       });
     }
 
-    // Save to Firestore
+    // Save to Firestore using Firebase Admin SDK (works in serverless environment)
     // Collection: nhl_daily_stats, Doc ID: YYYY-MM-DD
-    const { db } = await import('../src/firebase');
-    const { doc, setDoc } = await import('firebase/firestore');
+    const { initializeApp, cert, getApps } = await import('firebase-admin/app');
+    const { getFirestore } = await import('firebase-admin/firestore');
 
-    const docRef = doc(db, 'nhl_daily_stats', dateStr);
-    await setDoc(docRef, {
+    // Initialize Firebase Admin (only once)
+    if (getApps().length === 0) {
+      const serviceAccount = JSON.parse(
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
+      );
+
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+    }
+
+    const db = getFirestore();
+    
+    await db.collection('nhl_daily_stats').doc(dateStr).set({
       date: dateStr,
       players: dailyStats,
       updatedAt: new Date().toISOString()
