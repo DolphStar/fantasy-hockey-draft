@@ -127,16 +127,19 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     // For HISTORICAL dates: Fetch from playerDailyScores (one-time fetch)
     const fetchHistoricalStats = async () => {
       const playerMap = await getDraftedPlayersMap();
-      console.log(`📊 LiveStats: Fetching historical stats for ${selectedDate}`);
+      console.log(`📊 LiveStats: Fetching historical stats for ${selectedDate}, playerMap size: ${playerMap.size}`);
 
       // Query playerDailyScores for the selected date
       const scoresRef = collection(db, `leagues/${league.id}/playerDailyScores`);
       const snapshot = await getDocs(scoresRef);
 
+      console.log(`📊 LiveStats: Total docs in playerDailyScores: ${snapshot.docs.length}`);
+
       const stats: LivePlayerStats[] = [];
       snapshot.docs.forEach(doc => {
-        // Document IDs are formatted as {date}_{playerId}
-        if (doc.id.startsWith(selectedDate)) {
+        // Document IDs are formatted as {playerId}-{date} (e.g., "8478402-2024-12-15")
+        // Check if doc ID ends with the selected date
+        if (doc.id.endsWith(`-${selectedDate}`)) {
           const data = doc.data();
           const playerInfo = playerMap.get(data.playerId);
           
@@ -170,7 +173,7 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
         }
       });
 
-      console.log(`📊 LiveStats: Found ${stats.length} historical stats for ${selectedDate}`);
+      console.log(`📊 LiveStats: Found ${stats.length} historical stats for ${selectedDate} (after roster filter)`);
 
       // Sort by points descending
       stats.sort((a, b) => b.points - a.points);
