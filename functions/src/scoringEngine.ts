@@ -1,7 +1,7 @@
 // Fantasy scoring engine for Cloud Functions - uses Firebase Admin SDK
 import * as admin from 'firebase-admin';
 import {
-    getCompletedGamesYesterday,
+    getGamesForDate,
     getGameBoxscore,
     getGamePlayByPlay,
     getAllPlayersFromBoxscore,
@@ -165,9 +165,22 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
 
         console.log(`[${leagueId}] Found ${playerToTeamMap.size} active roster players`);
 
-        // Get yesterday's completed games
-        const gameIds = await getCompletedGamesYesterday();
-        console.log(`[${leagueId}] Processing ${gameIds.length} completed games`);
+        // Get yesterday's completed games (filtered by allowed game types)
+        const allowedGameTypes: number[] = leagueData?.allowedGameTypes || [2]; // Default: regular season only
+        const allGames = await getGamesForDate(dateStr);
+        const completedGames = allGames.filter(
+            (g) => (g.gameState === 'OFF' || g.gameState === 'FINAL') &&
+                   allowedGameTypes.includes(g.gameType)
+        );
+        const skippedByType = allGames.filter(
+            (g) => (g.gameState === 'OFF' || g.gameState === 'FINAL') &&
+                   !allowedGameTypes.includes(g.gameType)
+        );
+        if (skippedByType.length > 0) {
+            console.log(`[${leagueId}] ⚠️ Skipped ${skippedByType.length} games with non-allowed gameType (allowed: ${allowedGameTypes.join(',')})`);
+        }
+        const gameIds = completedGames.map((g) => g.id);
+        console.log(`[${leagueId}] Processing ${gameIds.length} completed games (allowed gameTypes: ${allowedGameTypes.join(',')})`);
 
         // Track points by team
         const teamPoints = new Map<string, number>();

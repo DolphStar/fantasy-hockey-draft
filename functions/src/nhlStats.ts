@@ -160,27 +160,6 @@ export function countFightsFromPlayByPlay(playByPlay: any): Map<number, number> 
 }
 
 /**
- * Get all completed games from yesterday
- */
-export async function getCompletedGamesYesterday(): Promise<number[]> {
-    try {
-        const games = await getGamesForDate();
-
-        // Filter for completed games only
-        const completedGames = games.filter(
-            (game) => game.gameState === 'OFF' || game.gameState === 'FINAL'
-        );
-
-        console.log(`NHL Stats: ${completedGames.length} completed games yesterday`);
-
-        return completedGames.map((game) => game.id);
-    } catch (error) {
-        console.error('Error getting completed games:', error);
-        throw error;
-    }
-}
-
-/**
  * Get all player stats from a boxscore
  */
 export function getAllPlayersFromBoxscore(boxscore: Boxscore): PlayerGameStats[] {

@@ -7,7 +7,7 @@ import TestScoring from './admin/TestScoring';
 import TestLiveStats from './admin/TestLiveStats';
 import BackfillStats from './admin/BackfillStats';
 import AdminPlayerManagement from './admin/AdminPlayerManagement';
-import type { LeagueTeam } from '../types/league';
+import { NHL_GAME_TYPES, type LeagueTeam } from '../types/league';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { Badge } from './ui/Badge';
@@ -31,6 +31,8 @@ export default function LeagueSettings() {
     { teamName: 'Friend 3', ownerUid: '', ownerEmail: '' },
   ]);
 
+  const [allowedGameTypes, setAllowedGameTypes] = useState<number[]>([2]); // Default: regular season
+
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -41,6 +43,7 @@ export default function LeagueSettings() {
       setLeagueName(league.leagueName);
       setDraftRounds(league.draftRounds);
       setTeams(league.teams);
+      setAllowedGameTypes(league.allowedGameTypes || [2]);
     }
   }, [league]);
 
@@ -87,6 +90,7 @@ export default function LeagueSettings() {
         leagueName: leagueName.trim(),
         teams,
         draftRounds,
+        allowedGameTypes,
       });
       setSuccess(`League created! ID: ${leagueId}`);
       setLeagueName('');
@@ -108,7 +112,7 @@ export default function LeagueSettings() {
 
     try {
       setCreating(true);
-      await updateLeague(league.id, { teams, draftRounds });
+      await updateLeague(league.id, { teams, draftRounds, allowedGameTypes });
       setSuccess('League updated successfully! Remember to reset the draft if you changed rounds.');
     } catch (err) {
       setError('Failed to update league');
@@ -398,6 +402,50 @@ export default function LeagueSettings() {
                       max="30"
                       className="w-full px-4 py-3 rounded-lg bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
                     />
+                  </div>
+                </div>
+
+                {/* Game Types */}
+                <div className="space-y-3 pt-2">
+                  <label className="block text-slate-300 font-semibold text-sm">Allowed Game Types</label>
+                  <p className="text-slate-500 text-xs">Choose which NHL game types count for fantasy scoring in this league.</p>
+                  <div className="flex flex-wrap gap-4">
+                    {/* Preseason (1) and All-Star/Exhibition (4) intentionally omitted — never count for fantasy */}
+                    {[
+                      { value: NHL_GAME_TYPES.REGULAR_SEASON, label: 'Regular Season', desc: 'Standard NHL games' },
+                      { value: NHL_GAME_TYPES.PLAYOFFS, label: 'Playoffs', desc: 'Stanley Cup Playoffs' },
+                    ].map(({ value, label, desc }) => (
+                      <label
+                        key={value}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all ${
+                          allowedGameTypes.includes(value)
+                            ? 'bg-blue-500/10 border-blue-500/50 text-white'
+                            : 'bg-slate-900/30 border-slate-700 text-slate-400 hover:border-slate-600'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={allowedGameTypes.includes(value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAllowedGameTypes([...allowedGameTypes, value]);
+                            } else {
+                              const filtered = allowedGameTypes.filter(t => t !== value);
+                              if (filtered.length === 0) {
+                                // Must have at least one type selected
+                                return;
+                              }
+                              setAllowedGameTypes(filtered);
+                            }
+                          }}
+                          className="w-4 h-4 accent-blue-500"
+                        />
+                        <div>
+                          <span className="font-semibold text-sm">{label}</span>
+                          <span className="block text-xs text-slate-500">{desc}</span>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 </div>
 

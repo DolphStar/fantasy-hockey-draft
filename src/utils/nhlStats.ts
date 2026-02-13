@@ -136,28 +136,6 @@ export async function getGameBoxscore(gameId: number): Promise<Boxscore> {
 }
 
 /**
- * Get all completed games from yesterday
- * @returns Promise with array of completed game IDs
- */
-export async function getCompletedGamesYesterday(): Promise<number[]> {
-  try {
-    const games = await getGamesForDate();
-
-    // Filter for completed games only (Final or Overtime)
-    const completedGames = games.filter(
-      game => game.gameState === 'OFF' || game.gameState === 'FINAL'
-    );
-
-    console.log(`NHL Stats: ${completedGames.length} completed games yesterday`);
-
-    return completedGames.map(game => game.id);
-  } catch (error) {
-    console.error('Error getting completed games:', error);
-    throw error;
-  }
-}
-
-/**
  * Fetch play-by-play data for a game to get penalty details
  */
 export async function getGamePlayByPlay(gameId: number): Promise<any> {

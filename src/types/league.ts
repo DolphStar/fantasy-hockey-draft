@@ -38,6 +38,16 @@ export interface RosterSettings {
   reserves: number;  // Bench (any position)
 }
 
+// NHL game types
+export const NHL_GAME_TYPES = {
+  PRESEASON: 1,
+  REGULAR_SEASON: 2,
+  PLAYOFFS: 3,
+  ALL_STAR: 4,
+} as const;
+
+export type NHLGameType = (typeof NHL_GAME_TYPES)[keyof typeof NHL_GAME_TYPES];
+
 export interface League {
   id: string;
   leagueName: string;
@@ -47,6 +57,7 @@ export interface League {
   draftRounds: number;
   scoringRules: ScoringRules;
   rosterSettings: RosterSettings;
+  allowedGameTypes: number[]; // NHL gameType values: 2=Regular Season, 3=Playoffs
   createdAt: string;
   updatedAt: string;
 }
@@ -55,4 +66,5 @@ export interface CreateLeagueData {
   leagueName: string;
   teams: LeagueTeam[];
   draftRounds?: number;
+  allowedGameTypes?: number[];
 }

@@ -121,15 +121,21 @@ export async function processLiveStats(leagueId: string) {
       console.log(`🔴 LIVE STATS: Using ET date: ${etDateStr}`);
     }
 
-    // 1. Get today's games
-    const todayGames = await getGamesForDate(etDateStr);
+    // 1. Get today's games (filtered by allowed game types)
+    const allowedGameTypes: number[] = league.allowedGameTypes || [2]; // Default: regular season only
+    const todayGamesRaw = await getGamesForDate(etDateStr);
+    const todayGames = todayGamesRaw.filter(g => allowedGameTypes.includes(g.gameType));
+    if (todayGamesRaw.length !== todayGames.length) {
+      console.log(`🔴 LIVE STATS: Filtered out ${todayGamesRaw.length - todayGames.length} games with non-allowed gameType (allowed: ${allowedGameTypes.join(',')})`);
+    }
 
     // Also get yesterday's games (in case some FINAL games are still there)
     const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const yesterdayStr = yesterdayDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    const yesterdayGames = await getGamesForDate(yesterdayStr);
+    const yesterdayGamesRaw = await getGamesForDate(yesterdayStr);
+    const yesterdayGamesFiltered = yesterdayGamesRaw.filter(g => allowedGameTypes.includes(g.gameType));
 
-    const yesterdayFinals = yesterdayGames.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF');
+    const yesterdayFinals = yesterdayGamesFiltered.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF');
     // Combine with explicit metadata so we know which entries belong to which day
     const gameEntries = [
       ...todayGames.map(game => ({ game, dateKey: etDateStr, isPreviousDay: false })),

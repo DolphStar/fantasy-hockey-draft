@@ -159,6 +159,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         draftRounds: data.draftRounds || 15,
         scoringRules: defaultScoringRules,
         rosterSettings: defaultRosterSettings,
+        allowedGameTypes: data.allowedGameTypes || [2], // Regular season only by default
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

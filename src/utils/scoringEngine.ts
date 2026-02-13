@@ -222,11 +222,22 @@ export async function processYesterdayScores(leagueId: string, targetDate?: stri
 
     console.log(`Found ${playerToTeamMap.size} active roster players in league ${leagueId} (${reserveCount} reserve players excluded from scoring)`);
 
-    // 3. Get completed games for the date
+    // 3. Get completed games for the date (filtered by allowed game types)
+    const allowedGameTypes: number[] = leagueData.allowedGameTypes || [2]; // Default: regular season only
     const games = await getGamesForDate(dateStr);
-    const completedGames = games.filter(g => g.gameState === 'OFF' || g.gameState === 'FINAL');
+    const completedGames = games.filter(g =>
+      (g.gameState === 'OFF' || g.gameState === 'FINAL') &&
+      allowedGameTypes.includes(g.gameType)
+    );
+    const skippedByType = games.filter(g =>
+      (g.gameState === 'OFF' || g.gameState === 'FINAL') &&
+      !allowedGameTypes.includes(g.gameType)
+    );
+    if (skippedByType.length > 0) {
+      console.log(`⚠️ Skipped ${skippedByType.length} games with non-allowed gameType (allowed: ${allowedGameTypes.join(',')}): ${skippedByType.map(g => `${g.id} (type=${g.gameType})`).join(', ')}`);
+    }
     const gameIds = completedGames.map(g => g.id);
-    console.log(`Processing ${gameIds.length} completed games`);
+    console.log(`Processing ${gameIds.length} completed games (allowed gameTypes: ${allowedGameTypes.join(',')})`);
 
     // 4. Track points by team
     const teamPoints = new Map<string, number>();
