@@ -28,10 +28,9 @@ service cloud.firestore {
 
     // Leagues collection
     match /leagues/{leagueId} {
-      // Only league members can read their league
-      allow read: if isSignedIn() &&
-                    (request.auth.uid in resource.data.memberUids ||
-                     resource.data.admin == request.auth.uid);
+      // Any authenticated user can read league docs (needed for league discovery)
+      // Sensitive data is in subcollections which are gated to members
+      allow read: if isSignedIn();
 
       // Only authenticated users can create leagues (they become admin)
       // Must include memberUids array
@@ -81,10 +80,8 @@ service cloud.firestore {
 
     // Drafted players - linked to specific league
     match /draftedPlayers/{playerId} {
-      // Only league members can read drafted players for their league
-      allow read: if isSignedIn() &&
-                    resource.data.leagueId != null &&
-                    isInLeague(resource.data.leagueId);
+      // Any authenticated user can read (player names/picks aren't sensitive)
+      allow read: if isSignedIn();
 
       // Only league members can draft players
       allow create: if isSignedIn() &&

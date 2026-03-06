@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useLeague } from '../context/LeagueContext';
 
@@ -30,12 +30,15 @@ export function useDraftedPlayers() {
             return;
         }
 
-        const q = query(collection(db, 'draftedPlayers'), orderBy('pickNumber', 'asc'));
+        const q = query(
+            collection(db, 'draftedPlayers'),
+            where('leagueId', '==', league.id),
+            orderBy('pickNumber', 'asc')
+        );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const players = snapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() } as DraftedPlayer))
-                .filter(p => p.leagueId === league.id); // Client-side filter if needed, or use where clause
+                .map(doc => ({ id: doc.id, ...doc.data() } as DraftedPlayer));
 
             setDraftedPlayers(players);
             setLoading(false);
