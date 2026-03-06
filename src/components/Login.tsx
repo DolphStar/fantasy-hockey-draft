@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { signInWithCustomToken } from 'firebase/auth';
-import { auth } from '../firebase';
 
 export default function Login() {
   const { signInWithGoogle } = useAuth();
@@ -73,34 +71,6 @@ export default function Login() {
               By signing in, you agree to participate in the draft
             </p>
           </div>
-        </div>
-
-        {/* TEMPORARY: Pentest login - DELETE AFTER TESTING */}
-        <div className="mt-4 bg-gray-800 p-4 rounded-lg border border-yellow-600">
-          <button
-            onClick={async () => {
-              try {
-                setLoading(true);
-                setError(null);
-                const res = await fetch('/api/test-auth', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ secret: 'pentest-2026' }),
-                });
-                const { token } = await res.json();
-                await signInWithCustomToken(auth, token);
-              } catch (err) {
-                setError('Test login failed');
-                console.error(err);
-              } finally {
-                setLoading(false);
-              }
-            }}
-            disabled={loading}
-            className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Signing in...' : '🔒 Pentest Login (Test User)'}
-          </button>
         </div>
 
         {/* Info Section */}
