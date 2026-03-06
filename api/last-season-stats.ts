@@ -9,7 +9,14 @@ export default async function handler(
   res: VercelResponse
 ) {
   // Enable CORS for our frontend
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = [
+    'https://fantasy-hockey-draft.vercel.app',
+    'http://localhost:5173',
+  ];
+  const origin = req.headers.origin || '';
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

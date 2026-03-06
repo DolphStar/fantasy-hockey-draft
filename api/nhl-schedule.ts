@@ -23,7 +23,14 @@ export default async function handler(
     const data = await response.json();
 
     // Set CORS headers to allow requests from your domain
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const allowedOrigins = [
+      'https://fantasy-hockey-draft.vercel.app',
+      'http://localhost:5173',
+    ];
+    const origin = req.headers.origin || '';
+    if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET');
     res.setHeader('Cache-Control', 's-maxage=300'); // Cache for 5 minutes
 
