@@ -53,10 +53,10 @@ service cloud.firestore {
         allow write: if isLeagueAdmin(leagueId);
       }
 
-      // Live stats - league members can read and write (for manual refresh)
+      // Live stats - league members can read, only admin can write
       match /liveStats/{statId} {
         allow read: if isInLeague(leagueId);
-        allow write: if isInLeague(leagueId);
+        allow write: if isLeagueAdmin(leagueId);
       }
 
       // Processed dates - track which dates have been scored (idempotency)
@@ -101,6 +101,7 @@ service cloud.firestore {
     }
 
     // Draft state - per league
+    // Members need write access to advance picks during drafting (transaction in NHLRoster)
     match /drafts/{leagueId} {
       allow read: if isInLeague(leagueId);
       allow create, update: if isInLeague(leagueId);
