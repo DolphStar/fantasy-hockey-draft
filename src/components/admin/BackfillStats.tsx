@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
-import { db } from '../../firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import { GlassCard } from '../ui/GlassCard';
 
 export default function BackfillStats() {
@@ -10,26 +8,23 @@ export default function BackfillStats() {
   const [result, setResult] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState<string>('');
 
-  // Backfill a single date
+  // Backfill a single date — server writes to Firestore via Admin SDK
   const backfillDate = async (dateStr: string): Promise<{ success: boolean; players: number }> => {
-    const response = await fetch(`/api/fetch-daily-stats?date=${dateStr}&returnOnly=true`);
-    
+    const response = await fetch(`/api/fetch-daily-stats?date=${dateStr}`);
+
     if (!response.ok) {
       throw new Error(`API Error: ${response.status}`);
     }
 
     const json = await response.json();
-    if (!json.success || !json.data) {
-      // No games on this date is okay
+    if (!json.success) {
       if (json.message?.includes('No completed games')) {
         return { success: true, players: 0 };
       }
       throw new Error(json.message || 'No data returned');
     }
 
-    const docRef = doc(db, 'nhl_daily_stats', dateStr);
-    await setDoc(docRef, json.data);
-    return { success: true, players: Object.keys(json.data.players).length };
+    return { success: true, players: json.playerCount || 0 };
   };
 
   const handleBackfill = async () => {

@@ -54,6 +54,7 @@ export interface League {
   admin: string; // Firebase Auth UID of the admin
   status: LeagueStatus;
   teams: LeagueTeam[];
+  memberUids: string[]; // Flat array of team owner UIDs for Firestore security rules
   draftRounds: number;
   scoringRules: ScoringRules;
   rosterSettings: RosterSettings;

@@ -151,11 +151,18 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         reserves: 5,
       };
       
+      // Build flat memberUids array for Firestore security rules
+      const memberUids = [
+        user.uid,
+        ...data.teams.map(t => t.ownerUid).filter(uid => uid && uid !== user.uid),
+      ];
+
       const leagueData: Omit<League, 'id'> = {
         leagueName: data.leagueName,
         admin: user.uid,
         status: 'pending',
         teams: data.teams,
+        memberUids,
         draftRounds: data.draftRounds || 15,
         scoringRules: defaultScoringRules,
         rosterSettings: defaultRosterSettings,
@@ -180,8 +187,16 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   // Update league
   const updateLeague = async (leagueId: string, updates: Partial<League>) => {
     try {
+      // Keep memberUids in sync when teams change
+      const updatesWithMemberUids = { ...updates };
+      if (updates.teams) {
+        updatesWithMemberUids.memberUids = [
+          ...(league?.admin ? [league.admin] : []),
+          ...updates.teams.map(t => t.ownerUid).filter(uid => uid && uid !== league?.admin),
+        ];
+      }
       await updateDoc(doc(db, 'leagues', leagueId), {
-        ...updates,
+        ...updatesWithMemberUids,
         updatedAt: new Date().toISOString(),
       });
     } catch (err) {

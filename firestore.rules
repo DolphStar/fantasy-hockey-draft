@@ -1,24 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // Helper function to check if user is authenticated
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     // Helper function to check if user is league admin
     function isLeagueAdmin(leagueId) {
-      return isSignedIn() && 
+      return isSignedIn() &&
              get(/databases/$(database)/documents/leagues/$(leagueId)).data.admin == request.auth.uid;
     }
-    
+
     // Helper function to check if user is in the league
-    // NOTE: Firestore rules can't easily check arrays of objects
-    // Since the app filters by leagueId in queries, we allow any authenticated user
-    // The real security is that users can only find their own league via the app logic
+    // Uses memberUids flat array for efficient membership checks
     function isInLeague(leagueId) {
-      return isSignedIn();
+      return isSignedIn() &&
+             request.auth.uid in get(/databases/$(database)/documents/leagues/$(leagueId)).data.memberUids;
     }
 
     // Helper to check if a user is banned from league chat
@@ -26,41 +25,45 @@ service cloud.firestore {
       return isSignedIn() &&
              exists(/databases/$(database)/documents/leagues/$(leagueId)/chatBans/$(request.auth.uid));
     }
-    
+
     // Leagues collection
     match /leagues/{leagueId} {
-      // Anyone authenticated can read leagues (to find their league)
-      allow read: if isSignedIn();
-      
+      // Only league members can read their league
+      allow read: if isSignedIn() &&
+                    (request.auth.uid in resource.data.memberUids ||
+                     resource.data.admin == request.auth.uid);
+
       // Only authenticated users can create leagues (they become admin)
-      allow create: if isSignedIn() && 
-                      request.resource.data.admin == request.auth.uid;
-      
+      // Must include memberUids array
+      allow create: if isSignedIn() &&
+                      request.resource.data.admin == request.auth.uid &&
+                      request.resource.data.memberUids is list;
+
       // Only league admin can update or delete
       allow update, delete: if isLeagueAdmin(leagueId);
-      
-      // Team scores - anyone in league can read, only scoring engine should write
+
+      // Team scores - only league members can read, only admin can write
       match /teamScores/{scoreId} {
         allow read: if isInLeague(leagueId);
-        allow write: if isLeagueAdmin(leagueId); // Only admin for manual testing
+        allow write: if isLeagueAdmin(leagueId);
       }
-      
-      // Player daily scores - anyone in league can read
+
+      // Player daily scores - only league members can read
       match /playerDailyScores/{scoreId} {
         allow read: if isInLeague(leagueId);
-        allow write: if isLeagueAdmin(leagueId); // Only admin for manual testing
+        allow write: if isLeagueAdmin(leagueId);
       }
-      
-      // Live stats - anyone in league can read, anyone in league can write (for manual refresh)
+
+      // Live stats - league members can read and write (for manual refresh)
       match /liveStats/{statId} {
         allow read: if isInLeague(leagueId);
-        allow write: if isInLeague(leagueId); // Allow any league member to trigger live stats
+        allow write: if isInLeague(leagueId);
       }
 
       // Processed dates - track which dates have been scored (idempotency)
       match /processedDates/{dateId} {
         allow read: if isInLeague(leagueId);
-        allow write: if isLeagueAdmin(leagueId); // Only admin can mark dates or clear them
+        allow write: if isLeagueAdmin(leagueId);
       }
 
       // Chat bans - only league admin can manage banned users
@@ -70,59 +73,48 @@ service cloud.firestore {
 
       // League chat messages - simple league-wide chat
       match /chatMessages/{messageId} {
-        // Any authenticated league user in this league can read messages
         allow read: if isInLeague(leagueId);
-
-        // Only non-banned league users can send messages
         allow create: if isInLeague(leagueId) && !isChatBanned(leagueId);
-
-        // Allow delete/update only for league admin (moderation)
         allow delete, update: if isLeagueAdmin(leagueId);
       }
     }
-    
+
     // Drafted players - linked to specific league
     match /draftedPlayers/{playerId} {
-      // Anyone can read to see who's been drafted
-      allow read: if isSignedIn();
-      
-      // Only authenticated users can draft (checked in code for turn)
-      allow create: if isSignedIn() && 
-                      request.resource.data.leagueId != null;
-      
+      // Only league members can read drafted players for their league
+      allow read: if isSignedIn() &&
+                    resource.data.leagueId != null &&
+                    isInLeague(resource.data.leagueId);
+
+      // Only league members can draft players
+      allow create: if isSignedIn() &&
+                      request.resource.data.leagueId != null &&
+                      isInLeague(request.resource.data.leagueId);
+
       // Only league admin can delete (for draft reset)
-      // Note: resource.data is the existing document before deletion
-      allow delete: if isSignedIn() && 
+      allow delete: if isSignedIn() &&
                       resource.data.leagueId != null &&
                       isLeagueAdmin(resource.data.leagueId);
-      
-      // Allow updates for roster slot management (active/reserve swaps)
-      // Only allow changing rosterSlot and pendingSlot fields
-      allow update: if isSignedIn() && 
+
+      // Only league members can update roster slots
+      allow update: if isSignedIn() &&
                       resource.data.leagueId != null &&
                       isInLeague(resource.data.leagueId) &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rosterSlot', 'pendingSlot', 'lastSwapDate']);
     }
-    
+
     // Draft state - per league
     match /drafts/{leagueId} {
-      // Anyone in league can read draft state
       allow read: if isInLeague(leagueId);
-      
-      // Only league admin can create/update draft (initialize, advance pick)
-      // In practice, any league member advances the pick when they draft
       allow create, update: if isInLeague(leagueId);
-      
-      // Only admin can delete (reset draft)
       allow delete: if isLeagueAdmin(leagueId);
     }
-    
+
     // NHL Daily Stats - Global collection for stats cache
+    // Only writable via Admin SDK (server-side cron jobs)
     match /nhl_daily_stats/{date} {
-      // Anyone authenticated can read stats
       allow read: if isSignedIn();
-      // Allow authenticated users to write (for manual backfill via Admin UI)
-      allow write: if isSignedIn(); 
+      allow write: if false;
     }
 
     // Deny everything else by default
