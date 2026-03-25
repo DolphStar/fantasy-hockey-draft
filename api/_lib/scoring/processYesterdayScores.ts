@@ -4,21 +4,21 @@
 
 import { FieldValue } from 'firebase-admin/firestore';
 
-import { getPreviousNewYorkDateString } from '../../../packages/core/dates/dateUtils';
-import { calculatePlayerPoints } from '../../../packages/core/scoring/scoringMath';
-import type { ScoringRules } from '../../../packages/core/scoring/types';
+import { getPreviousNewYorkDateString } from '../../../packages/core/dates/dateUtils.js';
+import { calculatePlayerPoints } from '../../../packages/core/scoring/scoringMath.js';
+import type { ScoringRules } from '../../../packages/core/scoring/types.js';
 
-import { getAdminDb } from '../firebaseAdmin';
+import { getAdminDb } from '../firebaseAdmin.js';
 import {
   getAllPlayersFromBoxscore,
   getGameBoxscore,
   getGamePlayByPlay,
   getGamesForDate,
-} from '../nhl/webClient';
+} from '../nhl/webClient.js';
 import {
   buildActivePlayerToTeamMap,
   filterCompletedGamesForScoring,
-} from './helpers';
+} from './helpers.js';
 
 export interface TeamScore {
   teamName: string;

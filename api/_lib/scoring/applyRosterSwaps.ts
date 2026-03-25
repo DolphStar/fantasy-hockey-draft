@@ -3,8 +3,8 @@
  * Uses Firebase Admin; safe to run from Vercel cron.
  */
 
-import { getAdminDb } from '../firebaseAdmin';
-import { isRosterSwapDayOfWeek } from './helpers';
+import { getAdminDb } from '../firebaseAdmin.js';
+import { isRosterSwapDayOfWeek } from './helpers.js';
 
 export interface RosterSwapResult {
   success: boolean;

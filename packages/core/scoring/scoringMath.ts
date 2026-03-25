@@ -1,6 +1,6 @@
-import type { PlayerGameStats } from '../nhl/types';
+import type { PlayerGameStats } from '../nhl/types.js';
 
-import type { ScoringRules } from './types';
+import type { ScoringRules } from './types.js';
 
 const GOALIE_POSITION = 'G';
 const DEFENSE_POSITION = 'D';

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminDb } from './_lib/firebaseAdmin';
-import { processLiveStats } from './_lib/live-stats/processLiveStats';
-import { evaluateCronAccess } from './_lib/routeAccess';
+import { getAdminDb } from './_lib/firebaseAdmin.js';
+import { processLiveStats } from './_lib/live-stats/processLiveStats.js';
+import { evaluateCronAccess } from './_lib/routeAccess.js';
 
 // This endpoint updates live stats for today's games.
 // It is protected for trusted triggers in production and may be manually invoked in development.

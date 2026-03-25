@@ -5,15 +5,15 @@
 
 import { FieldValue } from 'firebase-admin/firestore';
 
-import { getHockeyDay, getPreviousNewYorkDateString } from '../../../packages/core/dates/dateUtils';
+import { getHockeyDay, getPreviousNewYorkDateString } from '../../../packages/core/dates/dateUtils.js';
 
-import { getAdminDb } from '../firebaseAdmin';
-import { getAllPlayersFromBoxscore, getGameBoxscore, getGamesForDate } from '../nhl/webClient';
+import { getAdminDb } from '../firebaseAdmin.js';
+import { getAllPlayersFromBoxscore, getGameBoxscore, getGamesForDate } from '../nhl/webClient.js';
 import {
   type LiveStatSnapshot,
   resolveLiveGameDisplayScores,
   shouldSkipPreviousDayFinalWithoutStoredSample,
-} from './helpers';
+} from './helpers.js';
 
 export interface LivePlayerStats {
   playerId: number;

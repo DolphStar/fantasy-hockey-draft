@@ -1,4 +1,4 @@
-import type { ScoringRules } from './types';
+import type { ScoringRules } from './types.js';
 
 /** Default scoring rules for fantasy points */
 export const DEFAULT_SCORING_RULES: ScoringRules = {

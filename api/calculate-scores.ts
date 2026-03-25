@@ -3,9 +3,9 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-import { applyRosterSwaps } from './_lib/scoring/applyRosterSwaps';
-import { processYesterdayScores } from './_lib/scoring/processYesterdayScores';
-import { evaluateCronAccess } from './_lib/routeAccess';
+import { applyRosterSwaps } from './_lib/scoring/applyRosterSwaps.js';
+import { processYesterdayScores } from './_lib/scoring/processYesterdayScores.js';
+import { evaluateCronAccess } from './_lib/routeAccess.js';
 
 export default async function handler(
   req: VercelRequest,

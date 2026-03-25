@@ -1,4 +1,4 @@
-import { HOCKEY_DAY_CUTOFF_HOUR, NEW_YORK_TIME_ZONE } from './time';
+import { HOCKEY_DAY_CUTOFF_HOUR, NEW_YORK_TIME_ZONE } from './time.js';
 
 const newYorkDateFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: NEW_YORK_TIME_ZONE,

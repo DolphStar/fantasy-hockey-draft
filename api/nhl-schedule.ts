@@ -2,7 +2,7 @@
 // This avoids CORS issues when fetching from the browser
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPublicCorsHeaders } from './_lib/routeAccess';
+import { getPublicCorsHeaders } from './_lib/routeAccess.js';
 
 export default async function handler(
   req: VercelRequest,

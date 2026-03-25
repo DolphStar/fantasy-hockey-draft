@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPublicCorsHeaders } from './_lib/routeAccess';
+import { getPublicCorsHeaders } from './_lib/routeAccess.js';
 
 /**
  * Vercel Serverless Function to fetch NHL Stats API

@@ -2,7 +2,7 @@
  * Direct NHL web API client for serverless (no Vite proxy).
  */
 
-import type { PlayerGameStats } from '../../../packages/core/nhl/types';
+import type { PlayerGameStats } from '../../../packages/core/nhl/types.js';
 
 export const NHL_WEB_API_BASE = 'https://api-web.nhle.com/v1';
 
