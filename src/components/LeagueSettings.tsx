@@ -11,10 +11,11 @@ import { NHL_GAME_TYPES, type LeagueTeam } from '../types/league';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { Badge } from './ui/Badge';
-import { db } from '../firebase';
-import { collection, getDocs, doc, runTransaction } from 'firebase/firestore';
 import { getAllPlayers, getTeamRoster, NHL_TEAMS, type RosterPerson, type TeamAbbrev, getPlayerFullName } from '../utils/nhlApi';
 import { toast } from 'sonner';
+import { commitAutoDraftPick, fetchDraftedRosterStatus, type AutoDraftCandidate } from '../services/adminLeagueService';
+
+type RosterPersonWithTeamAbbrev = RosterPerson & { teamAbbrev: TeamAbbrev };
 
 
 export default function LeagueSettings() {
@@ -153,51 +154,20 @@ export default function LeagueSettings() {
       const teamPromises = (Object.keys(NHL_TEAMS) as TeamAbbrev[]).map(async (abbrev) => {
         const rosterData = await getTeamRoster(abbrev);
         const teamPlayers = getAllPlayers(rosterData);
-        return teamPlayers.map(player => {
-          (player as any).teamAbbrev = abbrev;
-          return player;
-        });
+        return teamPlayers.map((player) => ({ ...player, teamAbbrev: abbrev } satisfies RosterPersonWithTeamAbbrev));
       });
       const results = await Promise.all(teamPromises);
       const allPlayers = results.flat();
       console.log(`Loaded ${allPlayers.length} total players`);
 
       // 2. Get currently drafted players
-      const draftedSnapshot = await getDocs(collection(db, 'draftedPlayers'));
-      const draftedPlayerIds = new Set<number>();
-      const teamRosters: Record<string, { F: number; D: number; G: number; reserve: number }> = {};
-
-      draftedSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        draftedPlayerIds.add(data.playerId);
-
-        // Track each team's current roster
-        const teamName = data.draftedByTeam;
-        if (!teamRosters[teamName]) {
-          teamRosters[teamName] = { F: 0, D: 0, G: 0, reserve: 0 };
-        }
-
-        const pos = data.position;
-        const slot = data.rosterSlot || 'active';
-
-        if (slot === 'reserve') {
-          teamRosters[teamName].reserve++;
-        } else if (['C', 'L', 'R'].includes(pos)) {
-          teamRosters[teamName].F++;
-        } else if (pos === 'D') {
-          teamRosters[teamName].D++;
-        } else if (pos === 'G') {
-          teamRosters[teamName].G++;
-        }
-      });
+      const { draftedPlayerIds, teamRosters } = await fetchDraftedRosterStatus(league.id);
 
       // 3. Filter available players
       const availablePlayers = allPlayers.filter(p => !draftedPlayerIds.has(p.person.id));
       console.log(`${availablePlayers.length} players available`);
 
       // 4. Auto-draft remaining picks
-      const draftRef = doc(db, 'drafts', league.id);
-
       for (let i = 0; i < remainingPicks; i++) {
         const currentPickNum = draftState.currentPickNumber + i;
         const pickIndex = currentPickNum - 1;
@@ -228,7 +198,7 @@ export default function LeagueSettings() {
         const canAddReserve = roster.reserve < 5;
 
         // Find available players for needed positions
-        let candidatePlayers: RosterPerson[] = [];
+        let candidatePlayers: RosterPersonWithTeamAbbrev[] = [];
 
         if (needs.length > 0) {
           // Priority: fill active roster
@@ -262,28 +232,15 @@ export default function LeagueSettings() {
         }
 
         // Draft the player
-        await runTransaction(db, async (transaction) => {
-          const draftedPlayerRef = doc(collection(db, 'draftedPlayers'));
-          transaction.set(draftedPlayerRef, {
-            playerId: selectedPlayer.person.id,
-            name: getPlayerFullName(selectedPlayer),
-            position: selectedPlayer.position.code,
-            positionName: selectedPlayer.position.name,
-            jerseyNumber: selectedPlayer.jerseyNumber,
-            nhlTeam: (selectedPlayer as any).teamAbbrev || 'UNK',
-            draftedByTeam: teamName,
-            pickNumber: pickInfo.pick,
-            round: pickInfo.round,
-            leagueId: league.id,
-            draftedAt: new Date().toISOString(),
-            rosterSlot: rosterSlot
-          });
-
-          const nextPickNumber = currentPickNum + 1;
-          transaction.update(draftRef, {
-            currentPickNumber: nextPickNumber,
-            isComplete: nextPickNumber > draftState.totalPicks
-          });
+        await commitAutoDraftPick({
+          leagueId: league.id,
+          teamName,
+          currentPickNumber: currentPickNum,
+          totalPicks: draftState.totalPicks,
+          draftPick: { pick: pickInfo.pick, round: pickInfo.round },
+          selectedPlayer: selectedPlayer as AutoDraftCandidate,
+          selectedPlayerName: getPlayerFullName(selectedPlayer),
+          rosterSlot,
         });
 
         // Update local tracking
@@ -566,7 +523,7 @@ export default function LeagueSettings() {
                       try {
                         await startDraft(league.id);
                         setSuccess('Draft started! Status changed to Live.');
-                      } catch (err) {
+                      } catch {
                         setError('Failed to start draft');
                       }
                     }}
@@ -640,7 +597,7 @@ export default function LeagueSettings() {
                       try {
                         await resetDraft();
                         setSuccess('Draft reset successfully! All picks cleared.');
-                      } catch (err) {
+                      } catch {
                         setError('Failed to reset draft');
                       }
                     }

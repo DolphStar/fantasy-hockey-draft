@@ -1,41 +1,27 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAdminDb } from './_lib/firebaseAdmin';
+import { evaluateCronAccess } from './_lib/routeAccess';
 
-// This endpoint updates live stats for today's games
-// Called by cron job every 10-15 minutes during game hours
+// This endpoint updates live stats for today's games.
+// It is protected for trusted triggers in production and may be manually invoked in development.
 
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  // Verify this is a cron request (optional security)
-  const authHeader = req.headers.authorization;
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    console.log('Unauthorized live stats request');
-    // Still allow for manual testing
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+  const access = evaluateCronAccess(
+    req,
+    { cronSecret: process.env.CRON_SECRET, nodeEnv: process.env.NODE_ENV },
+    { allowDevBypass: true },
+  );
+
+  if (!access.allowed) {
+    return res.status(access.statusCode).json(access.body);
   }
 
   try {
     console.log('🔴 Live stats cron job started');
-
-    // Dynamic import to avoid bundling issues
-    const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-    const { getFirestore } = await import('firebase-admin/firestore');
-
-    // Initialize Firebase Admin (only once)
-    if (getApps().length === 0) {
-      const serviceAccount = JSON.parse(
-        process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
-      );
-
-      initializeApp({
-        credential: cert(serviceAccount),
-      });
-    }
-
-    const db = getFirestore();
+    const db = await getAdminDb();
 
     // Get all leagues
     const leaguesSnapshot = await db.collection('leagues').get();

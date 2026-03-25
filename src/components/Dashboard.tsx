@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { collection, doc, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
-import type { DraftedPlayer } from '../hooks/useDraftedPlayers';
+import type { DraftedPlayer } from '../types/draftedPlayer';
 import { useInjuries } from '../queries/useInjuries';
+import { getHockeyDay } from '../utils/dateUtils';
 import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import type { LivePlayerStats } from '../utils/liveStats';
-import { db } from '../firebase';
+import { subscribeRecentLeagueMessages } from '../services/chatService';
 import { getInjuryColor, type InjuryReport } from '../services/injuryService';
+import { subscribeLiveStatsByDate } from '../services/liveStatsService';
+import { fetchTeamTrend, type TeamTrendPoint } from '../services/playerPerformanceService';
+import { subscribeLeagueTeamScoreSummary } from '../services/teamScoreService';
+import { fetchHotPickups, type HotPickupData } from '../services/waiverWireService';
 
 const MAX_FEED_ITEMS = 6;
 const MAX_TREND_DAYS = 7;
@@ -23,23 +27,6 @@ interface FeedItem {
     timestamp?: Date;
     cta?: string;
     onClick?: () => void;
-}
-
-interface TrendPoint {
-    date: string;
-    myTeam: number;
-    leagueAvg: number;
-}
-
-interface HotPickupData {
-    id: number;
-    name: string;
-    team: string;
-    position: string;
-    points: number;
-    trend: 'rising' | 'steady' | 'cooling';
-    percentRostered: number;
-    headshot?: string;
 }
 
 // Position badge color helper
@@ -94,7 +81,7 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
     const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
     const [matchups, setMatchups] = useState<PlayerMatchup[]>([]);
     const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-    const [trend, setTrend] = useState<TrendPoint[]>([]);
+    const [trend, setTrend] = useState<TeamTrendPoint[]>([]);
     const [hotPickups, setHotPickups] = useState<HotPickupData[]>([]);
     const [hotPickupsLabel, setHotPickupsLabel] = useState('Season Leaders');
     const [teamPoints, setTeamPoints] = useState<number>(0);
@@ -182,31 +169,12 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
             return;
         }
 
-        // Get today's date in Eastern Time (NHL's timezone) to match liveStats keys
-        const now = new Date();
-        const etOffset = -5; // EST is UTC-5
-        const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
-        const year = etTime.getUTCFullYear();
-        const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(etTime.getUTCDate()).padStart(2, '0');
-        const today = `${year}-${month}-${day}`;
+        const today = getHockeyDay();
+        const ids = new Set(activeRoster.map((player) => Number(player.playerId)));
 
-        const ids = new Set(activeRoster.map(p => p.playerId));
-        const statsRef = collection(db, `leagues/${league.id}/liveStats`);
-
-        const unsubscribe = onSnapshot(statsRef, snapshot => {
-            const entries: LivePlayerStats[] = [];
-            snapshot.forEach(docSnap => {
-                if (!docSnap.id.startsWith(today)) return;
-                const data = docSnap.data() as LivePlayerStats;
-                if (ids.has(data.playerId)) {
-                    entries.push(data);
-                }
-            });
+        return subscribeLiveStatsByDate(league.id, today, (entries) => {
             setLiveStats(entries);
-        });
-
-        return () => unsubscribe();
+        }, ids);
     }, [league, myTeam, activeRoster]);
 
     useEffect(() => {
@@ -295,21 +263,13 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
 
         let baseItems = buildFeed();
 
-        const chatRef = collection(db, `leagues/${league.id}/chatMessages`);
-        const chatQuery = query(chatRef, orderBy('createdAt', 'desc'), limit(2));
-        const unsubscribe = onSnapshot(chatQuery, snapshot => {
-            const chirps = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...(docSnap.data() as any) }));
+        const unsubscribe = subscribeRecentLeagueMessages(league.id, (chirps) => {
             const next = [...baseItems];
             chirps.forEach(chirp => {
-                // createdAt is stored as ISO string in chat messages
                 let timestamp: Date | undefined;
                 if (chirp.createdAt) {
                     if (typeof chirp.createdAt === 'string') {
                         timestamp = new Date(chirp.createdAt);
-                    } else if (typeof chirp.createdAt.toDate === 'function') {
-                        timestamp = chirp.createdAt.toDate();
-                    } else if (chirp.createdAt.seconds) {
-                        timestamp = new Date(chirp.createdAt.seconds * 1000);
                     }
                 }
                 
@@ -337,22 +297,7 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
             return;
         }
         const loadTrend = async () => {
-            const scoresRef = collection(db, `leagues/${league.id}/playerDailyScores`);
-            const snapshot = await getDocs(query(scoresRef, orderBy('date', 'desc'), limit(500)));
-            const map = new Map<string, { total: number; myPoints: number }>();
-            snapshot.docs.forEach(docSnap => {
-                const data = docSnap.data() as { date: string; points: number; teamName: string };
-                if (!map.has(data.date)) map.set(data.date, { total: 0, myPoints: 0 });
-                const entry = map.get(data.date)!;
-                entry.total += data.points;
-                if (data.teamName === myTeam.teamName) entry.myPoints += data.points;
-            });
-            const dates = Array.from(map.keys()).sort().slice(-MAX_TREND_DAYS);
-            const rows = dates.map(date => {
-                const entry = map.get(date)!;
-                const avg = entry.total / Math.max(league.teams.length, 1);
-                return { date, myTeam: Number(entry.myPoints.toFixed(1)), leagueAvg: Number(avg.toFixed(1)) };
-            });
+            const rows = await fetchTeamTrend(league.id, myTeam.teamName, league.teams.length, MAX_TREND_DAYS);
             setTrend(rows);
         };
         loadTrend();
@@ -366,101 +311,9 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
         }
         const loadHot = async () => {
             try {
-                // 1. Try fetching last 7 days from Firestore "nhl_daily_stats"
-                const today = new Date();
-                const sevenDaysAgo = new Date(today);
-                sevenDaysAgo.setDate(today.getDate() - 7);
-                const dateStr = sevenDaysAgo.toISOString().split('T')[0];
-
-                const statsRef = collection(db, 'nhl_daily_stats');
-                const q = query(statsRef, where('date', '>=', dateStr));
-                const snapshot = await getDocs(q);
-
-                console.log(`🔥 Hot Pickups: Querying nhl_daily_stats >= ${dateStr}`);
-                console.log(`🔥 Hot Pickups: Found ${snapshot.docs.length} documents`);
-                snapshot.docs.forEach(d => console.log(`  - ${d.id}: ${Object.keys(d.data().players || {}).length} players`));
-
-                const playerTotals = new Map<number, any>();
-                let hasFirestoreData = false;
-
-                snapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    if (data.players) {
-                        hasFirestoreData = true;
-                        Object.values(data.players).forEach((p: any) => {
-                            // Skip drafted players
-                            if (draftedPlayerIds.has(p.id)) return;
-
-                            if (!playerTotals.has(p.id)) {
-                                playerTotals.set(p.id, {
-                                    id: p.id,
-                                    name: p.name,
-                                    team: p.team,
-                                    position: p.pos,
-                                    points: 0,
-                                    games: 0
-                                });
-                            }
-                            const entry = playerTotals.get(p.id);
-                            entry.points += p.fp || 0;
-                            entry.games += 1;
-                        });
-                    }
-                });
-
-                if (hasFirestoreData) {
-                    const freeAgents = Array.from(playerTotals.values())
-                        .filter(p => p.points > 0)
-                        .map(p => ({
-                            id: p.id,
-                            name: p.name,
-                            team: p.team,
-                            position: p.position,
-                            points: Number(p.points.toFixed(1)),
-                            trend: p.points >= 15 ? 'rising' as const : p.points >= 8 ? 'steady' as const : 'cooling' as const,
-                            percentRostered: Math.round(Math.random() * 40 + 10),
-                            headshot: `https://assets.nhle.com/mugs/nhl/20242025/${p.team}/${p.id}.png`,
-                        }))
-                        .sort((a, b) => b.points - a.points)
-                        .slice(0, 6);
-                    
-                    setHotPickups(freeAgents);
-                    setHotPickupsLabel('Last 7 Days');
-                    return;
-                }
-
-                // 2. Fallback to Season Leaders API if Firestore is empty
-                console.log('No weekly stats in Firestore, falling back to season API...');
-                const response = await fetch('/api/current-season-stats');
-                console.log('Season API Response Status:', response.status);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Season API Data Players:', data.players?.length || 0);
-                    
-                    if (data.players) {
-                        const seasonAgents = data.players
-                            .filter((p: any) => !draftedPlayerIds.has(p.playerId))
-                            .slice(0, 6)
-                            .map((p: any) => ({
-                                id: p.playerId,
-                                name: p.name,
-                                team: p.team,
-                                position: p.position,
-                                points: p.points,
-                                trend: p.points >= 25 ? 'rising' as const : 'steady' as const,
-                                percentRostered: Math.round(Math.random() * 40 + 10),
-                                headshot: `https://assets.nhle.com/mugs/nhl/20242025/${p.team}/${p.playerId}.png`,
-                            }));
-                        
-                        console.log('Filtered Season Agents:', seasonAgents.length);
-                        setHotPickups(seasonAgents);
-                        setHotPickupsLabel('Season Leaders');
-                    }
-                } else {
-                    console.error('Season API failed with status:', response.status);
-                }
-                
+                const { items, label } = await fetchHotPickups(draftedPlayerIds);
+                setHotPickups(items);
+                setHotPickupsLabel(label);
             } catch (error) {
                 console.error('Error loading hot pickups:', error);
                 setHotPickups([]);
@@ -476,28 +329,10 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
             return;
         }
 
-        const teamDocRef = doc(db, `leagues/${league.id}/teamScores`, myTeam.teamName);
-        const teamsRef = collection(db, `leagues/${league.id}/teamScores`);
-
-        const unsubTeam = onSnapshot(teamDocRef, (snapshot) => {
-            const data = snapshot.data();
-            setTeamPoints(data?.totalPoints ?? 0);
+        return subscribeLeagueTeamScoreSummary(league.id, myTeam.teamName, (summary) => {
+            setTeamPoints(summary.teamPoints);
+            setLeagueAveragePoints(summary.leagueAveragePoints);
         });
-
-        const unsubLeague = onSnapshot(teamsRef, (snapshot) => {
-            if (snapshot.empty) {
-                setLeagueAveragePoints(0);
-                return;
-            }
-            const totals = snapshot.docs.map(docSnap => (docSnap.data()?.totalPoints ?? 0));
-            const avg = totals.reduce((sum, val) => sum + val, 0) / totals.length;
-            setLeagueAveragePoints(Number(avg.toFixed(1)));
-        });
-
-        return () => {
-            unsubTeam();
-            unsubLeague();
-        };
     }, [league, myTeam]);
 
     const myPlayerNameSet = useMemo(() => new Set(activeRoster.map(player => player.name.toLowerCase())), [activeRoster]);

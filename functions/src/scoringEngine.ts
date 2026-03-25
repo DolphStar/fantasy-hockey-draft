@@ -6,8 +6,9 @@ import {
     getGamePlayByPlay,
     getAllPlayersFromBoxscore,
     countFightsFromPlayByPlay,
-    type PlayerGameStats,
 } from './nhlStats';
+import { getPreviousNewYorkDateString } from './dateUtils';
+import { calculatePlayerPoints } from './scoringMath';
 
 interface ScoringRules {
     goal: number;
@@ -22,6 +23,7 @@ interface ScoringRules {
     save: number;
     goalieAssist: number;
     goalieGoal: number;
+    goalieFight: number;
 }
 
 export interface TeamScore {
@@ -43,66 +45,6 @@ export interface PlayerDailyScore {
 }
 
 /**
- * Calculate fantasy points for a skater
- */
-function calculateSkaterPoints(
-    stats: PlayerGameStats,
-    rules: ScoringRules,
-    isDefenseman: boolean
-): number {
-    let points = 0;
-
-    points += (stats.goals || 0) * rules.goal;
-    points += (stats.assists || 0) * rules.assist;
-    points += (stats.shortHandedGoals || 0) * rules.shortHandedGoal;
-
-    // Use actual fight count from play-by-play data (not PIM/5)
-    points += (stats.fights || 0) * rules.fight;
-
-    if (isDefenseman) {
-        points += (stats.blockedShots || 0) * rules.blockedShot;
-        points += (stats.hits || 0) * rules.hit;
-    }
-
-    return points;
-}
-
-/**
- * Calculate fantasy points for a goalie
- */
-function calculateGoaliePoints(
-    stats: PlayerGameStats,
-    rules: ScoringRules
-): number {
-    let points = 0;
-
-    points += (stats.wins || 0) * rules.win;
-    points += (stats.shutouts || 0) * rules.shutout;
-    points += (stats.saves || 0) * rules.save;
-    points += (stats.assists || 0) * rules.goalieAssist;
-    points += (stats.goals || 0) * rules.goalieGoal;
-
-    return points;
-}
-
-/**
- * Calculate fantasy points for any player
- */
-export function calculatePlayerPoints(
-    stats: PlayerGameStats,
-    rules: ScoringRules
-): number {
-    const isGoalie = stats.position === 'G';
-    const isDefenseman = stats.position === 'D';
-
-    if (isGoalie) {
-        return calculateGoaliePoints(stats, rules);
-    } else {
-        return calculateSkaterPoints(stats, rules, isDefenseman);
-    }
-}
-
-/**
  * Process yesterday's games and update team scores for a specific league
  */
 export async function processYesterdayScores(leagueId: string): Promise<void> {
@@ -111,15 +53,7 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
     try {
         console.log(`[${leagueId}] Starting score processing`);
 
-        // Calculate yesterday's date in Eastern Time
-        const now = new Date();
-        const etOffset = -5; // EST is UTC-5
-        const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
-        etTime.setDate(etTime.getDate() - 1);
-        const year = etTime.getUTCFullYear();
-        const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(etTime.getUTCDate()).padStart(2, '0');
-        const dateStr = `${year}-${month}-${day}`;
+        const dateStr = getPreviousNewYorkDateString();
 
         console.log(`[${leagueId}] Processing games for date: ${dateStr} (ET)`);
 
@@ -200,7 +134,7 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
                     if (fightCounts.size > 0) {
                         console.log(`[${leagueId}] Game ${gameId}: Found ${fightCounts.size} players with fights`);
                     }
-                } catch (error) {
+                } catch {
                     console.warn(`[${leagueId}] Could not fetch play-by-play for game ${gameId}, skipping fight scoring`);
                 }
 
@@ -269,7 +203,7 @@ export async function processYesterdayScores(leagueId: string): Promise<void> {
                     totalPoints: admin.firestore.FieldValue.increment(points),
                     lastUpdated: new Date().toISOString(),
                 });
-            } catch (error) {
+            } catch {
                 // Document doesn't exist, create it
                 await teamScoreRef.set({
                     teamName,

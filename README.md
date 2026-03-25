@@ -19,8 +19,8 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 - **Draft celebration** - confetti animation when you draft a player
 
 ### 2. **Automated Scoring Engine**
-- **Daily automated scoring** - Vercel cron job runs at 5:00 AM UTC every day
-- **NHL API integration** - fetches boxscores from yesterday's games
+- **Scheduled backfill + scoring** - Vercel cron jobs run `/api/fetch-daily-stats` at 4:30 AM UTC and `/api/calculate-scores` at 5:00 AM UTC
+- **NHL API integration** - fetches boxscores from the previous New York hockey day
 - **Fantasy point calculation** - based on customizable scoring rules:
   - **Skaters**: Goals (1pt), Assists (1pt), SH Goals (+1 bonus), OT Goals (+1 bonus), Fights (2pts)
   - **Defense**: Blocked Shots (0.15pts), Hits (0.1pts)
@@ -30,7 +30,7 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 - **Idempotent scoring** - prevents duplicate scoring for same date
 
 ### 3. **Live Stats Tracking** 
-- **Real-time game stats** - updates every 5 minutes with manual refresh option
+- **Real-time game stats** - Firestore-backed live stats update in the UI with manual/admin refresh support
 - **Hockey day logic** - games show until 3 AM ET to ensure all games finish before day rolls over
 - **Today's Matchups** - see your players' games with team logos and game times
 - **Player Performance** - detailed stats table (G, A, H, BS, F, W, Sv, Pts) for all teams
@@ -147,7 +147,7 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 - **Firebase Authentication** - Google sign-in
 - **Firestore Security Rules** - Row-level security
 - **Vercel Serverless Functions** - API endpoints
-- **Vercel Cron Jobs** - Scheduled tasks (scoring, live stats)
+- **Vercel Cron Jobs** - Scheduled stats backfill and score calculation
 
 ### APIs
 - **NHL API (api-web.nhle.com)** - Official NHL player rosters and game stats
@@ -182,8 +182,8 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
    ```
 
 3. **Set up environment variables**
-   
-   Create a `.env.local` file in the root directory:
+
+   Copy `.env.local.example` to `.env.local` and fill in the real values:
    ```env
    VITE_FIREBASE_API_KEY=your_firebase_api_key
    VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
@@ -191,9 +191,12 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
    VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
    VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
    VITE_FIREBASE_APP_ID=your_app_id
-   VITE_SPORTSDATA_API_KEY=your_sportsdata_api_key
+   VITE_FIREBASE_MEASUREMENT_ID=
    CRON_SECRET=your_secret_string
+   FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
    ```
+
+   `CRON_SECRET` and `FIREBASE_SERVICE_ACCOUNT_KEY` are server-only values used by the privileged Vercel API routes. Keep `.env.local` untracked.
 
 4. **Run development server**
    ```bash
@@ -264,6 +267,15 @@ See [SECURITY_SETUP.md](./SECURITY_SETUP.md) for detailed security configuration
 ---
 
 ## 🧪 Testing
+
+### Local Verification
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `npm --prefix functions run build`
+
+GitHub Actions runs the same checks on pull requests via `.github/workflows/ci.yml`.
 
 ### Admin Developer Tools (League Settings)
 - **Test Scoring** - Manually trigger scoring for any date

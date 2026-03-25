@@ -1,35 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-// Default scoring rules matching league settings (from Scoring Rules UI)
-const STANDARD_SCORING = {
-  // Skaters
-  goal: 1,
-  assist: 1,
-  shortHandedGoal: 1,
-  overtimeGoal: 1,
-  fight: 2,
-  // Defense only
-  blockedShot: 0.15,
-  hit: 0.1,
-  // Goalies
-  win: 1,
-  save: 0.04,
-  shutout: 2,
-  goalieGoal: 20,
-};
+import { getAdminDb } from './_lib/firebaseAdmin';
+import { evaluateCronAccess } from './_lib/routeAccess';
+import { DEFAULT_SCORING_RULES } from '../src/constants/scoring';
+import { getPreviousNewYorkDateString } from '../src/utils/dateUtils';
 
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  // Vercel Cron jobs automatically include CRON_SECRET in authorization header
-  // Manual calls with returnOnly=true are allowed for backfill UI
-  const authHeader = req.headers.authorization;
-  const cronSecret = process.env.CRON_SECRET;
-  const isManualBackfill = req.query.returnOnly === 'true';
-  
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !isManualBackfill) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  const access = evaluateCronAccess(
+    req,
+    { cronSecret: process.env.CRON_SECRET, nodeEnv: process.env.NODE_ENV },
+    { allowQueryBypass: { param: 'returnOnly', value: 'true' } },
+  );
+
+  if (!access.allowed) {
+    return res.status(access.statusCode).json(access.body);
   }
 
   try {
@@ -38,9 +24,7 @@ export default async function handler(
     if (req.query.date && typeof req.query.date === 'string') {
       dateStr = req.query.date;
     } else {
-      const date = new Date();
-      date.setDate(date.getDate() - 1);
-      dateStr = date.toISOString().split('T')[0];
+      dateStr = getPreviousNewYorkDateString();
     }
 
     console.log(`Fetching NHL stats for ${dateStr}...`);
@@ -97,8 +81,8 @@ export default async function handler(
           // Process Forwards (no hits/blocks scoring)
           (teamStats.forwards || []).forEach((p: any) => {
             let points = 0;
-            points += (p.goals || 0) * STANDARD_SCORING.goal;
-            points += (p.assists || 0) * STANDARD_SCORING.assist;
+            points += (p.goals || 0) * DEFAULT_SCORING_RULES.goal;
+            points += (p.assists || 0) * DEFAULT_SCORING_RULES.assist;
             // Note: SHG/OTG/Fights not easily available in boxscore, using basics
 
             dailyStats[p.playerId] = {
@@ -114,10 +98,10 @@ export default async function handler(
           // Process Defense (includes hits/blocks scoring)
           (teamStats.defense || []).forEach((p: any) => {
             let points = 0;
-            points += (p.goals || 0) * STANDARD_SCORING.goal;
-            points += (p.assists || 0) * STANDARD_SCORING.assist;
-            points += (p.blockedShots || 0) * STANDARD_SCORING.blockedShot;
-            points += (p.hits || 0) * STANDARD_SCORING.hit;
+            points += (p.goals || 0) * DEFAULT_SCORING_RULES.goal;
+            points += (p.assists || 0) * DEFAULT_SCORING_RULES.assist;
+            points += (p.blockedShots || 0) * DEFAULT_SCORING_RULES.blockedShot;
+            points += (p.hits || 0) * DEFAULT_SCORING_RULES.hit;
 
             dailyStats[p.playerId] = {
               id: p.playerId,
@@ -132,14 +116,14 @@ export default async function handler(
           // Process Goalies
           (teamStats.goalies || []).forEach((g: any) => {
             let points = 0;
-            if (g.decision === 'W') points += STANDARD_SCORING.win;
-            points += (g.saveShotsAgainst || 0) * STANDARD_SCORING.save; // Verify field name
+            if (g.decision === 'W') points += DEFAULT_SCORING_RULES.win;
+            points += (g.saveShotsAgainst || 0) * DEFAULT_SCORING_RULES.save; // Verify field name
             // Note: boxscore field is usually 'saves' or computed from shots-goals
             // Let's check standard boxscore structure... usually it's `saves`
             const saves = Number(g.saves || 0); 
-            points += saves * STANDARD_SCORING.save;
+            points += saves * DEFAULT_SCORING_RULES.save;
             if (Number(g.goalsAgainst || 0) === 0 && saves > 0 && g.toi !== '00:00') {
-               points += STANDARD_SCORING.shutout;
+               points += DEFAULT_SCORING_RULES.shutout;
             }
 
             dailyStats[g.playerId] = {
@@ -170,23 +154,8 @@ export default async function handler(
       });
     }
 
-    // Save to Firestore using Firebase Admin SDK (works in serverless environment)
-    // Collection: nhl_daily_stats, Doc ID: YYYY-MM-DD
-    const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-    const { getFirestore } = await import('firebase-admin/firestore');
-
-    // Initialize Firebase Admin (only once)
-    if (getApps().length === 0) {
-      const serviceAccount = JSON.parse(
-        process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
-      );
-
-      initializeApp({
-        credential: cert(serviceAccount),
-      });
-    }
-
-    const db = getFirestore();
+    // Save to Firestore using the shared server-only Firebase Admin helper.
+    const db = await getAdminDb();
     
     await db.collection('nhl_daily_stats').doc(dateStr).set({
       date: dateStr,

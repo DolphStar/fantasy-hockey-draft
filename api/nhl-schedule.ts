@@ -2,12 +2,22 @@
 // This avoids CORS issues when fetching from the browser
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getPublicCorsHeaders } from './_lib/routeAccess';
 
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  // Only allow GET requests
+  const corsHeaders = getPublicCorsHeaders(req.headers.origin);
+  for (const [header, value] of Object.entries(corsHeaders)) {
+    res.setHeader(header, value);
+  }
+  res.setHeader('Cache-Control', 's-maxage=300');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -21,18 +31,6 @@ export default async function handler(
     }
 
     const data = await response.json();
-
-    // Set CORS headers to allow requests from your domain
-    const allowedOrigins = [
-      'https://fantasy-hockey-draft.vercel.app',
-      'http://localhost:5173',
-    ];
-    const origin = req.headers.origin || '';
-    if (allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    }
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Cache-Control', 's-maxage=300'); // Cache for 5 minutes
 
     return res.status(200).json(data);
   } catch (error) {

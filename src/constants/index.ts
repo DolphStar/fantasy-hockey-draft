@@ -3,15 +3,15 @@
  * Centralized location for magic numbers and configuration values
  */
 
+export { DEFAULT_ROSTER_SETTINGS, DEFAULT_SCORING_RULES } from './scoring';
+export { HOCKEY_DAY_CUTOFF_HOUR, NEW_YORK_TIME_ZONE } from './time';
+
 // ============================================
 // TIMING CONSTANTS
 // ============================================
 
 /** Live stats refresh interval in seconds (5 minutes) */
 export const LIVE_STATS_REFRESH_SECONDS = 300;
-
-/** Hockey day cutoff hour in ET (3 AM) - games before this show previous day */
-export const HOCKEY_DAY_CUTOFF_HOUR = 3;
 
 /** Injury data cache time in milliseconds (5 minutes) */
 export const INJURY_CACHE_MS = 5 * 60 * 1000;
@@ -37,32 +37,6 @@ export const ACTIVE_ROSTER_SIZE = MAX_FORWARDS + MAX_DEFENSE + MAX_GOALIES; // 1
 
 /** Total roster size including reserves */
 export const TOTAL_ROSTER_SIZE = ACTIVE_ROSTER_SIZE + MAX_RESERVES; // 22
-
-// ============================================
-// SCORING DEFAULTS
-// ============================================
-
-/** Default scoring rules for fantasy points */
-export const DEFAULT_SCORING_RULES = {
-  // Skater scoring
-  goal: 1,
-  assist: 1,
-  shortHandedGoal: 1, // Bonus on top of goal
-  overtimeGoal: 1,    // Bonus on top of goal
-  fight: 2,
-  
-  // Defense bonuses
-  blockedShot: 0.15,
-  hit: 0.1,
-  
-  // Goalie scoring
-  win: 1,
-  shutout: 2,
-  save: 0.04,
-  goalieAssist: 1,
-  goalieGoal: 20,
-  goalieFight: 5,
-};
 
 // ============================================
 // NHL API CONSTANTS

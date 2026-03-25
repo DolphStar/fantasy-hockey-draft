@@ -2,17 +2,19 @@
 // This will be called by a cron job daily
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { evaluateCronAccess } from './_lib/routeAccess';
 
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  // Verify this is called by Vercel Cron (security check)
-  const authHeader = req.headers.authorization;
-  const cronSecret = process.env.CRON_SECRET;
-  
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  const access = evaluateCronAccess(
+    req,
+    { cronSecret: process.env.CRON_SECRET, nodeEnv: process.env.NODE_ENV },
+  );
+
+  if (!access.allowed) {
+    return res.status(access.statusCode).json(access.body);
   }
 
   try {

@@ -8,7 +8,7 @@
  * @module utils/nhlSchedule
  */
 
-import { HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
+import { getHockeyDay } from './dateUtils';
 
 /** NHL game data from schedule API */
 interface Game {
@@ -77,26 +77,7 @@ export async function fetchTodaySchedule(): Promise<Game[]> {
     
     const data: ScheduleResponse = await response.json();
     
-    // Get current hour in Eastern Time
-    const now = new Date();
-    const etHour = parseInt(now.toLocaleString('en-US', { 
-      timeZone: 'America/New_York', 
-      hour: 'numeric', 
-      hour12: false 
-    }));
-    
-    // "Hockey day" logic: before 3 AM ET, use yesterday's date
-    // This ensures we show today's games until they're all done
-    let targetDate: string;
-    if (etHour < HOCKEY_DAY_CUTOFF_HOUR) {
-      // Before 3 AM ET - still show "yesterday's" games
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      targetDate = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-      console.log(`📅 Before 3 AM ET - using yesterday's date: ${targetDate}`);
-    } else {
-      // After 3 AM ET - show today's games
-      targetDate = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    }
+    const targetDate = getHockeyDay();
     
     // Find games for target date
     const schedule = data.gameWeek.find(day => day.date === targetDate);

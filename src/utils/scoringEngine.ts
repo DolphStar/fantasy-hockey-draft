@@ -22,7 +22,8 @@
 import { db } from '../firebase';
 import { collection, getDocs, doc, getDoc, setDoc, updateDoc, increment, query, where } from 'firebase/firestore';
 import type { ScoringRules } from '../types/league';
-import type { PlayerGameStats } from './nhlStats';
+import { getPreviousNewYorkDateString } from './dateUtils';
+import { calculatePlayerPoints } from './scoringMath';
 import {
   getGamesForDate,
   getGameBoxscore,
@@ -70,83 +71,6 @@ export interface PlayerDailyScore {
 }
 
 /**
- * Calculates fantasy points for a skater (forward or defenseman)
- * 
- * @param stats - Raw player stats from NHL API boxscore
- * @param rules - League scoring rules
- * @param isDefenseman - Whether player is a defenseman (gets hit/block bonuses)
- * @returns Calculated fantasy points
- */
-function calculateSkaterPoints(
-  stats: PlayerGameStats,
-  rules: ScoringRules,
-  isDefenseman: boolean
-): number {
-  let points = 0;
-
-  // Goals and assists (default to 0 if undefined)
-  points += (stats.goals || 0) * rules.goal;
-  points += (stats.assists || 0) * rules.assist;
-
-  // Short-handed goals (bonus on top of regular goal)
-  points += (stats.shortHandedGoals || 0) * rules.shortHandedGoal;
-
-  // Use actual fight count from play-by-play data
-  points += (stats.fights || 0) * rules.fight;
-
-  // Defense-specific stats
-  if (isDefenseman) {
-    points += (stats.blockedShots || 0) * rules.blockedShot;
-    points += (stats.hits || 0) * rules.hit;
-  }
-
-  // Note: Overtime goal detection would require more detailed game data
-  // This would need to be tracked separately via NHL play-by-play data
-
-  return points;
-}
-
-/**
- * Calculate fantasy points for a goalie
- */
-function calculateGoaliePoints(
-  stats: PlayerGameStats,
-  rules: ScoringRules
-): number {
-  let points = 0;
-
-  // Wins and shutouts (default to 0 if undefined)
-  points += (stats.wins || 0) * rules.win;
-  points += (stats.shutouts || 0) * rules.shutout;
-
-  // Saves
-  points += (stats.saves || 0) * rules.save;
-
-  // Goalie assists and goals (rare but possible!)
-  points += (stats.assists || 0) * rules.goalieAssist;
-  points += (stats.goals || 0) * rules.goalieGoal;
-
-  return points;
-}
-
-/**
- * Calculate fantasy points for any player
- */
-export function calculatePlayerPoints(
-  stats: PlayerGameStats,
-  rules: ScoringRules
-): number {
-  const isGoalie = stats.position === 'G';
-  const isDefenseman = stats.position === 'D';
-
-  if (isGoalie) {
-    return calculateGoaliePoints(stats, rules);
-  } else {
-    return calculateSkaterPoints(stats, rules, isDefenseman);
-  }
-}
-
-/**
  * Process yesterday's games and update team scores
  * This is the main scoring function that should be run daily
  */
@@ -157,16 +81,7 @@ export async function processYesterdayScores(leagueId: string, targetDate?: stri
     let dateStr = targetDate;
 
     if (!dateStr) {
-      // Calculate yesterday's date in Eastern Time (NHL's timezone)
-      // This matches how liveStats are stored and ensures consistency
-      const now = new Date();
-      const etOffset = -5; // EST is UTC-5
-      const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
-      etTime.setDate(etTime.getDate() - 1); // Yesterday in ET
-      const year = etTime.getUTCFullYear();
-      const month = String(etTime.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(etTime.getUTCDate()).padStart(2, '0');
-      dateStr = `${year}-${month}-${day}`;
+      dateStr = getPreviousNewYorkDateString();
     }
 
     console.log(`Processing games for date: ${dateStr} (ET timezone)`);
@@ -349,7 +264,7 @@ export async function processYesterdayScores(leagueId: string, targetDate?: stri
           totalPoints: increment(points),
           lastUpdated: new Date().toISOString(),
         });
-      } catch (error) {
+      } catch {
         // Document might not exist, create it
         await setDoc(teamScoreRef, {
           teamName,

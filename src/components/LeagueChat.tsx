@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { collection, addDoc, onSnapshot, query, orderBy, limit, doc, deleteDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
-
-interface ChatMessage {
-  id: string;
-  text: string;
-  userId: string;
-  userName: string;
-  teamName?: string | null;
-  createdAt: string; // ISO string
-}
+import {
+  banLeagueChatUser,
+  deleteLeagueChatMessage,
+  sendLeagueChatMessage,
+  subscribeChatBan,
+  subscribeLeagueChatMessages,
+} from '../services/chatService';
+import type { ChatMessage } from '../types/chat';
 
 interface LeagueChatProps {
   /**
@@ -42,16 +39,7 @@ export default function LeagueChat({ variant = 'full' }: LeagueChatProps) {
   useEffect(() => {
     if (!league) return;
 
-    const messagesRef = collection(db, `leagues/${league.id}/chatMessages`);
-    const q = query(messagesRef, orderBy('createdAt', 'asc'), limit(200));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items: ChatMessage[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as Omit<ChatMessage, 'id'>),
-      }));
-      setMessages(items);
-    });
+    const unsubscribe = subscribeLeagueChatMessages(league.id, setMessages);
 
     return () => unsubscribe();
   }, [league]);
@@ -60,10 +48,7 @@ export default function LeagueChat({ variant = 'full' }: LeagueChatProps) {
   useEffect(() => {
     if (!league || !user) return;
 
-    const banRef = doc(db, `leagues/${league.id}/chatBans`, user.uid);
-    const unsubscribe = onSnapshot(banRef, (snapshot) => {
-      setIsBanned(snapshot.exists());
-    });
+    const unsubscribe = subscribeChatBan(league.id, user.uid, setIsBanned);
 
     return () => unsubscribe();
   }, [league, user]);
@@ -98,16 +83,7 @@ export default function LeagueChat({ variant = 'full' }: LeagueChatProps) {
 
     try {
       setSending(true);
-      const messagesRef = collection(db, `leagues/${league.id}/chatMessages`);
-      const now = new Date().toISOString();
-
-      await addDoc(messagesRef, {
-        text: newMessage.trim(),
-        userId: user.uid,
-        userName: user.displayName || user.email || 'User',
-        teamName: league.teams.find(t => t.ownerUid === user.uid)?.teamName || null,
-        createdAt: now,
-      });
+      await sendLeagueChatMessage(league, user, newMessage);
 
       setNewMessage('');
     } catch (error) {
@@ -137,8 +113,7 @@ export default function LeagueChat({ variant = 'full' }: LeagueChatProps) {
     if (!confirmDelete) return;
 
     try {
-      const messageRef = doc(db, `leagues/${league.id}/chatMessages`, messageId);
-      await deleteDoc(messageRef);
+      await deleteLeagueChatMessage(league.id, messageId);
     } catch (error) {
       console.error('Failed to delete message:', error);
       alert('Failed to delete message. Please try again.');
@@ -152,11 +127,7 @@ export default function LeagueChat({ variant = 'full' }: LeagueChatProps) {
     if (!confirmBan) return;
 
     try {
-      const banRef = doc(db, `leagues/${league.id}/chatBans`, targetUserId);
-      await setDoc(banRef, {
-        userId: targetUserId,
-        bannedAt: new Date().toISOString(),
-      });
+      await banLeagueChatUser(league.id, targetUserId);
     } catch (error) {
       console.error('Failed to ban user:', error);
       alert('Failed to ban user from chat. Please try again.');

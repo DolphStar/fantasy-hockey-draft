@@ -1,16 +1,8 @@
 import { cn } from '../../lib/utils';
+import type { DraftedPlayer } from '../../types/draftedPlayer';
 
 interface PlayerListRowProps {
-    player: {
-        id: string;
-        playerId: string;
-        name: string;
-        position: string;
-        nhlTeam: string;
-        jerseyNumber: number;
-        rosterSlot: 'active' | 'reserve';
-        pendingSlot?: 'active' | 'reserve' | null;
-    };
+    player: DraftedPlayer;
     fantasyPoints?: number;
     stats?: { goals: number; assists: number; gamesPlayed: number; avgPoints: number };
     injury?: { status: string };

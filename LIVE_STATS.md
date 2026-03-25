@@ -2,19 +2,22 @@
 
 ## Overview
 
-The Live Stats system provides **real-time tracking** of your fantasy players' performance during today's NHL games. Unlike the daily scoring system (which runs once per day at 5 AM), Live Stats updates **every 15 minutes** during game hours to show you what's happening right now.
+The Live Stats system provides **real-time tracking** of your fantasy players' performance during today's NHL games. Unlike the daily scoring system (which runs once per day at 5 AM UTC), Live Stats is currently a **manual/admin-triggered or external-triggered** server flow that is ready for cron-style execution but is **not** scheduled in the current `vercel.json`.
 
 ## How It Works
 
-### Automatic Updates
+### Current Runtime Mode
 
-- **Cron Schedule**: Every 15 minutes (0, 15, 30, 45 minutes past the hour)
-- **Game Hours**: 5 PM - 2 AM Eastern Time (when most NHL games occur)
-- **What It Tracks**: All games scheduled for TODAY (scheduled, live, and completed)
+- **Current scheduling**: No Vercel cron is configured for `/api/live-stats` in `vercel.json`
+- **Current access**: Requires `CRON_SECRET` to be configured, and allows a development-only bypass for manual testing when `NODE_ENV !== 'production'`
+- **Current trigger paths**:
+  - Admin manual trigger from League Settings
+  - External scheduler/webhook if you choose to add one later
+- **What it tracks**: All games scheduled for TODAY (scheduled, live, and completed)
 
 ### Update Flow
 
-1. **Vercel cron job** triggers `/api/live-stats` every 15 minutes
+1. **A trusted trigger** calls `/api/live-stats`
 2. API fetches **today's NHL games** from NHL API
 3. For each game (except future/unstarted games):
    - Fetch current boxscore stats
@@ -50,7 +53,7 @@ The Live Stats system provides **real-time tracking** of your fantasy players' p
 ✅ **Auto-updates** - Stats refresh automatically via Firestore listener  
 ✅ **Grouped by team** - See all your players together  
 ✅ **Game status** - Know which games are live vs completed  
-✅ **No refresh needed** - Updates appear instantly when cron runs  
+✅ **No refresh needed** - Updates appear instantly when the server job runs  
 ✅ **Last updated timestamp** - Shows when stats were last fetched
 
 ## Differences from Daily Scoring
@@ -121,7 +124,7 @@ The Live Stats system provides **real-time tracking** of your fantasy players' p
 | **FINAL** | Completed today | ✅ Yes |
 | **OFF** | Official final | ✅ Yes |
 
-## Cron Configuration
+## Scheduling Configuration
 
 Located in `vercel.json`:
 
@@ -129,31 +132,34 @@ Located in `vercel.json`:
 {
   "crons": [
     {
-      "path": "/api/live-stats",
-      "schedule": "0,15,30,45 17-23,0-2 * * *"
+      "path": "/api/calculate-scores",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/fetch-daily-stats",
+      "schedule": "30 4 * * *"
     }
   ]
 }
 ```
 
-**Schedule Breakdown:**
-- `0,15,30,45` - Minutes: Every 15 minutes
-- `17-23,0-2` - Hours (UTC): 5 PM - 11 PM, 12 AM - 2 AM ET
-- `* * *` - Every day, every month, all days of week
+**Current production schedules:**
+- `/api/fetch-daily-stats` runs at **4:30 AM UTC**
+- `/api/calculate-scores` runs at **5:00 AM UTC**
+- `/api/live-stats` is **not currently scheduled** by Vercel
 
-**Why These Hours?**
-Most NHL games start between 7-10 PM ET and last ~2.5 hours. The cron runs:
-- **Before games**: 5-7 PM (capture early games)
-- **During games**: 7 PM - 12 AM (main window)
-- **After games**: 12-2 AM (late West Coast games)
+**Why this matters:**
+- Daily stats and daily scoring are automated overnight
+- Live stats remains available for manual/admin use without silently depending on a missing cron job
+- If you re-enable a scheduled live-stats job later, update both `vercel.json` and this document together
 
 ## Performance
 
 ### API Calls Per Day
 
-- **Cron runs**: ~32 times per day (every 15 min × 8 hours)
+- **Cron runs**: Based on the scheduler you configure
 - **NHL API calls per run**: ~10-15 games on busy nights
-- **Total NHL API calls**: ~320-480 per day
+- **Total NHL API calls**: Depends on how often you trigger the job
 - **Within NHL rate limits**: ✅ Yes
 
 ### Firestore Usage
@@ -170,7 +176,7 @@ Most NHL games start between 7-10 PM ET and last ~2.5 hours. The cron runs:
 **Possible Causes:**
 1. **No games today** - Wait for NHL games to start
 2. **Games haven't started yet** - FUT games don't have stats
-3. **Cron not running** - Check Vercel cron logs
+3. **Job not being triggered** - Check your manual admin flow, external scheduler, or Vercel configuration
 4. **No drafted players in games** - Your players might not be playing today
 
 **Check:**
@@ -190,11 +196,11 @@ console.log(`Live stats count: ${snapshot.size}`);
 3. **Manual trigger**: Use test button in League Settings
 4. **Verify Firestore rules**: Ensure read access to liveStats
 
-### Cron Not Running
+### Job Not Running
 
 **Check Vercel Dashboard:**
-1. Go to your project → **Cron Jobs** tab
-2. See last execution time
+1. Go to your project → **Functions** or **Cron Jobs** tab
+2. Confirm whether `/api/live-stats` is actually scheduled in the current deployment
 3. Check logs for errors
 
 **Common Issues:**

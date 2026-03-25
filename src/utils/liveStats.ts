@@ -16,7 +16,7 @@
 import { db } from '../firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getGamesForDate, getGameBoxscore, getAllPlayersFromBoxscore } from './nhlStats';
-import { HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
+import { getHockeyDay, getPreviousNewYorkDateString } from './dateUtils';
 
 /**
  * Live player statistics for a single game
@@ -101,25 +101,9 @@ export async function processLiveStats(leagueId: string) {
       return { success: false, gamesProcessed: 0, playersUpdated: 0, message: 'League not active' };
     }
 
-    // Get "hockey day" date - before 3 AM ET, use yesterday's date
-    // This ensures we process today's games until they're all done
     const now = new Date();
-    const etHour = parseInt(now.toLocaleString('en-US', { 
-      timeZone: 'America/New_York', 
-      hour: 'numeric', 
-      hour12: false 
-    }));
-    
-    let etDateStr: string;
-    if (etHour < HOCKEY_DAY_CUTOFF_HOUR) {
-      // Before 3 AM ET - still use "yesterday's" date
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      etDateStr = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-      console.log(`🔴 LIVE STATS: Before 3 AM ET - using yesterday's date: ${etDateStr}`);
-    } else {
-      etDateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-      console.log(`🔴 LIVE STATS: Using ET date: ${etDateStr}`);
-    }
+    const etDateStr = getHockeyDay(now);
+    console.log(`🔴 LIVE STATS: Using hockey day date: ${etDateStr}`);
 
     // 1. Get today's games (filtered by allowed game types)
     const allowedGameTypes: number[] = league.allowedGameTypes || [2]; // Default: regular season only
@@ -130,9 +114,8 @@ export async function processLiveStats(leagueId: string) {
     }
 
     // Also get yesterday's games (in case some FINAL games are still there)
-    const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const yesterdayStr = yesterdayDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    const yesterdayGamesRaw = await getGamesForDate(yesterdayStr);
+    const yesterdayStr = getPreviousNewYorkDateString(now);
+    const yesterdayGamesRaw = yesterdayStr === etDateStr ? [] : await getGamesForDate(yesterdayStr);
     const yesterdayGamesFiltered = yesterdayGamesRaw.filter(g => allowedGameTypes.includes(g.gameType));
 
     const yesterdayFinals = yesterdayGamesFiltered.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF');
@@ -320,7 +303,7 @@ export async function processLiveStats(leagueId: string) {
  */
 export async function getLiveStatsSummary(leagueId: string) {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getHockeyDay();
     const liveStatsRef = collection(db, `leagues/${leagueId}/liveStats`);
     const { getDocs } = await import('firebase/firestore');
 

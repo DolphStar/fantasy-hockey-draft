@@ -1,7 +1,4 @@
 import { useState, useEffect } from 'react';
-import { db } from '../firebase';
-
-import { collection, onSnapshot, getDocs, query, where } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
 import { processLiveStats } from '../utils/liveStats';
@@ -9,26 +6,13 @@ import type { LivePlayerStats } from '../utils/liveStats';
 import { fetchScheduleForDate, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
-import { LIVE_STATS_REFRESH_SECONDS, HOCKEY_DAY_CUTOFF_HOUR } from '../constants';
+import { LIVE_STATS_REFRESH_SECONDS } from '../constants';
+import { getHockeyDay } from '../utils/dateUtils';
+import { fetchDraftedPlayers } from '../services/draftedPlayersService';
+import { fetchHistoricalLiveStatsByDate, subscribeLiveStatsByDate } from '../services/liveStatsService';
 
 interface LiveStatsProps {
   showAllTeams?: boolean; // If true, show all teams' stats (for Standings page)
-}
-
-// Helper to get "hockey day" date (before 3 AM ET = yesterday)
-function getHockeyDay(): string {
-  const now = new Date();
-  const etHour = parseInt(now.toLocaleString('en-US', { 
-    timeZone: 'America/New_York', 
-    hour: 'numeric', 
-    hour12: false 
-  }));
-  
-  if (etHour < HOCKEY_DAY_CUTOFF_HOUR) {
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    return yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  }
-  return now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {}) {
@@ -57,23 +41,17 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
 
     // Get drafted players to map stats to teams
     const getDraftedPlayersMap = async () => {
-      const constraints: any[] = [where('leagueId', '==', league.id)];
-      if (!showAllTeams && myTeam) {
-        constraints.push(where('draftedByTeam', '==', myTeam.teamName));
-      }
-
-      const draftedSnapshot = await getDocs(
-        query(collection(db, 'draftedPlayers'), ...constraints)
-      );
+      const draftedPlayers = await fetchDraftedPlayers(league.id, {
+        teamName: !showAllTeams && myTeam ? myTeam.teamName : undefined,
+      });
       
       const playerMap = new Map<number, { teamName: string; nhlTeam: string; name: string; isActive: boolean }>();
-      draftedSnapshot.docs.forEach((doc: any) => {
-        const data = doc.data();
-        const slot = data.rosterSlot;
-        playerMap.set(data.playerId, {
-          teamName: data.draftedByTeam,
-          nhlTeam: data.nhlTeam,
-          name: data.name,
+      draftedPlayers.forEach((player) => {
+        const slot = player.rosterSlot;
+        playerMap.set(Number(player.playerId), {
+          teamName: player.draftedByTeam,
+          nhlTeam: player.nhlTeam,
+          name: player.name,
           isActive: !slot || slot === 'active'
         });
       });
@@ -82,38 +60,18 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
 
     // For TODAY: Use real-time liveStats listener
     if (isViewingToday) {
-      const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
-
       const setupListener = async () => {
         const playerMap = await getDraftedPlayersMap();
-        const activePlayerIds = new Set([...playerMap.entries()].filter(([_, p]) => p.isActive).map(([id]) => id));
+        const activePlayerIds = new Set([...playerMap.entries()].filter(([, p]) => p.isActive).map(([id]) => id));
         console.log(`📊 LiveStats: Tracking ${activePlayerIds.size} active players for date ${selectedDate}`);
 
-        const unsubscribe = onSnapshot(liveStatsRef, (snapshot) => {
-          const stats: LivePlayerStats[] = [];
-          let totalDocs = 0;
-          let matchingDocs = 0;
-
-          snapshot.forEach(doc => {
-            totalDocs++;
-            if (doc.id.startsWith(selectedDate)) {
-              matchingDocs++;
-              const stat = doc.data() as LivePlayerStats;
-              if (activePlayerIds.has(stat.playerId)) {
-                stats.push(stat);
-              }
-            }
-          });
-
-          console.log(`📊 LiveStats: Found ${totalDocs} total docs, ${matchingDocs} for ${selectedDate}, ${stats.length} matching active players`);
-
-          // Sort by points descending
+        const unsubscribe = subscribeLiveStatsByDate(league.id, selectedDate, (stats) => {
+          console.log(`📊 LiveStats: Found ${stats.length} matching active players for ${selectedDate}`);
           stats.sort((a, b) => b.points - a.points);
-
           setLiveStats(stats);
           setLastUpdate(new Date());
           setLoading(false);
-        });
+        }, activePlayerIds);
 
         return unsubscribe;
       };
@@ -128,48 +86,41 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
     const fetchHistoricalStats = async () => {
       const playerMap = await getDraftedPlayersMap();
       console.log(`📊 LiveStats: Fetching historical stats for ${selectedDate}, playerMap size: ${playerMap.size}`);
-
-      // Query playerDailyScores for the selected date
-      const scoresRef = collection(db, `leagues/${league.id}/playerDailyScores`);
-      const snapshot = await getDocs(scoresRef);
-
-      console.log(`📊 LiveStats: Total docs in playerDailyScores: ${snapshot.docs.length}`);
+      const historicalScores = await fetchHistoricalLiveStatsByDate(
+        league.id,
+        selectedDate,
+        new Set(playerMap.keys()),
+      );
 
       const stats: LivePlayerStats[] = [];
-      snapshot.docs.forEach(doc => {
-        // Document IDs are formatted as {playerId}-{date} (e.g., "8478402-2024-12-15")
-        // Check if doc ID ends with the selected date
-        if (doc.id.endsWith(`-${selectedDate}`)) {
-          const data = doc.data();
-          const playerInfo = playerMap.get(data.playerId);
-          
-          // Only include if player is in our roster (or showAllTeams)
-          if (playerInfo) {
-            stats.push({
-              playerId: data.playerId,
-              playerName: data.playerName || playerInfo.name,
-              teamName: playerInfo.teamName,
-              nhlTeam: data.nhlTeam || playerInfo.nhlTeam,
-              gameId: 0,
-              gameState: 'FINAL',
-              awayScore: 0,
-              homeScore: 0,
-              period: 3,
-              clock: '00:00',
-              goals: data.stats?.goals || 0,
-              assists: data.stats?.assists || 0,
-              points: data.points || 0,
-              shots: data.stats?.shots || 0,
-              hits: data.stats?.hits || 0,
-              blockedShots: data.stats?.blockedShots || 0,
-              fights: data.stats?.fights || 0,
-              wins: data.stats?.wins || 0,
-              saves: data.stats?.saves || 0,
-              shutouts: data.stats?.shutouts || 0,
-              lastUpdated: data.lastUpdated || null,
-              dateKey: selectedDate,
-            });
-          }
+      historicalScores.forEach((data) => {
+        const playerInfo = playerMap.get(data.playerId);
+        
+        if (playerInfo) {
+          stats.push({
+            playerId: data.playerId,
+            playerName: data.playerName || playerInfo.name,
+            teamName: playerInfo.teamName,
+            nhlTeam: data.nhlTeam || playerInfo.nhlTeam,
+            gameId: 0,
+            gameState: 'FINAL',
+            awayScore: 0,
+            homeScore: 0,
+            period: 3,
+            clock: '00:00',
+            goals: data.stats?.goals || 0,
+            assists: data.stats?.assists || 0,
+            points: data.points || 0,
+            shots: data.stats?.shots || 0,
+            hits: data.stats?.hits || 0,
+            blockedShots: data.stats?.blockedShots || 0,
+            fights: data.stats?.fights || 0,
+            wins: data.stats?.wins || 0,
+            saves: data.stats?.saves || 0,
+            shutouts: data.stats?.shutouts || 0,
+            lastUpdated: data.lastUpdated || null,
+            dateKey: selectedDate,
+          });
         }
       });
 
@@ -192,27 +143,15 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
 
     const fetchMatchups = async () => {
       try {
-        // Fetch schedule for selected date
         const games = await fetchScheduleForDate(selectedDate);
-
-        // Get YOUR team's roster from drafted players (one-time fetch, not listener)
-        const draftedSnapshot = await getDocs(collection(db, 'draftedPlayers'));
-        
-        const roster = draftedSnapshot.docs
-          .filter(doc => {
-            const data = doc.data();
-            const slot = data.rosterSlot;
-            const isActive = !slot || slot === 'active';
-            return data.leagueId === league.id && isActive && data.draftedByTeam === myTeam.teamName;
-          })
-          .map(doc => {
-            const data = doc.data();
-            return {
-              playerId: data.playerId,
-              name: data.name,
-              nhlTeam: data.nhlTeam
-            };
-          });
+        const roster = (await fetchDraftedPlayers(league.id, {
+          teamName: myTeam.teamName,
+          activeOnly: true,
+        })).map((player) => ({
+          playerId: Number(player.playerId),
+          name: player.name,
+          nhlTeam: player.nhlTeam,
+        }));
 
         console.log(`📊 Matchups: Found ${roster.length} active players for ${selectedDate}`);
 

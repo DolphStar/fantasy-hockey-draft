@@ -48,10 +48,13 @@ export default function Injuries() {
       playersQuery,
       (snapshot) => {
         const data = snapshot.docs.map((doc) => {
-          const { id: _ignoredId, ...rest } = doc.data() as DraftedPlayer;
+          const player = doc.data() as DraftedPlayer & { id?: string };
+          const { id, ...rest } = player;
+          void id;
+
           return {
             id: doc.id,
-            ...rest
+            ...rest,
           };
         });
         setMyPlayers(data);

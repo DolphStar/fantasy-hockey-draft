@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getPublicCorsHeaders } from './_lib/routeAccess';
 
 /**
  * Vercel Serverless Function to fetch SEASON LEADERS
@@ -9,17 +10,10 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  // Enable CORS
-  const allowedOrigins = [
-    'https://fantasy-hockey-draft.vercel.app',
-    'http://localhost:5173',
-  ];
-  const origin = req.headers.origin || '';
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  const corsHeaders = getPublicCorsHeaders(req.headers.origin);
+  for (const [header, value] of Object.entries(corsHeaders)) {
+    res.setHeader(header, value);
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();

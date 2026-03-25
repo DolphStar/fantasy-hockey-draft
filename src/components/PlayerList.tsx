@@ -3,37 +3,25 @@ import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 
 import { useInjuries } from '../queries/useInjuries';
-import { db } from '../firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { getHockeyDay } from '../utils/dateUtils';
 import { isPlayerInjuredByName } from '../services/injuryService';
+import {
+  clearPendingRosterSwap,
+  requestRosterSwap,
+  subscribeDraftedPlayersByTeam,
+} from '../services/draftedPlayersService';
+import { subscribeLiveStatPlayerIdsByDate } from '../services/liveStatsService';
+import {
+  fetchPlayerPerformanceSummary,
+  fetchTeamStanding,
+} from '../services/playerPerformanceService';
+import type { DraftedPlayer } from '../types/draftedPlayer';
 import { GlassCard } from './ui/GlassCard';
 // Removed unused icon imports
 import MyPlayerCard from './roster/MyPlayerCard';
 import PlayerListRow from './roster/PlayerListRow';
-
-interface DraftedPlayer {
-  id: string;
-  playerId: string;
-  name: string;
-  position: string;
-  positionName: string;
-  nhlTeam: string;
-  jerseyNumber: number;
-  round: number;
-  pickNumber: number;
-  draftedBy: string;
-  draftedByTeam: string;
-  rosterSlot: 'active' | 'reserve';
-  pendingSlot?: 'active' | 'reserve' | null;
-}
-
-interface TeamScore {
-  id: string;
-  teamName: string;
-  totalPoints: number;
-}
 
 export default function PlayerList() {
   useAuth();
@@ -99,13 +87,8 @@ export default function PlayerList() {
         return;
       }
       try {
-        const p1Slot = player1.rosterSlot || 'active';
-        const p2Slot = player2.rosterSlot || 'active';
-        if (p1Slot !== p2Slot) {
-          const p1Ref = doc(db, 'draftedPlayers', player1.id);
-          const p2Ref = doc(db, 'draftedPlayers', player2.id);
-          await updateDoc(p1Ref, { pendingSlot: p2Slot });
-          await updateDoc(p2Ref, { pendingSlot: p1Slot });
+        if ((player1.rosterSlot || 'active') !== (player2.rosterSlot || 'active')) {
+          await requestRosterSwap(player1, player2);
           toast.success('Swap requested!');
         } else {
           toast.info('Swapping players in the same slot has no effect yet.');
@@ -122,8 +105,7 @@ export default function PlayerList() {
   const handleCancelSwap = async (player: DraftedPlayer) => {
     if (window.confirm(`Are you sure you want to cancel the pending swap for ${player.name}?`)) {
       try {
-        const playerRef = doc(db, 'draftedPlayers', player.id);
-        await updateDoc(playerRef, { pendingSlot: null });
+        await clearPendingRosterSwap(player.id);
         toast.success('Swap cancelled successfully');
       } catch (error) {
         console.error('Error cancelling swap:', error);
@@ -145,24 +127,19 @@ export default function PlayerList() {
       setLoading(false);
       return;
     }
-    const q = query(
-      collection(db, 'draftedPlayers'),
-      where('draftedByTeam', '==', myTeam.teamName),
-      orderBy('pickNumber', 'asc')
+    return subscribeDraftedPlayersByTeam(
+      league!.id,
+      myTeam.teamName,
+      (playersData) => {
+        setPlayers(playersData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error listening to players:', error);
+        setLoading(false);
+      },
     );
-    const unsubscribe = onSnapshot(q, snapshot => {
-      const playersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as DraftedPlayer));
-      setPlayers(playersData);
-      setLoading(false);
-    }, error => {
-      console.error('Error listening to players:', error);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [myTeam]);
+  }, [league, myTeam]);
 
   const [playerPoints, setPlayerPoints] = useState<Record<number, number>>({});
   const [playerStats, setPlayerStats] = useState<Record<number, { goals: number; assists: number; gamesPlayed: number; avgPoints: number }>>({});
@@ -175,66 +152,13 @@ export default function PlayerList() {
     if (!league || !myTeam) return;
     const fetchPlayerPoints = async () => {
       try {
-        const scoresQuery = query(
-          collection(db, `leagues/${league.id}/playerDailyScores`)
-        );
-        const snapshot = await getDocs(scoresQuery);
-        const pointsMap: Record<number, number> = {};
-        const statsMap: Record<number, { goals: number; assists: number; gamesPlayed: number; avgPoints: number }> = {};
-        const historyMap: Record<number, { date: string; points: number }[]> = {};
-        const dailyTotalsMap: Record<string, number> = {};
-        snapshot.docs.forEach(doc => {
-          const data = doc.data();
-          const playerId = data.playerId as number;
-          const points = data.points || 0;
-          const date = data.date as string;
-          const teamName = data.teamName as string;
-          if (pointsMap[playerId]) {
-            pointsMap[playerId] += points;
-            statsMap[playerId].goals += (data.stats?.goals || 0);
-            statsMap[playerId].assists += (data.stats?.assists || 0);
-            statsMap[playerId].gamesPlayed += 1;
-          } else {
-            pointsMap[playerId] = points;
-            statsMap[playerId] = {
-              goals: data.stats?.goals || 0,
-              assists: data.stats?.assists || 0,
-              gamesPlayed: 1,
-              avgPoints: 0,
-            };
-          }
-          if (!historyMap[playerId]) historyMap[playerId] = [];
-          historyMap[playerId].push({ date, points });
-          if (teamName === myTeam.teamName) {
-            dailyTotalsMap[date] = (dailyTotalsMap[date] ?? 0) + points;
-          }
-        });
-        Object.keys(statsMap).forEach(pid => {
-          const id = Number(pid);
-          const games = statsMap[id].gamesPlayed;
-          statsMap[id].avgPoints = games > 0 ? pointsMap[id] / games : 0;
-        });
-        setPlayerPoints(pointsMap);
-        setPlayerStats(statsMap);
-        const processedHistory: Record<number, { points: number; date: string }[]> = {};
-        Object.keys(historyMap).forEach(pid => {
-          const sorted = historyMap[Number(pid)].sort((a, b) => a.date.localeCompare(b.date));
-          processedHistory[Number(pid)] = sorted.slice(-5).map(h => ({ points: h.points, date: h.date }));
-        });
-        setPlayerHistory(processedHistory);
-        const sortedDates = Object.keys(dailyTotalsMap).sort();
-        const totalsArray = sortedDates.map(date => ({ date, points: dailyTotalsMap[date] }));
-        setDailyTeamTotals(totalsArray);
-        if (totalsArray.length > 0) {
-          const last = totalsArray[totalsArray.length - 1].points;
-          setLastGamePoints(last);
-          if (totalsArray.length > 1) {
-            const prev = totalsArray[totalsArray.length - 2].points;
-            setTrend(last > prev ? 'up' : last < prev ? 'down' : 'neutral');
-          } else {
-            setTrend('neutral');
-          }
-        }
+        const summary = await fetchPlayerPerformanceSummary(league.id, myTeam.teamName);
+        setPlayerPoints(summary.pointsMap);
+        setPlayerStats(summary.statsMap);
+        setPlayerHistory(summary.historyMap);
+        setDailyTeamTotals(summary.dailyTeamTotals);
+        setLastGamePoints(summary.lastGamePoints);
+        setTrend(summary.trend);
       } catch (error) {
         console.error('Error fetching player points:', error);
       }
@@ -248,18 +172,7 @@ export default function PlayerList() {
     if (!league || !myTeam) return;
     const fetchTeamStats = async () => {
       try {
-        const scoresQuery = query(
-          collection(db, `leagues/${league.id}/teamScores`),
-          orderBy('totalPoints', 'desc')
-        );
-        const snapshot = await getDocs(scoresQuery);
-        const teams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as TeamScore));
-        const myTeamIndex = teams.findIndex(t => t.teamName === myTeam.teamName);
-        if (myTeamIndex !== -1) {
-          setTeamStats({ rank: myTeamIndex + 1, totalPoints: teams[myTeamIndex].totalPoints || 0 });
-        } else {
-          setTeamStats({ rank: teams.length + 1, totalPoints: 0 });
-        }
+        setTeamStats(await fetchTeamStanding(league.id, myTeam.teamName));
       } catch (error) {
         console.error('Error fetching team stats:', error);
       }
@@ -269,20 +182,7 @@ export default function PlayerList() {
 
   useEffect(() => {
     if (!league || !myTeam) return;
-    const today = new Date().toISOString().split('T')[0];
-    const liveStatsRef = collection(db, `leagues/${league.id}/liveStats`);
-    const q = query(liveStatsRef);
-    const unsubscribe = onSnapshot(q, snapshot => {
-      const playingToday = new Set<string>();
-      snapshot.docs.forEach(doc => {
-        if (doc.id.startsWith(today)) {
-          const data = doc.data();
-          playingToday.add(String(data.playerId));
-        }
-      });
-      setGameIdsToday(playingToday);
-    });
-    return () => unsubscribe();
+    return subscribeLiveStatPlayerIdsByDate(league.id, getHockeyDay(), setGameIdsToday);
   }, [league, myTeam]);
 
   const getSparklinePath = (data: { points: number }[], width: number, height: number) => {
@@ -325,8 +225,8 @@ export default function PlayerList() {
         return a.name.localeCompare(b.name);
       }
       if (sortBy === 'games') {
-        const aPlaying = gameIdsToday.has(a.playerId) ? 1 : 0;
-        const bPlaying = gameIdsToday.has(b.playerId) ? 1 : 0;
+        const aPlaying = gameIdsToday.has(String(a.playerId)) ? 1 : 0;
+        const bPlaying = gameIdsToday.has(String(b.playerId)) ? 1 : 0;
         if (aPlaying !== bPlaying) return bPlaying - aPlaying;
       }
       const getPositionOrder = (pos: string) => {
@@ -508,7 +408,7 @@ export default function PlayerList() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
               {activePlayers.map(player => (
                 <div key={`${player.id}-${sortBy}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <MyPlayerCard player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(player.playerId)} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
+                  <MyPlayerCard player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(String(player.playerId))} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
                 </div>
               ))}
             </div>
@@ -542,7 +442,7 @@ export default function PlayerList() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
             {reservePlayers.map(player => (
-              <MyPlayerCard key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)] || 0} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(player.playerId)} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
+              <MyPlayerCard key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)] || 0} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(String(player.playerId))} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
             ))}
           </div>
         )}

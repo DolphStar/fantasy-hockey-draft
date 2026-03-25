@@ -148,7 +148,7 @@ export const scheduledDailyScoring = onSchedule({
   schedule: "0 3 * * *", // 3:00 AM every day
   timeZone: "America/New_York", // EST/EDT timezone
   memory: "256MiB",
-}, async (event) => {
+}, async () => {
   console.log("🏒 Starting scheduled daily scoring...");
 
   try {

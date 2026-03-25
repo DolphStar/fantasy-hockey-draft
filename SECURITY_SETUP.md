@@ -121,17 +121,60 @@ As a user NOT in the league:
    - Currently in environment variables (good!)
    - Don't commit to Git
 
-2. **Keep admin UID secret**
+2. **Treat `.env.local` as local-only**
+   - Keep it untracked and machine-local
+   - If secrets were ever committed in the past, rotate them and verify the remote git history was cleaned up
+   - Do not rely on `.gitignore` alone as your only control
+
+3. **Verify exposed secrets were actually closed out**
+   - Confirm the compromised keys were rotated or revoked
+   - Confirm the old blob is no longer accessible from remote history
+   - Re-check Vercel/Firebase environment variables after rotation so scheduled jobs still work
+
+4. **Keep admin UID secret**
    - Only share league join info, not admin status
    - Admin can't be changed through UI
 
-3. **Regular audits**
+5. **Regular audits**
    - Check Firebase Console → Authentication → Users
    - Remove any suspicious accounts
 
-4. **Monitor usage**
+6. **Monitor usage**
    - Firebase Console → Usage tab
    - Check for unusual activity
+
+## Server Route Access Modes
+
+The server routes now follow three access modes:
+
+1. **Cron-protected**
+   - `/api/calculate-scores`
+   - Requires `Authorization: Bearer $CRON_SECRET`
+   - Returns a server error if `CRON_SECRET` is not configured
+
+2. **Cron-protected with explicit manual bypass**
+   - `/api/fetch-daily-stats`
+   - Same `CRON_SECRET` requirement for normal cron use
+   - Allows the documented `returnOnly=true` query path for manual backfill workflows
+   - Still fails closed if `CRON_SECRET` is missing from the environment
+
+3. **Cron-protected with development-only bypass**
+   - `/api/live-stats`
+   - Requires `CRON_SECRET` to be configured
+   - Accepts requests without a valid bearer token only when `NODE_ENV !== 'production'`
+
+4. **Public proxy endpoints with CORS allowlist**
+   - `/api/current-season-stats`
+   - `/api/last-season-stats`
+   - `/api/nhl-schedule`
+   - Browser access is restricted to the configured allowlist origins
+
+## Required Server Secrets
+
+- `CRON_SECRET`: Required for cron-protected routes in production
+- `FIREBASE_SERVICE_ACCOUNT_KEY`: Required for privileged Firebase Admin operations in Vercel API routes that write to Firestore
+
+If `CRON_SECRET` is missing, fix deployment configuration before troubleshooting application code. If `FIREBASE_SERVICE_ACCOUNT_KEY` is missing, expect Firestore-backed admin routes to fail while `returnOnly=true` backfill responses can still work.
 
 ## Emergency: If Someone Gets Unauthorized Access
 

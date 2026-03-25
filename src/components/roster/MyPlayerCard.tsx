@@ -4,21 +4,10 @@ import PlayerGameLogPopup from './PlayerGameLogPopup';
 import { useState } from 'react';
 import { PlayerPositionBadge } from './PlayerPositionBadge';
 import { PlayerStatsPill } from './PlayerStatsPill';
+import type { DraftedPlayer } from '../../types/draftedPlayer';
 
 interface MyPlayerCardProps {
-    player: {
-        id: string;
-        playerId: string;
-        name: string;
-        position: string;
-        positionName: string;
-        nhlTeam: string;
-        jerseyNumber: number;
-        round: number;
-        pickNumber: number;
-        rosterSlot: 'active' | 'reserve';
-        pendingSlot?: 'active' | 'reserve' | null;
-    };
+    player: DraftedPlayer;
     fantasyPoints?: number;
     stats?: { goals: number; assists: number; gamesPlayed: number; avgPoints: number };
     history?: { points: number; date?: string }[];

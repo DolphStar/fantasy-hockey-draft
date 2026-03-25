@@ -1,9 +1,14 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { db } from '../firebase';
-import { doc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import type { League, LeagueTeam, CreateLeagueData } from '../types/league';
+import {
+  createLeague as createLeagueRecord,
+  findLeagueIdForUser,
+  startLeagueDraft,
+  subscribeToLeague,
+  updateLeagueDocument,
+} from '../services/leagueService';
 
 interface LeagueContextType {
   league: League | null;
@@ -36,46 +41,12 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
     const findUserLeague = async () => {
       try {
-        const { collection, getDocs, getDoc } = await import('firebase/firestore');
-        
-        // Check localStorage first, but VERIFY user is in that league
-        const savedLeagueId = localStorage.getItem('currentLeagueId');
-        if (savedLeagueId) {
-          const leagueDoc = await getDoc(doc(db, 'leagues', savedLeagueId));
-          if (leagueDoc.exists()) {
-            const leagueData = leagueDoc.data() as Omit<League, 'id'>;
-            const userTeam = leagueData.teams.find(team => team.ownerUid === user.uid);
-            
-            if (userTeam) {
-              // User is in this cached league - use it!
-              console.log('Using cached league:', savedLeagueId, 'as team:', userTeam.teamName);
-              setCurrentLeagueId(savedLeagueId);
-              return;
-            } else {
-              // User is NOT in this cached league - clear it
-              console.log('Cached league invalid for this user - clearing');
-              localStorage.removeItem('currentLeagueId');
-            }
-          }
+        const leagueId = await findLeagueIdForUser(user.uid);
+        if (leagueId) {
+          setCurrentLeagueId(leagueId);
+          return;
         }
 
-        // Search for league containing this user's UID
-        const leaguesRef = collection(db, 'leagues');
-        const snapshot = await getDocs(leaguesRef);
-        
-        for (const doc of snapshot.docs) {
-          const leagueData = doc.data() as Omit<League, 'id'>;
-          const userTeam = leagueData.teams.find(team => team.ownerUid === user.uid);
-          
-          if (userTeam) {
-            console.log('Found user league:', doc.id, 'as team:', userTeam.teamName);
-            setCurrentLeagueId(doc.id);
-            localStorage.setItem('currentLeagueId', doc.id);
-            return;
-          }
-        }
-        
-        console.log('No league found for user UID:', user.uid);
         setLoading(false);
       } catch (err) {
         console.error('Error finding user league:', err);
@@ -93,13 +64,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const leagueDocRef = doc(db, 'leagues', currentLeagueId);
-
-    const unsubscribe = onSnapshot(
-      leagueDocRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          setLeague({ id: snapshot.id, ...snapshot.data() } as League);
+    const unsubscribe = subscribeToLeague(
+      currentLeagueId,
+      (nextLeague) => {
+        if (nextLeague) {
+          setLeague(nextLeague);
         } else {
           setLeague(null);
           setError('League not found');
@@ -121,62 +90,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error('Must be signed in to create a league');
 
     try {
-      const leagueId = `league-${Date.now()}`;
-      
-      // Default scoring rules (as per your rules)
-      const defaultScoringRules = {
-        // Skaters
-        goal: 1,
-        assist: 1,
-        shortHandedGoal: 1,
-        overtimeGoal: 1,
-        fight: 2,
-        // Defense
-        blockedShot: 0.15,
-        hit: 0.1,
-        // Goalies
-        win: 1,
-        shutout: 2,
-        save: 0.04,
-        goalieAssist: 1,
-        goalieGoal: 20,
-        goalieFight: 5,
-      };
-      
-      // Default roster settings: 9F / 6D / 2G / 5 reserves
-      const defaultRosterSettings = {
-        forwards: 9,
-        defensemen: 6,
-        goalies: 2,
-        reserves: 5,
-      };
-      
-      // Build flat memberUids array for Firestore security rules
-      const memberUids = [
-        user.uid,
-        ...data.teams.map(t => t.ownerUid).filter(uid => uid && uid !== user.uid),
-      ];
-
-      const leagueData: Omit<League, 'id'> = {
-        leagueName: data.leagueName,
-        admin: user.uid,
-        status: 'pending',
-        teams: data.teams,
-        memberUids,
-        draftRounds: data.draftRounds || 15,
-        scoringRules: defaultScoringRules,
-        rosterSettings: defaultRosterSettings,
-        allowedGameTypes: data.allowedGameTypes || [2], // Regular season only by default
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      await setDoc(doc(db, 'leagues', leagueId), leagueData);
-      
-      // Save this as the current league
-      localStorage.setItem('currentLeagueId', leagueId);
+      const leagueId = await createLeagueRecord(user, data);
       setCurrentLeagueId(leagueId);
-
       return leagueId;
     } catch (err) {
       console.error('Error creating league:', err);
@@ -187,18 +102,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   // Update league
   const updateLeague = async (leagueId: string, updates: Partial<League>) => {
     try {
-      // Keep memberUids in sync when teams change
-      const updatesWithMemberUids = { ...updates };
-      if (updates.teams) {
-        updatesWithMemberUids.memberUids = [
-          ...(league?.admin ? [league.admin] : []),
-          ...updates.teams.map(t => t.ownerUid).filter(uid => uid && uid !== league?.admin),
-        ];
-      }
-      await updateDoc(doc(db, 'leagues', leagueId), {
-        ...updatesWithMemberUids,
-        updatedAt: new Date().toISOString(),
-      });
+      await updateLeagueDocument(leagueId, updates, league?.admin);
     } catch (err) {
       console.error('Error updating league:', err);
       throw err;
@@ -212,10 +116,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      await updateDoc(doc(db, 'leagues', leagueId), {
-        status: 'live',
-        updatedAt: new Date().toISOString(),
-      });
+      await startLeagueDraft(leagueId);
     } catch (err) {
       console.error('Error starting draft:', err);
       throw err;

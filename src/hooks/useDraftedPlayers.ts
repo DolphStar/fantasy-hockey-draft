@@ -1,23 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useLeague } from '../context/LeagueContext';
-
-export interface DraftedPlayer {
-    id: string; // Firestore doc ID
-    playerId: number;
-    name: string;
-    position: string;
-    positionName: string;
-    jerseyNumber: string;
-    nhlTeam: string;
-    draftedByTeam: string;
-    pickNumber: number;
-    round: number;
-    leagueId: string;
-    draftedAt: string;
-    rosterSlot: 'active' | 'reserve';
-}
+import { subscribeDraftedPlayersByLeague } from '../services/draftedPlayersService';
+import type { DraftedPlayer } from '../types/draftedPlayer';
 
 export function useDraftedPlayers() {
     const { league, myTeam } = useLeague();
@@ -30,22 +14,17 @@ export function useDraftedPlayers() {
             return;
         }
 
-        const q = query(
-            collection(db, 'draftedPlayers'),
-            where('leagueId', '==', league.id),
-            orderBy('pickNumber', 'asc')
+        const unsubscribe = subscribeDraftedPlayersByLeague(
+            league.id,
+            (players) => {
+                setDraftedPlayers(players);
+                setLoading(false);
+            },
+            (err) => {
+                console.error("Error fetching drafted players:", err);
+                setLoading(false);
+            },
         );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const players = snapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() } as DraftedPlayer));
-
-            setDraftedPlayers(players);
-            setLoading(false);
-        }, (err) => {
-            console.error("Error fetching drafted players:", err);
-            setLoading(false);
-        });
 
         return () => unsubscribe();
     }, [league]);

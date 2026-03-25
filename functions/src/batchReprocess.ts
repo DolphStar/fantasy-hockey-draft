@@ -66,7 +66,7 @@ async function processSpecificDate(leagueId: string, dateStr: string): Promise<v
     // Monkey-patch Date constructor
     const OriginalDate = Date;
     (global as any).Date = class extends OriginalDate {
-        constructor(...args: any[]) {
+        constructor(...args: [] | ConstructorParameters<DateConstructor>) {
             if (args.length === 0) {
                 super(targetDate.toISOString());
             } else {

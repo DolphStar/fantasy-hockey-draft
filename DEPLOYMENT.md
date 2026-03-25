@@ -23,8 +23,10 @@ git push origin main
    - **Framework Preset**: Vite
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
-5. Add Environment Variables (if needed):
-   - Firebase config is already in your code
+5. Add Environment Variables from `.env.local.example`:
+   - Client Firebase keys: `VITE_FIREBASE_*`
+   - Server cron auth: `CRON_SECRET`
+   - Server admin access: `FIREBASE_SERVICE_ACCOUNT_KEY`
 6. Click **Deploy**
 
 ### 3. How It Works
@@ -46,7 +48,24 @@ Firebase works the same in both environments:
 - Firestore database
 - Real-time updates
 
+#### Scheduled Jobs
+- `/api/fetch-daily-stats` runs at `30 4 * * *`
+- `/api/calculate-scores` runs at `0 5 * * *`
+- `/api/live-stats` is not currently scheduled by Vercel cron; use the admin tools or an external trigger if you want automatic refreshes outside the UI
+
 ## Testing
+
+Before promoting a branch or redeploying, run:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm --prefix functions run build
+```
+
+The same verification now runs in GitHub Actions via `.github/workflows/ci.yml`. Production deploys are still expected to come from Vercel's Git integration after those checks pass.
 
 After deployment:
 1. Visit your Vercel URL (e.g., `fantasy-hockey-draft.vercel.app`)
