@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from './_lib/firebaseAdmin';
+import { processLiveStats } from './_lib/live-stats/processLiveStats';
 import { evaluateCronAccess } from './_lib/routeAccess';
 
 // This endpoint updates live stats for today's games.
@@ -45,8 +46,6 @@ export default async function handler(
       console.log(`Processing live stats for league: ${leagueId}`);
 
       try {
-        // Import and run live stats processing
-        const { processLiveStats } = await import('../src/utils/liveStats');
         const result = await processLiveStats(leagueId);
 
         totalLeagues++;

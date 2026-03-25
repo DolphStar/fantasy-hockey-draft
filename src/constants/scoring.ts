@@ -1,21 +1,6 @@
-import type { RosterSettings, ScoringRules } from '../types/league';
+import type { RosterSettings } from '../types/league';
 
-/** Default scoring rules for fantasy points */
-export const DEFAULT_SCORING_RULES: ScoringRules = {
-  goal: 1,
-  assist: 1,
-  shortHandedGoal: 1,
-  overtimeGoal: 1,
-  fight: 2,
-  blockedShot: 0.15,
-  hit: 0.1,
-  win: 1,
-  shutout: 2,
-  save: 0.04,
-  goalieAssist: 1,
-  goalieGoal: 20,
-  goalieFight: 5,
-};
+export { DEFAULT_SCORING_RULES } from '../../packages/core/scoring/defaults';
 
 /** Default roster settings: 9F / 6D / 2G / 5 reserves */
 export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {

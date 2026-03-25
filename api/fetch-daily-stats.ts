@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminDb } from './_lib/firebaseAdmin';
 import { evaluateCronAccess } from './_lib/routeAccess';
-import { DEFAULT_SCORING_RULES } from '../src/constants/scoring';
-import { getPreviousNewYorkDateString } from '../src/utils/dateUtils';
+import { getPreviousNewYorkDateString } from '../packages/core/dates/dateUtils';
+import { DEFAULT_SCORING_RULES } from '../packages/core/scoring/defaults';
 
 export default async function handler(
   req: VercelRequest,

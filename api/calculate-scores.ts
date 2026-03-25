@@ -2,6 +2,9 @@
 // This will be called by a cron job daily
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+import { applyRosterSwaps } from './_lib/scoring/applyRosterSwaps';
+import { processYesterdayScores } from './_lib/scoring/processYesterdayScores';
 import { evaluateCronAccess } from './_lib/routeAccess';
 
 export default async function handler(
@@ -29,14 +32,8 @@ export default async function handler(
       });
     }
 
-    // Import the scoring engine and roster swaps (dynamic import for serverless)
-    const { processYesterdayScores } = await import('../src/utils/scoringEngine');
-    const { applyRosterSwaps } = await import('../src/utils/applyRosterSwaps');
-    
-    // Apply roster swaps if it's Saturday
     const swapResult = await applyRosterSwaps();
-    
-    // Run the scoring calculation
+
     await processYesterdayScores(leagueId);
     
     console.log(`Successfully calculated scores for league: ${leagueId}`);

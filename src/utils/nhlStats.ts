@@ -1,7 +1,11 @@
 // NHL Stats API utilities for fetching game data and player stats
 // Uses the same proxy configuration as nhlApi.ts
 
+import type { PlayerGameStats } from '../../packages/core/nhl/types';
+
 const BASE_URL_WEB = import.meta.env.PROD ? '/api/web/v1' : '/v1';
+
+export type { PlayerGameStats };
 
 export interface GameScore {
   id: number;
@@ -22,37 +26,6 @@ export interface GameScore {
   gameOutcome: {
     lastPeriodType: string;
   };
-}
-
-export interface PlayerGameStats {
-  playerId: number;
-  name: {
-    default: string; // NHL API returns name as object with 'default' property
-  };
-  teamAbbrev?: string;
-  position: string;
-  sweaterNumber?: number;
-  goals?: number;
-  assists?: number;
-  points?: number;
-  plusMinus?: number;
-  powerPlayGoals?: number;
-  shortHandedGoals?: number;
-  shots?: number;
-  hits?: number;
-  blockedShots?: number;
-  pim?: number; // Penalty minutes
-  fights?: number; // Actual fighting penalties (added by countFightsFromPlayByPlay)
-  faceoffWinningPctg?: number;
-  toi?: string; // Time on ice
-  // Goalie stats
-  wins?: number;
-  losses?: number;
-  otLosses?: number;
-  saves?: number;
-  goalsAgainst?: number;
-  shutouts?: number;
-  savePctg?: number;
 }
 
 export interface Boxscore {
