@@ -211,11 +211,10 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 
 ## 📚 Documentation
 
-- [SCORING.md](./SCORING.md) - Detailed scoring system documentation
-- [DRAFT_SETUP.md](./DRAFT_SETUP.md) - Draft setup guide and roster requirements
-- [LIVE_STATS.md](./LIVE_STATS.md) - Live stats feature documentation
-- [DEPLOYMENT.md](./DEPLOYMENT.md) - Deployment instructions
-- [SECURITY_SETUP.md](./SECURITY_SETUP.md) - Firebase security rules guide
+- [SCORING.md](./docs/SCORING.md) - Detailed scoring system documentation
+- [DRAFT_SETUP.md](./docs/DRAFT_SETUP.md) - Draft setup guide and roster requirements
+- [LIVE_STATS.md](./docs/LIVE_STATS.md) - Live stats feature documentation
+- [DEPLOYMENT.md](./docs/DEPLOYMENT.md) - Deployment instructions
 
 ---
 
@@ -262,7 +261,7 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 - **Roster updates** - league members can swap their own players
 - **Chat moderation** - admins can delete messages and ban users
 
-See [SECURITY_SETUP.md](./SECURITY_SETUP.md) for detailed security configuration.
+See `firestore.rules` for the full security rule definitions.
 
 ---
 

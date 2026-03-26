@@ -31,3 +31,4 @@ git_files.txt
 backup-firestore.mjs
 firestore-backup-*/
 migrate-memberuids.mjs
+docs/superpowers/
