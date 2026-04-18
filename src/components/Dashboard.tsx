@@ -183,7 +183,10 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
             return;
         }
         const load = async () => {
-            const schedule = await fetchTodaySchedule();
+            const allowedGameTypes = league?.allowedGameTypes && league.allowedGameTypes.length > 0
+                ? league.allowedGameTypes
+                : [2]; // Default: regular season only
+            const schedule = await fetchTodaySchedule(allowedGameTypes);
             const roster = activeRoster.map(player => ({
                 playerId: player.playerId,
                 name: player.name,
@@ -192,7 +195,7 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
             setMatchups(getUpcomingMatchups(roster, schedule));
         };
         load();
-    }, [activeRoster]);
+    }, [activeRoster, league]);
 
     useEffect(() => {
         if (!league) {

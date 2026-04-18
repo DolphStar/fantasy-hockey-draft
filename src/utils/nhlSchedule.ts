@@ -17,6 +17,8 @@ interface Game {
   awayTeam: { abbrev: string; placeName: { default: string }; score?: number };
   homeTeam: { abbrev: string; placeName: { default: string }; score?: number };
   gameState: string;
+  /** NHL game type: 1=Preseason, 2=Regular Season, 3=Playoffs, 4=All-Star */
+  gameType?: number;
 }
 
 /** A single day's schedule */
@@ -67,22 +69,27 @@ export interface PlayerMatchup {
  * 
  * @returns Promise with array of today's games
  */
-export async function fetchTodaySchedule(): Promise<Game[]> {
+export async function fetchTodaySchedule(allowedGameTypes?: number[]): Promise<Game[]> {
   try {
     // Use our serverless function to avoid CORS issues
     const response = await fetch('/api/nhl-schedule');
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     const data: ScheduleResponse = await response.json();
-    
+
     const targetDate = getHockeyDay();
-    
+
     // Find games for target date
     const schedule = data.gameWeek.find(day => day.date === targetDate);
-    
-    return schedule?.games || [];
+    const games = schedule?.games || [];
+
+    // Filter by league-allowed gameTypes (e.g. regular season only = [2])
+    if (allowedGameTypes && allowedGameTypes.length > 0) {
+      return games.filter(g => g.gameType === undefined || allowedGameTypes.includes(g.gameType));
+    }
+    return games;
   } catch (error) {
     console.error('Error fetching NHL schedule:', error);
     return [];
@@ -95,19 +102,24 @@ export async function fetchTodaySchedule(): Promise<Game[]> {
  * @param dateStr - Date in YYYY-MM-DD format
  * @returns Promise with array of games for that date
  */
-export async function fetchScheduleForDate(dateStr: string): Promise<Game[]> {
+export async function fetchScheduleForDate(dateStr: string, allowedGameTypes?: number[]): Promise<Game[]> {
   try {
     const response = await fetch('/api/nhl-schedule');
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     const data: ScheduleResponse = await response.json();
-    
+
     // Find games for the specified date
     const schedule = data.gameWeek.find(day => day.date === dateStr);
-    
-    return schedule?.games || [];
+    const games = schedule?.games || [];
+
+    // Filter by league-allowed gameTypes (e.g. regular season only = [2])
+    if (allowedGameTypes && allowedGameTypes.length > 0) {
+      return games.filter(g => g.gameType === undefined || allowedGameTypes.includes(g.gameType));
+    }
+    return games;
   } catch (error) {
     console.error(`Error fetching NHL schedule for ${dateStr}:`, error);
     return [];

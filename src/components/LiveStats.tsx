@@ -143,7 +143,10 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
 
     const fetchMatchups = async () => {
       try {
-        const games = await fetchScheduleForDate(selectedDate);
+        const allowedGameTypes = league.allowedGameTypes && league.allowedGameTypes.length > 0
+          ? league.allowedGameTypes
+          : [2]; // Default: regular season only
+        const games = await fetchScheduleForDate(selectedDate, allowedGameTypes);
         const roster = (await fetchDraftedPlayers(league.id, {
           teamName: myTeam.teamName,
           activeOnly: true,
