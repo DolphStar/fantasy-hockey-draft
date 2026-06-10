@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 
 import { db } from '../firebase';
 import { createInitialDraftState } from '../utils/draftLogic';
@@ -40,13 +40,6 @@ export function subscribeToDraftState(
   );
 }
 
-export async function advanceDraftState(leagueId: string, draftState: DraftState) {
-  const nextPickNumber = draftState.currentPickNumber + 1;
-  await updateDoc(doc(db, 'drafts', leagueId), {
-    currentPickNumber: nextPickNumber,
-    isComplete: nextPickNumber > draftState.totalPicks,
-  });
-}
 
 export async function resetDraftForLeague(league: League) {
   // Only delete drafted players belonging to THIS league — the collection is
