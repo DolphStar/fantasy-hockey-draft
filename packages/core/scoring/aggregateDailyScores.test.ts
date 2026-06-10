@@ -87,4 +87,32 @@ describe('aggregateDailyScores (golden master)', () => {
     expect(teamPoints.size).toBe(0);
     expect(playerScores).toEqual([]);
   });
+
+  it('accumulates one team total across multiple games', () => {
+    const { teamPoints } = aggregateDailyScores(
+      [
+        [skater({ playerId: 1, goals: 1 })], // Team A: 1
+        [skater({ playerId: 2, position: 'D', assists: 2 })], // Team A: 2
+      ],
+      playerToTeamMap,
+      DEFAULT_SCORING_RULES,
+      DATE,
+    );
+
+    expect(teamPoints.get('Team A')).toBeCloseTo(3, 5);
+    expect(teamPoints.size).toBe(1);
+  });
+
+  it('scores the goalie fight bonus through the goalie branch', () => {
+    const { teamPoints, playerScores } = aggregateDailyScores(
+      [[skater({ playerId: 3, position: 'G', teamAbbrev: 'NYR', wins: 1, saves: 30, shutouts: 1, fights: 1 })]],
+      playerToTeamMap,
+      DEFAULT_SCORING_RULES,
+      DATE,
+    );
+
+    // win 1 + saves 30*0.04 + shutout 2 + goalie fight 5 = 9.2
+    expect(teamPoints.get('Team B')).toBeCloseTo(9.2, 5);
+    expect(playerScores[0].stats).toEqual({ wins: 1, saves: 30, shutouts: 1 });
+  });
 });
