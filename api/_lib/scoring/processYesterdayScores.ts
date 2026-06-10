@@ -5,7 +5,8 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { getPreviousNewYorkDateString } from '../../../packages/core/dates/dateUtils.js';
-import { calculatePlayerPoints } from '../../../packages/core/scoring/scoringMath.js';
+import { aggregateDailyScores } from '../../../packages/core/scoring/aggregateDailyScores.js';
+import type { PlayerGameStats } from '../../../packages/core/nhl/types.js';
 import type { ScoringRules } from '../../../packages/core/scoring/types.js';
 
 import { getAdminDb } from '../firebaseAdmin.js';
@@ -26,16 +27,6 @@ export interface TeamScore {
   wins: number;
   losses: number;
   lastUpdated: string;
-}
-
-export interface PlayerDailyScore {
-  playerId: number;
-  playerName: string;
-  teamName: string;
-  nhlTeam: string;
-  date: string;
-  points: number;
-  stats: Record<string, number>;
 }
 
 function countFightsFromPlayByPlay(playByPlay: unknown): Map<number, number> {
@@ -149,93 +140,31 @@ export async function processYesterdayScores(
       `Processing ${gameIds.length} completed games (allowed gameTypes: ${allowedGameTypes.join(',')})`,
     );
 
-    const teamPoints = new Map<string, number>();
-    const playerScores: PlayerDailyScore[] = [];
-
-    console.log('DEBUG: Drafted player IDs:', Array.from(playerToTeamMap.keys()).slice(0, 5));
+    const playersByGame: PlayerGameStats[][] = [];
 
     for (const gameId of gameIds) {
       try {
         const boxscore = await getGameBoxscore(gameId);
-
         const playByPlay = await getGamePlayByPlay(gameId);
         const fightCounts = countFightsFromPlayByPlay(playByPlay);
 
         const allPlayers = getAllPlayersFromBoxscore(boxscore);
-
         allPlayers.forEach((p) => {
           p.fights = fightCounts.get(p.playerId) || 0;
         });
 
-        console.log(`DEBUG: Game ${gameId} has ${allPlayers.length} players`);
-        if (allPlayers.length > 0) {
-          console.log('DEBUG: Sample player from game:', {
-            id: allPlayers[0].playerId,
-            name: allPlayers[0].name.default,
-            position: allPlayers[0].position,
-            goals: allPlayers[0].goals,
-            assists: allPlayers[0].assists,
-          });
-        }
-
-        for (const playerStats of allPlayers) {
-          const fantasyTeam = playerToTeamMap.get(playerStats.playerId);
-
-          if (fantasyTeam) {
-            const points = calculatePlayerPoints(playerStats, scoringRules);
-
-            if (isNaN(points) || !isFinite(points)) {
-              console.warn(
-                `${playerStats.name.default} (${fantasyTeam}): Invalid points (${points}) - skipping`,
-              );
-              continue;
-            }
-
-            const currentPoints = teamPoints.get(fantasyTeam) || 0;
-            const newTotal = currentPoints + points;
-
-            if (isNaN(newTotal) || !isFinite(newTotal)) {
-              console.error(
-                `Invalid team total for ${fantasyTeam}: ${currentPoints} + ${points} = ${newTotal}`,
-              );
-              continue;
-            }
-
-            teamPoints.set(fantasyTeam, newTotal);
-
-            if (points > 0) {
-              const stats: Record<string, number> = {};
-              if (playerStats.goals !== undefined) stats.goals = playerStats.goals;
-              if (playerStats.assists !== undefined) stats.assists = playerStats.assists;
-              if (playerStats.shots !== undefined) stats.shots = playerStats.shots;
-              if (playerStats.hits !== undefined) stats.hits = playerStats.hits;
-              if (playerStats.blockedShots !== undefined)
-                stats.blockedShots = playerStats.blockedShots;
-              if (playerStats.pim !== undefined) stats.pim = playerStats.pim;
-              if (playerStats.wins !== undefined) stats.wins = playerStats.wins;
-              if (playerStats.saves !== undefined) stats.saves = playerStats.saves;
-              if (playerStats.shutouts !== undefined) stats.shutouts = playerStats.shutouts;
-
-              playerScores.push({
-                playerId: playerStats.playerId,
-                playerName: playerStats.name.default,
-                teamName: fantasyTeam,
-                nhlTeam: playerStats.teamAbbrev || 'UNK',
-                date: dateStr,
-                points,
-                stats,
-              });
-
-              console.log(`${playerStats.name.default} (${fantasyTeam}): ${points.toFixed(2)} pts`);
-            }
-          }
-        }
+        playersByGame.push(allPlayers);
       } catch (error) {
         console.error(`Error processing game ${gameId}:`, error);
       }
     }
 
-    console.log('DEBUG: Team points before update:', Array.from(teamPoints.entries()));
+    const { teamPoints, playerScores } = aggregateDailyScores(
+      playersByGame,
+      playerToTeamMap,
+      scoringRules,
+      dateStr,
+    );
 
     for (const [teamName, points] of teamPoints.entries()) {
       if (isNaN(points) || !isFinite(points)) {
