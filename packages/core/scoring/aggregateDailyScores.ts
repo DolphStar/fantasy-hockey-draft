@@ -46,20 +46,12 @@ export function aggregateDailyScores(
   const teamPoints = new Map<string, number>();
   const playerScores: AggregatedPlayerScore[] = [];
 
-  // Sanitize rules so that NaN/Infinity rule values don't poison the entire
-  // player calculation when a stat is absent (e.g. 0 * NaN = NaN). Any
-  // non-finite rule value is replaced with 0 so only stats that actually
-  // apply a finite multiplier contribute to a player's total.
-  const safeRules = Object.fromEntries(
-    Object.entries(rules).map(([k, v]) => [k, Number.isFinite(v as number) ? v : 0]),
-  ) as ScoringRules;
-
   for (const gamePlayers of playersByGame) {
     for (const playerStats of gamePlayers) {
       const fantasyTeam = playerToTeamMap.get(playerStats.playerId);
       if (!fantasyTeam) continue;
 
-      const points = calculatePlayerPoints(playerStats, safeRules);
+      const points = calculatePlayerPoints(playerStats, rules);
       if (!Number.isFinite(points)) continue;
 
       teamPoints.set(fantasyTeam, (teamPoints.get(fantasyTeam) ?? 0) + points);

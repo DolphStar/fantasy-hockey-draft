@@ -67,7 +67,7 @@ describe('aggregateDailyScores (golden master)', () => {
     expect(playerScores[0].stats).toEqual({ goals: 1 });
   });
 
-  it('skips non-finite point results without corrupting team totals', () => {
+  it('skips players whose computed points are non-finite (historical behavior)', () => {
     const badRules = { ...DEFAULT_SCORING_RULES, goal: Number.NaN };
     const { teamPoints, playerScores } = aggregateDailyScores(
       [[skater({ playerId: 1, goals: 1 }), skater({ playerId: 2, position: 'D', assists: 2 })]],
@@ -76,8 +76,10 @@ describe('aggregateDailyScores (golden master)', () => {
       DATE,
     );
 
-    expect(teamPoints.get('Team A')).toBeCloseTo(2, 5); // only the assist player counts
-    expect(playerScores.map((p) => p.playerId)).toEqual([2]);
+    // 0 * NaN = NaN poisons every skater computed with these rules, so the
+    // pipeline drops both players rather than partially scoring them.
+    expect(teamPoints.size).toBe(0);
+    expect(playerScores).toEqual([]);
   });
 
   it('returns empty aggregation for no games', () => {
