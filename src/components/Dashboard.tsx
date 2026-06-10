@@ -5,6 +5,7 @@ import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
 import type { DraftedPlayer } from '../types/draftedPlayer';
+import type { Tab } from '../types';
 import { useInjuries } from '../queries/useInjuries';
 import { useTeamTrend } from '../queries/useTeamTrend';
 import { useTodaySchedule } from '../queries/useTodaySchedule';
@@ -69,7 +70,7 @@ interface RosterEvent {
 }
 
 interface DashboardProps {
-    setActiveTab: (tab: any) => void;
+    setActiveTab: (tab: Tab) => void;
     setRosterSearchQuery: (query: string) => void;
 }
 

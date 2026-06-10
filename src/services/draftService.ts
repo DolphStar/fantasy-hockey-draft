@@ -40,7 +40,6 @@ export function subscribeToDraftState(
   );
 }
 
-
 export async function resetDraftForLeague(league: League) {
   // Only delete drafted players belonging to THIS league — the collection is
   // global across leagues.
