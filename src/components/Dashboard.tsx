@@ -6,15 +6,16 @@ import { GradientButton } from './ui/GradientButton';
 import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
 import type { DraftedPlayer } from '../types/draftedPlayer';
 import { useInjuries } from '../queries/useInjuries';
+import { useTeamTrend } from '../queries/useTeamTrend';
+import { useTodaySchedule } from '../queries/useTodaySchedule';
+import { useHotPickups } from '../queries/useHotPickups';
 import { getHockeyDay } from '../utils/dateUtils';
-import { fetchTodaySchedule, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
+import { getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import type { LivePlayerStats } from '../utils/liveStats';
 import { subscribeRecentLeagueMessages } from '../services/chatService';
 import { getInjuryColor, type InjuryReport } from '../services/injuryService';
 import { subscribeLiveStatsByDate } from '../services/liveStatsService';
-import { fetchTeamTrend, type TeamTrendPoint } from '../services/playerPerformanceService';
 import { subscribeLeagueTeamScoreSummary } from '../services/teamScoreService';
-import { fetchHotPickups, type HotPickupData } from '../services/waiverWireService';
 
 const MAX_FEED_ITEMS = 6;
 const MAX_TREND_DAYS = 7;
@@ -79,11 +80,7 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
     const { data: injuries = [] } = useInjuries();
 
     const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
-    const [matchups, setMatchups] = useState<PlayerMatchup[]>([]);
     const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-    const [trend, setTrend] = useState<TeamTrendPoint[]>([]);
-    const [hotPickups, setHotPickups] = useState<HotPickupData[]>([]);
-    const [hotPickupsLabel, setHotPickupsLabel] = useState('Season Leaders');
     const [teamPoints, setTeamPoints] = useState<number>(0);
     const [leagueAveragePoints, setLeagueAveragePoints] = useState<number>(0);
     const [rosterEvents, setRosterEvents] = useState<RosterEvent[]>([]);
@@ -106,6 +103,30 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
         if (!myTeam) return [];
         return draftedPlayers.filter(p => p.draftedByTeam === myTeam.teamName && p.rosterSlot !== 'reserve');
     }, [draftedPlayers, myTeam]);
+
+    // React Query: team trend
+    const { data: trend = [] } = useTeamTrend(league?.id, myTeam?.teamName, league?.teams.length ?? 0, MAX_TREND_DAYS);
+
+    // React Query: today's schedule → matchups
+    const allowedGameTypes = useMemo(
+        () => (league?.allowedGameTypes && league.allowedGameTypes.length > 0 ? league.allowedGameTypes : [2]), // Default: regular season only
+        [league],
+    );
+    const { data: schedule } = useTodaySchedule(allowedGameTypes);
+    const matchups = useMemo(() => {
+        if (!schedule || activeRoster.length === 0) return [];
+        const roster = activeRoster.map(player => ({
+            playerId: player.playerId,
+            name: player.name,
+            nhlTeam: player.nhlTeam,
+        }));
+        return getUpcomingMatchups(roster, schedule);
+    }, [schedule, activeRoster]);
+
+    // React Query: hot pickups
+    const { data: hotPickupsData } = useHotPickups(league?.id, draftedPlayerIds);
+    const hotPickups = hotPickupsData?.items ?? [];
+    const hotPickupsLabel = hotPickupsData?.label ?? 'Season Leaders';
 
     const rosterSnapshotRef = useRef<Map<number, DraftedPlayer>>(new Map());
     const hasRosterSnapshotRef = useRef(false);
@@ -176,26 +197,6 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
             setLiveStats(entries);
         }, ids);
     }, [league, myTeam, activeRoster]);
-
-    useEffect(() => {
-        if (!activeRoster.length) {
-            setMatchups([]);
-            return;
-        }
-        const load = async () => {
-            const allowedGameTypes = league?.allowedGameTypes && league.allowedGameTypes.length > 0
-                ? league.allowedGameTypes
-                : [2]; // Default: regular season only
-            const schedule = await fetchTodaySchedule(allowedGameTypes);
-            const roster = activeRoster.map(player => ({
-                playerId: player.playerId,
-                name: player.name,
-                nhlTeam: player.nhlTeam
-            }));
-            setMatchups(getUpcomingMatchups(roster, schedule));
-        };
-        load();
-    }, [activeRoster, league]);
 
     useEffect(() => {
         if (!league) {
@@ -293,37 +294,6 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
 
         return () => unsubscribe();
     }, [league, injuries, draftedPlayerIds, rosterEvents, goToChat, goToRoster, goToInjuries]);
-
-    useEffect(() => {
-        if (!league || !myTeam) {
-            setTrend([]);
-            return;
-        }
-        const loadTrend = async () => {
-            const rows = await fetchTeamTrend(league.id, myTeam.teamName, league.teams.length, MAX_TREND_DAYS);
-            setTrend(rows);
-        };
-        loadTrend();
-    }, [league, myTeam]);
-
-    // Waiver Wire / Hot Pickups Logic
-    useEffect(() => {
-        if (!league) {
-            setHotPickups([]);
-            return;
-        }
-        const loadHot = async () => {
-            try {
-                const { items, label } = await fetchHotPickups(draftedPlayerIds);
-                setHotPickups(items);
-                setHotPickupsLabel(label);
-            } catch (error) {
-                console.error('Error loading hot pickups:', error);
-                setHotPickups([]);
-            }
-        };
-        loadHot();
-    }, [league, draftedPlayerIds]);
 
     useEffect(() => {
         if (!league || !myTeam) {
