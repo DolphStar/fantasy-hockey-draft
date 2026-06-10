@@ -312,7 +312,6 @@ fantasy-hockey-draft/
 │   ├── hooks/                # Custom React hooks
 │   ├── utils/                # Utility functions
 │   │   ├── liveStats.ts      # Live stats processing
-│   │   ├── scoringEngine.ts  # Fantasy point calculation
 │   │   ├── nhlApi.ts         # NHL API helpers
 │   │   └── ...
 │   ├── types/                # TypeScript type definitions

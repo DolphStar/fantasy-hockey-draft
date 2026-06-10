@@ -92,17 +92,20 @@ This function:
 
 You can manually trigger scoring for any date:
 
-1. **Via API Call:**
+1. **Via API Call** (requires either the cron secret or a league-admin Firebase ID token):
 ```bash
-curl -X GET "https://your-app.vercel.app/api/calculate-scores?leagueId=league-123"
+# Using the cron secret
+curl "https://your-app.vercel.app/api/calculate-scores?leagueId=league-123&date=YYYY-MM-DD" \
+  -H "x-cron-secret: $CRON_SECRET"
+
+# Using a Firebase ID token (league admin)
+curl "https://your-app.vercel.app/api/calculate-scores?leagueId=league-123&date=YYYY-MM-DD" \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
-2. **Via Console (in browser DevTools):**
-```javascript
-// Import and run scoring manually
-import { processYesterdayScores } from './utils/scoringEngine';
-await processYesterdayScores('league-1234567890');
-```
+2. **Via Admin UI:**
+
+   In League Settings, click **Test Scoring** — this calls `POST /api/calculate-scores` with your Firebase ID token (league-admin authentication required). You can specify any date in the dialog.
 
 ## Viewing Standings
 
@@ -144,14 +147,11 @@ await updateDoc(doc(db, 'leagues', leagueId), {
 - Goalie wins/shutouts are calculated based on game outcome
 
 ### Testing Locally?
-The cron job won't run locally. To test scoring:
+The cron job won't run locally. To test scoring, run the dev server and use the **Test Scoring** button in League Settings, or call the endpoint directly with your cron secret:
 
 ```bash
-# Run the dev server
-npm run dev
-
-# In browser console, manually trigger:
-# (requires importing scoring functions)
+curl "http://localhost:5173/api/calculate-scores?leagueId=<leagueId>&date=YYYY-MM-DD" \
+  -H "x-cron-secret: $CRON_SECRET"
 ```
 
 ## Future Enhancements
