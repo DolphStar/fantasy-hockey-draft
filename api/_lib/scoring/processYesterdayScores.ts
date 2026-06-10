@@ -9,6 +9,7 @@ import { aggregateDailyScores } from '../../../packages/core/scoring/aggregateDa
 import type { PlayerGameStats } from '../../../packages/core/nhl/types.js';
 import type { ScoringRules } from '../../../packages/core/scoring/types.js';
 
+import { mapWithConcurrency } from '../concurrency.js';
 import { getAdminDb } from '../firebaseAdmin.js';
 import {
   getAllPlayersFromBoxscore,
@@ -20,6 +21,9 @@ import {
   buildActivePlayerToTeamMap,
   filterCompletedGamesForScoring,
 } from './helpers.js';
+
+const GAME_FETCH_CONCURRENCY = 4;
+const BATCH_LIMIT = 500;
 
 export interface TeamScore {
   teamName: string;
@@ -140,24 +144,24 @@ export async function processYesterdayScores(
       `Processing ${gameIds.length} completed games (allowed gameTypes: ${allowedGameTypes.join(',')})`,
     );
 
-    const playersByGame: PlayerGameStats[][] = [];
+    const playersByGame = (
+      await mapWithConcurrency(gameIds, GAME_FETCH_CONCURRENCY, async (gameId) => {
+        try {
+          const boxscore = await getGameBoxscore(gameId);
+          const playByPlay = await getGamePlayByPlay(gameId);
+          const fightCounts = countFightsFromPlayByPlay(playByPlay);
 
-    for (const gameId of gameIds) {
-      try {
-        const boxscore = await getGameBoxscore(gameId);
-        const playByPlay = await getGamePlayByPlay(gameId);
-        const fightCounts = countFightsFromPlayByPlay(playByPlay);
-
-        const allPlayers = getAllPlayersFromBoxscore(boxscore);
-        allPlayers.forEach((p) => {
-          p.fights = fightCounts.get(p.playerId) || 0;
-        });
-
-        playersByGame.push(allPlayers);
-      } catch (error) {
-        console.error(`Error processing game ${gameId}:`, error);
-      }
-    }
+          const allPlayers = getAllPlayersFromBoxscore(boxscore);
+          allPlayers.forEach((p) => {
+            p.fights = fightCounts.get(p.playerId) || 0;
+          });
+          return allPlayers;
+        } catch (error) {
+          console.error(`Error processing game ${gameId}:`, error);
+          return [] as PlayerGameStats[];
+        }
+      })
+    ).filter((players) => players.length > 0);
 
     const { teamPoints, playerScores } = aggregateDailyScores(
       playersByGame,
@@ -192,10 +196,15 @@ export async function processYesterdayScores(
       console.log(`Updated ${teamName}: +${points.toFixed(2)} points`);
     }
 
-    for (const playerScore of playerScores) {
-      const scoreId = `${playerScore.playerId}-${dateStr}`;
-      const scoreRef = db.doc(`leagues/${leagueId}/playerDailyScores/${scoreId}`);
-      await scoreRef.set(playerScore);
+    for (let i = 0; i < playerScores.length; i += BATCH_LIMIT) {
+      const batch = db.batch();
+      for (const playerScore of playerScores.slice(i, i + BATCH_LIMIT)) {
+        const scoreRef = db.doc(
+          `leagues/${leagueId}/playerDailyScores/${playerScore.playerId}-${dateStr}`,
+        );
+        batch.set(scoreRef, playerScore);
+      }
+      await batch.commit();
     }
 
     await processedDateRef.set({
