@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
-import { processYesterdayScores } from '../../utils/scoringEngine';
+import { auth } from '../../firebase';
 import { db } from '../../firebase';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import { GlassCard } from '../ui/GlassCard';
@@ -29,7 +29,23 @@ export default function TestScoring() {
       setProcessing(true);
       setResult(`⏳ Processing games for ${targetDate || 'yesterday'}...`);
 
-      await processYesterdayScores(league.id, targetDate || undefined);
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        setResult('❌ Not signed in');
+        return;
+      }
+
+      const params = new URLSearchParams({ leagueId: league.id });
+      if (targetDate) params.set('date', targetDate);
+
+      const response = await fetch(`/api/calculate-scores?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(body.message || body.error || `HTTP ${response.status}`);
+      }
 
       setResult('✅ Scoring complete! Check Standings page for updated scores.');
     } catch (error) {
@@ -174,6 +190,7 @@ export default function TestScoring() {
         <p>• Check the browser console for detailed logs</p>
         <p>• Results will appear in the Standings page</p>
         <p>• In production, this runs automatically every day at 5 AM UTC</p>
+        <p>• Requires the deployed environment or vercel dev (plain npm run dev serves only the Vite client)</p>
       </div>
     </GlassCard>
   );
