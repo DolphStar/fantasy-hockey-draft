@@ -92,11 +92,11 @@ This function:
 
 You can manually trigger scoring for any date:
 
-1. **Via API Call** (requires either the cron secret or a league-admin Firebase ID token):
+1. **Via API Call** (`GET`, requires either the cron secret or a league-admin Firebase ID token — both passed in the `Authorization: Bearer` header):
 ```bash
 # Using the cron secret
 curl "https://your-app.vercel.app/api/calculate-scores?leagueId=league-123&date=YYYY-MM-DD" \
-  -H "x-cron-secret: $CRON_SECRET"
+  -H "Authorization: Bearer $CRON_SECRET"
 
 # Using a Firebase ID token (league admin)
 curl "https://your-app.vercel.app/api/calculate-scores?leagueId=league-123&date=YYYY-MM-DD" \
@@ -105,7 +105,7 @@ curl "https://your-app.vercel.app/api/calculate-scores?leagueId=league-123&date=
 
 2. **Via Admin UI:**
 
-   In League Settings, click **Test Scoring** — this calls `POST /api/calculate-scores` with your Firebase ID token (league-admin authentication required). You can specify any date in the dialog.
+   In League Settings, click **Test Scoring** — this calls `GET /api/calculate-scores` with your Firebase ID token in the `Authorization: Bearer` header (league-admin authentication required). You can specify any date in the dialog.
 
 ## Viewing Standings
 
@@ -147,11 +147,11 @@ await updateDoc(doc(db, 'leagues', leagueId), {
 - Goalie wins/shutouts are calculated based on game outcome
 
 ### Testing Locally?
-The cron job won't run locally. To test scoring, run the dev server and use the **Test Scoring** button in League Settings, or call the endpoint directly with your cron secret:
+The cron job won't run locally, and plain `npm run dev` (Vite) does not serve the `/api` routes. Run `vercel dev` instead, then use the **Test Scoring** button in League Settings, or call the endpoint directly with your cron secret:
 
 ```bash
-curl "http://localhost:5173/api/calculate-scores?leagueId=<leagueId>&date=YYYY-MM-DD" \
-  -H "x-cron-secret: $CRON_SECRET"
+curl "http://localhost:3000/api/calculate-scores?leagueId=<leagueId>&date=YYYY-MM-DD" \
+  -H "Authorization: Bearer $CRON_SECRET"
 ```
 
 ## Future Enhancements
