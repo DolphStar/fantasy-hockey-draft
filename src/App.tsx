@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Login from './components/Login';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
@@ -9,7 +10,6 @@ import { useDraft } from './context/DraftContext';
 import { useTurnNotification } from './hooks/useTurnNotification';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import ScrollToTop from './components/ui/ScrollToTop';
-import type { Tab } from './types';
 
 const PlayerList = lazyWithRetry(() => import('./components/PlayerList'))
 const NHLRoster = lazyWithRetry(() => import('./components/NHLRoster'))
@@ -22,11 +22,9 @@ const PlayerComparisonModal = lazyWithRetry(() => import('./components/modals/Pl
 const DraftCelebration = lazyWithRetry(() => import('./components/draft/DraftCelebration'))
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [isNavOpen, setIsNavOpen] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationPlayer, setCelebrationPlayer] = useState('')
-  const [rosterSearchQuery, setRosterSearchQuery] = useState('')
   const { user, loading: authLoading, signOut } = useAuth()
   const { draftState } = useDraft()
 
@@ -120,15 +118,10 @@ function App() {
           </div>
         </header>
 
-        {/* Tab Navigation */}
-        <Navbar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          isNavOpen={isNavOpen}
-          setIsNavOpen={setIsNavOpen}
-        />
+        {/* Section Navigation */}
+        <Navbar isNavOpen={isNavOpen} setIsNavOpen={setIsNavOpen} />
 
-        {/* Tab Content */}
+        {/* Routed Content */}
         <Suspense
           fallback={
             <div className="flex justify-center items-center py-12">
@@ -136,18 +129,21 @@ function App() {
             </div>
           }
         >
-          {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} setRosterSearchQuery={setRosterSearchQuery} />}
-          {activeTab === 'roster' && <NHLRoster initialSearchQuery={rosterSearchQuery} onSearchQueryUsed={() => setRosterSearchQuery('')} />}
-          {activeTab === 'draftBoard' && (
-            <div className="max-w-6xl mx-auto px-6">
-              <DraftBoardGrid />
-            </div>
-          )}
-          {activeTab === 'myPlayers' && <PlayerList />}
-          {activeTab === 'standings' && <Standings />}
-          {activeTab === 'injuries' && <Injuries />}
-          {activeTab === 'chat' && <LeagueChat />}
-          {activeTab === 'leagueSettings' && <LeagueSettings />}
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/players" element={<PlayerList />} />
+            <Route path="/players/browse" element={<NHLRoster />} />
+            <Route path="/players/injuries" element={<Injuries />} />
+            <Route path="/scores" element={<Standings />} />
+            <Route path="/draft" element={
+              <div className="max-w-6xl mx-auto px-6">
+                <DraftBoardGrid />
+              </div>
+            } />
+            <Route path="/league" element={<LeagueSettings />} />
+            <Route path="/chat" element={<LeagueChat />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </Suspense>
 
         <PlayerComparisonModal />

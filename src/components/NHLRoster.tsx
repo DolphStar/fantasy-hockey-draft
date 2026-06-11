@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { toast } from 'sonner';
@@ -25,12 +26,7 @@ import RosterFilters from './roster/RosterFilters';
 import DraftStatus from './draft/DraftStatus';
 import BestAvailable from './draft/BestAvailable';
 
-interface NHLRosterProps {
-  initialSearchQuery?: string;
-  onSearchQueryUsed?: () => void;
-}
-
-export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }: NHLRosterProps) {
+export default function NHLRoster() {
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
   const [myTeamPositions, setMyTeamPositions] = useState({
@@ -38,7 +34,8 @@ export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }
     reserve: 0,
     total: 0
   });
-  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ALL'); // Default to all teams
   const [lastSeasonStats, setLastSeasonStats] = useState<StatsMap>({}); // Last season stats
@@ -50,13 +47,15 @@ export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }
   const { draftState, currentPick, isMyTurn } = useDraft();
   const { playSound } = useSound();
 
-  // Update search query when navigating from Dashboard with a player name
+  // Seed search box from ?search= (deep link from Home), then strip the param
   useEffect(() => {
-    if (initialSearchQuery) {
-      setSearchQuery(initialSearchQuery);
-      onSearchQueryUsed?.();
+    const q = searchParams.get('search');
+    if (q) {
+      setSearchQuery(q);
+      setSearchParams({}, { replace: true });
     }
-  }, [initialSearchQuery, onSearchQueryUsed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // React Query hooks - automatic caching and refetching!
   const { data: injuries = [] } = useInjuries();

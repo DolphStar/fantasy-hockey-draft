@@ -9,6 +9,7 @@ import { ComparisonProvider } from './context/ComparisonContext'
 import { SoundProvider } from './context/SoundContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { BrowserRouter } from 'react-router-dom'
 
 // Create a client with default options
 const queryClient = new QueryClient({
@@ -29,7 +30,9 @@ createRoot(document.getElementById('root')!).render(
           <DraftProvider>
             <ComparisonProvider>
               <SoundProvider>
-                <App />
+                <BrowserRouter>
+                  <App />
+                </BrowserRouter>
                 <ReactQueryDevtools initialIsOpen={false} />
               </SoundProvider>
             </ComparisonProvider>

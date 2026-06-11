@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
 import type { DraftedPlayer } from '../types/draftedPlayer';
-import type { Tab } from '../types';
 import { useInjuries } from '../queries/useInjuries';
 import { useTeamTrend } from '../queries/useTeamTrend';
 import { useTodaySchedule } from '../queries/useTodaySchedule';
@@ -69,12 +69,8 @@ interface RosterEvent {
     timestamp: string;
 }
 
-interface DashboardProps {
-    setActiveTab: (tab: Tab) => void;
-    setRosterSearchQuery: (query: string) => void;
-}
-
-export default function Dashboard({ setActiveTab, setRosterSearchQuery }: DashboardProps) {
+export default function Dashboard() {
+    const navigate = useNavigate();
     const { league } = useLeague();
     const { user } = useAuth();
     const { draftedPlayers, draftedPlayerIds } = useDraftedPlayers();
@@ -92,13 +88,12 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
         return league.teams.find(t => t.ownerUid === user.uid) || null;
     }, [league, user]);
 
-    const goToRoster = useCallback(() => setActiveTab('roster'), [setActiveTab]);
-    const goToChat = useCallback(() => setActiveTab('chat'), [setActiveTab]);
-    const goToInjuries = useCallback(() => setActiveTab('injuries'), [setActiveTab]);
+    const goToRoster = useCallback(() => navigate('/players/browse'), [navigate]);
+    const goToChat = useCallback(() => navigate('/chat'), [navigate]);
+    const goToInjuries = useCallback(() => navigate('/players/injuries'), [navigate]);
     const goToPlayerCard = useCallback((playerName: string) => {
-        setRosterSearchQuery(playerName);
-        setActiveTab('roster');
-    }, [setActiveTab, setRosterSearchQuery]);
+        navigate(`/players/browse?search=${encodeURIComponent(playerName)}`);
+    }, [navigate]);
 
     const activeRoster = useMemo(() => {
         if (!myTeam) return [];
@@ -403,7 +398,7 @@ export default function Dashboard({ setActiveTab, setRosterSearchQuery }: Dashbo
                         <p className="text-slate-300 text-lg mt-2">{heroState.message}</p>
                         <div className="mt-4 flex flex-wrap gap-2">
                             <GradientButton onClick={goToRoster}>Set Lines</GradientButton>
-                            <GradientButton variant="outline" onClick={() => setActiveTab('standings')}>
+                            <GradientButton variant="outline" onClick={() => navigate('/scores')}>
                                 View Schedule
                             </GradientButton>
                         </div>
