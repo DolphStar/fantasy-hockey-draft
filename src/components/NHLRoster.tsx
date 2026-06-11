@@ -54,8 +54,7 @@ export default function NHLRoster() {
       setSearchQuery(q);
       setSearchParams({}, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   // React Query hooks - automatic caching and refetching!
   const { data: injuries = [] } = useInjuries();

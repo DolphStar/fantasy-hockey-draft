@@ -87,7 +87,7 @@ function App() {
                   <ellipse cx="12" cy="19" rx="4" ry="1.4" className="text-blue-500/60" fill="currentColor" />
                 </svg>
               </div>
-              <h1 className="text-3xl font-bold text-white">Fantasy Hockey Draft</h1>
+              <p className="text-3xl font-bold text-white">Fantasy Hockey Draft</p>
             </div>
             <p className="text-gray-400 text-sm">Browse NHL rosters and manage your draft picks</p>
           </div>

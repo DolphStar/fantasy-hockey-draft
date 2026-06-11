@@ -16,12 +16,12 @@ interface SegmentedTabsProps<T extends string> {
 /** Button-based segmented control for in-page tabs (no routing). */
 export function SegmentedTabs<T extends string>({ tabs, active, onChange, className }: SegmentedTabsProps<T>) {
   return (
-    <div className={cn(containerCls, className)} role="tablist">
+    <div className={cn(containerCls, className)}>
       {tabs.map((t) => (
         <button
           key={t.id}
-          role="tab"
-          aria-selected={active === t.id}
+          type="button"
+          aria-pressed={active === t.id}
           onClick={() => onChange(t.id)}
           className={cn(itemCls, active === t.id ? activeCls : idleCls)}
         >
