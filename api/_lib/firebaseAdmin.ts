@@ -26,3 +26,16 @@ export async function getAdminDb() {
 
   return getFirestore();
 }
+
+export async function getAdminAuth() {
+  const { cert, getApps, initializeApp } = await import('firebase-admin/app');
+  const { getAuth } = await import('firebase-admin/auth');
+
+  if (getApps().length === 0) {
+    initializeApp({
+      credential: cert(parseServiceAccountKey()),
+    });
+  }
+
+  return getAuth();
+}

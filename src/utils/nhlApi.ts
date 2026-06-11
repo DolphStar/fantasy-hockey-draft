@@ -44,6 +44,8 @@ export interface RosterPerson {
     code: string;
     name: string;
   };
+  /** Attached at runtime after fetching; not present in the raw API response. */
+  teamAbbrev?: string;
 }
 
 export interface TeamRoster {

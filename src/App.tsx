@@ -33,16 +33,6 @@ function App() {
   // Turn notifications (sound + browser notification)
   useTurnNotification()
 
-  // Debug logging - MUST be at top before any returns
-  useEffect(() => {
-    if (user) {
-      console.log('App component mounted');
-      console.log('User:', user);
-      console.log('User email:', user?.email);
-      console.log('User displayName:', user?.displayName);
-    }
-  }, [user]);
-
   // Show loading while checking auth
   // Listen for draft updates to trigger celebration
   useEffect(() => {

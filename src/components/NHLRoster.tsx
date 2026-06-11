@@ -81,7 +81,7 @@ export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }
           const rosterData = await getTeamRoster(abbrev);
           const teamPlayers = getAllPlayers(rosterData);
           return teamPlayers.map(player => {
-            (player as any).teamAbbrev = abbrev;
+            player.teamAbbrev = abbrev;
             return player;
           });
         } catch (err) {
@@ -107,7 +107,7 @@ export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }
     ? (allTeamsData || [])
     : singleTeamData
       ? getAllPlayers(singleTeamData).map(player => {
-        (player as any).teamAbbrev = teamFilter;
+        player.teamAbbrev = teamFilter;
         return player;
       })
       : [];
@@ -293,7 +293,7 @@ export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }
           position: rosterPlayer.position.code,
           positionName: rosterPlayer.position.name,
           jerseyNumber: rosterPlayer.jerseyNumber,
-          nhlTeam: (rosterPlayer as any).teamAbbrev || 'UNK',
+          nhlTeam: rosterPlayer.teamAbbrev || 'UNK',
           draftedByTeam: pickInfo.team,
           pickNumber: pickInfo.pick,
           round: pickInfo.round,
@@ -316,7 +316,7 @@ export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }
 
       // Show success toast
       toast.success(`Drafted ${getPlayerFullName(rosterPlayer)}!`, {
-        description: `${rosterPlayer.position.code} • ${(rosterPlayer as any).teamAbbrev} • Pick #${pickInfo.pick} → ${rosterSlot === 'reserve' ? 'Reserves' : 'Active Roster'}`
+        description: `${rosterPlayer.position.code} • ${rosterPlayer.teamAbbrev} • Pick #${pickInfo.pick} → ${rosterSlot === 'reserve' ? 'Reserves' : 'Active Roster'}`
       });
 
       // Play sound
@@ -360,7 +360,7 @@ export default function NHLRoster({ initialSearchQuery = '', onSearchQueryUsed }
       (positionFilter === 'F' && ['C', 'L', 'R'].includes(player.position.code)) ||
       (positionFilter === player.position.code);
 
-    const matchesTeam = teamFilter === 'ALL' || (player as any).teamAbbrev === teamFilter;
+    const matchesTeam = teamFilter === 'ALL' || player.teamAbbrev === teamFilter;
 
     return matchesSearch && matchesPosition && matchesTeam;
   });

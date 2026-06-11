@@ -1,4 +1,4 @@
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 
 import { db } from '../firebase';
 
@@ -111,6 +111,8 @@ export async function fetchTeamStanding(leagueId: string, teamName: string) {
     : { rank: teamIndex + 1, totalPoints: teams[teamIndex].totalPoints };
 }
 
+const TREND_SCORE_DOC_LIMIT = 500;
+
 export async function fetchTeamTrend(
   leagueId: string,
   teamName: string,
@@ -118,11 +120,15 @@ export async function fetchTeamTrend(
   maxDays: number,
 ): Promise<TeamTrendPoint[]> {
   const snapshot = await getDocs(
-    query(collection(db, `leagues/${leagueId}/playerDailyScores`), orderBy('date', 'desc')),
+    query(
+      collection(db, `leagues/${leagueId}/playerDailyScores`),
+      orderBy('date', 'desc'),
+      limit(TREND_SCORE_DOC_LIMIT),
+    ),
   );
   const map = new Map<string, { total: number; myPoints: number }>();
 
-  snapshot.docs.slice(0, 500).forEach((docSnapshot) => {
+  snapshot.docs.forEach((docSnapshot) => {
     const data = docSnapshot.data() as { date: string; points: number; teamName: string };
     if (!map.has(data.date)) {
       map.set(data.date, { total: 0, myPoints: 0 });

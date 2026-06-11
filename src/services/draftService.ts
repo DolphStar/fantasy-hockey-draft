@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 
 import { db } from '../firebase';
 import { createInitialDraftState } from '../utils/draftLogic';
@@ -40,16 +40,14 @@ export function subscribeToDraftState(
   );
 }
 
-export async function advanceDraftState(leagueId: string, draftState: DraftState) {
-  const nextPickNumber = draftState.currentPickNumber + 1;
-  await updateDoc(doc(db, 'drafts', leagueId), {
-    currentPickNumber: nextPickNumber,
-    isComplete: nextPickNumber > draftState.totalPicks,
-  });
-}
-
 export async function resetDraftForLeague(league: League) {
-  await deleteCollectionDocs('draftedPlayers');
+  // Only delete drafted players belonging to THIS league — the collection is
+  // global across leagues.
+  const draftedPlayersSnapshot = await getDocs(
+    query(collection(db, 'draftedPlayers'), where('leagueId', '==', league.id)),
+  );
+  await Promise.all(draftedPlayersSnapshot.docs.map((docSnapshot) => deleteDoc(docSnapshot.ref)));
+
   await deleteCollectionDocs(`leagues/${league.id}/playerDailyScores`);
   await deleteCollectionDocs(`leagues/${league.id}/teamScores`);
   await deleteCollectionDocs(`leagues/${league.id}/liveStats`);

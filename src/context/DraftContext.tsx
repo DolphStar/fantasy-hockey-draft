@@ -5,7 +5,6 @@ import type { DraftState } from '../utils/draftLogic';
 import { useAuth } from './AuthContext';
 import { useLeague } from './LeagueContext';
 import {
-  advanceDraftState,
   ensureDraftState,
   resetDraftForLeague,
   subscribeToDraftState,
@@ -17,7 +16,6 @@ interface DraftContextType {
   error: string | null;
   currentPick: ReturnType<typeof getCurrentPick>;
   isMyTurn: boolean;
-  advancePick: () => Promise<void>;
   resetDraft: () => Promise<void>;
 }
 
@@ -68,18 +66,6 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [league, leagueLoading]);
 
-  // Advance to the next pick
-  const advancePick = async () => {
-    if (!draftState || !league) return;
-
-    try {
-      await advanceDraftState(league.id, draftState);
-    } catch (err) {
-      console.error('Error advancing pick:', err);
-      throw err;
-    }
-  };
-
   // Reset the draft (useful for testing)
   const resetDraft = async () => {
     if (!league) return;
@@ -111,7 +97,6 @@ export function DraftProvider({ children }: { children: ReactNode }) {
         error,
         currentPick,
         isMyTurn,
-        advancePick,
         resetDraft
       }}
     >

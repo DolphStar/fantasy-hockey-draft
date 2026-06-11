@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
-import type { TeamScore } from '../utils/scoringEngine';
+import type { TeamScore } from '../types/scores';
 import LiveStats from './LiveStats';
 import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
@@ -10,7 +10,6 @@ import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
 // Import utilities for existing leagues
 import '../utils/updateLeague';
-import '../utils/clearScores';
 
 interface PlayerPerformance {
   playerId: number;
