@@ -1,31 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import LeagueChat from '../LeagueChat';
-import { useLeague } from '../../context/LeagueContext';
-import { subscribeRecentLeagueMessages } from '../../services/chatService';
-import type { ChatMessage } from '../../types/chat';
-
-const LAST_READ_KEY = 'chat:lastReadAt';
-const UNREAD_MESSAGE_LIMIT = 50;
-
-/** Returns unread chat count; marks read while the drawer is open. */
-export function useUnreadChat(isOpen: boolean) {
-  const { league } = useLeague();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-
-  useEffect(() => {
-    if (!league) return;
-    return subscribeRecentLeagueMessages(league.id, setMessages, UNREAD_MESSAGE_LIMIT);
-  }, [league]);
-
-  useEffect(() => {
-    if (isOpen) localStorage.setItem(LAST_READ_KEY, String(Date.now()));
-  }, [isOpen, messages.length]);
-
-  if (isOpen) return 0;
-  const lastRead = Number(localStorage.getItem(LAST_READ_KEY) ?? 0);
-  return messages.filter((m) => new Date(m.createdAt).getTime() > lastRead).length;
-}
 
 interface ChatDrawerProps {
   isOpen: boolean;
@@ -33,19 +8,35 @@ interface ChatDrawerProps {
 }
 
 export default function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, onClose]);
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 bg-black/50 z-[55]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.aside
-            className="fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[420px] bg-gradient-to-br from-[#101729] to-[#0d1322] border-l border-slate-800 shadow-2xl flex flex-col"
+            role="dialog"
+            aria-modal="true"
+            aria-label="League chat"
+            className="fixed top-0 right-0 bottom-0 z-[60] w-full sm:w-[420px] bg-gradient-to-br from-[#101729] to-[#0d1322] border-l border-slate-800 shadow-2xl flex flex-col"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
