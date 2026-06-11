@@ -25,6 +25,7 @@
     "react": "^19.2.0",
     "react-confetti": "^6.4.0",
     "react-dom": "^19.2.0",
+    "react-router-dom": "^7.17.0",
     "react-use": "^17.6.0",
     "react-virtuoso": "^4.14.1",
     "recharts": "^3.4.1",
