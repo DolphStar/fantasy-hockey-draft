@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
-import type { DraftedPlayer } from '../types/draftedPlayer';
 import { useInjuries } from '../queries/useInjuries';
 import { useTeamTrend } from '../queries/useTeamTrend';
 import { useTodaySchedule } from '../queries/useTodaySchedule';
@@ -13,23 +12,11 @@ import { useHotPickups } from '../queries/useHotPickups';
 import { getHockeyDay } from '../utils/dateUtils';
 import { getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import type { LivePlayerStats } from '../utils/liveStats';
-import { subscribeRecentLeagueMessages } from '../services/chatService';
 import { getInjuryColor, type InjuryReport } from '../services/injuryService';
 import { subscribeLiveStatsByDate } from '../services/liveStatsService';
 import { subscribeLeagueTeamScoreSummary } from '../services/teamScoreService';
 
-const MAX_FEED_ITEMS = 6;
 const MAX_TREND_DAYS = 7;
-
-interface FeedItem {
-    id: string;
-    icon: string;
-    title: string;
-    description: string;
-    timestamp?: Date;
-    cta?: string;
-    onClick?: () => void;
-}
 
 // Position badge color helper
 const getPositionBadgeClass = (position: string) => {
@@ -40,35 +27,6 @@ const getPositionBadgeClass = (position: string) => {
     return 'bg-slate-500/20 text-slate-300';
 };
 
-// Relative time helper
-const getRelativeTime = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-};
-
-type RosterEventType = 'add' | 'drop' | 'activate' | 'bench';
-
-interface RosterEvent {
-    id: string;
-    type: RosterEventType;
-    playerName: string;
-    position: string;
-    nhlTeam: string;
-    teamName: string;
-    fromSlot?: DraftedPlayer['rosterSlot'];
-    toSlot?: DraftedPlayer['rosterSlot'];
-    timestamp: string;
-}
-
 export default function Dashboard() {
     const navigate = useNavigate();
     const { league } = useLeague();
@@ -77,10 +35,8 @@ export default function Dashboard() {
     const { data: injuries = [] } = useInjuries();
 
     const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
-    const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
     const [teamPoints, setTeamPoints] = useState<number>(0);
     const [leagueAveragePoints, setLeagueAveragePoints] = useState<number>(0);
-    const [rosterEvents, setRosterEvents] = useState<RosterEvent[]>([]);
     const [showAllMatchups, setShowAllMatchups] = useState(false);
 
     const myTeam = useMemo(() => {
@@ -89,7 +45,6 @@ export default function Dashboard() {
     }, [league, user]);
 
     const goToRoster = useCallback(() => navigate('/players/browse'), [navigate]);
-    const goToChat = useCallback(() => navigate('/chat'), [navigate]);
     const goToInjuries = useCallback(() => navigate('/players/injuries'), [navigate]);
     const goToPlayerCard = useCallback((playerName: string) => {
         navigate(`/players/browse?search=${encodeURIComponent(playerName)}`);
@@ -124,62 +79,6 @@ export default function Dashboard() {
     const hotPickups = hotPickupsData?.items ?? [];
     const hotPickupsLabel = hotPickupsData?.label ?? 'Season Leaders';
 
-    const rosterSnapshotRef = useRef<Map<number, DraftedPlayer>>(new Map());
-    const hasRosterSnapshotRef = useRef(false);
-
-    const buildRosterEvent = useCallback((type: RosterEventType, player: DraftedPlayer, fromSlot?: DraftedPlayer['rosterSlot'], toSlot?: DraftedPlayer['rosterSlot']): RosterEvent => ({
-        id: `${type}-${player.playerId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        type,
-        playerName: player.name,
-        position: player.position,
-        nhlTeam: player.nhlTeam,
-        teamName: player.draftedByTeam,
-        fromSlot,
-        toSlot,
-        timestamp: new Date().toISOString(),
-    }), []);
-
-    useEffect(() => {
-        if (draftedPlayers.length === 0) return;
-
-        const prevSnapshot = rosterSnapshotRef.current;
-        const currentSnapshot = new Map<number, DraftedPlayer>();
-        draftedPlayers.forEach(player => currentSnapshot.set(player.playerId, player));
-
-        if (!hasRosterSnapshotRef.current) {
-            rosterSnapshotRef.current = currentSnapshot;
-            hasRosterSnapshotRef.current = true;
-            return;
-        }
-
-        const newEvents: RosterEvent[] = [];
-
-        currentSnapshot.forEach((player, playerId) => {
-            const prev = prevSnapshot.get(playerId);
-            if (!prev) {
-                newEvents.push(buildRosterEvent('add', player, undefined, player.rosterSlot));
-                return;
-            }
-
-            if (prev.rosterSlot !== player.rosterSlot) {
-                const type: RosterEventType = player.rosterSlot === 'active' ? 'activate' : 'bench';
-                newEvents.push(buildRosterEvent(type, player, prev.rosterSlot, player.rosterSlot));
-            }
-        });
-
-        prevSnapshot.forEach((player, playerId) => {
-            if (!currentSnapshot.has(playerId)) {
-                newEvents.push(buildRosterEvent('drop', player, player.rosterSlot, undefined));
-            }
-        });
-
-        if (newEvents.length > 0) {
-            setRosterEvents(prev => [...newEvents, ...prev].slice(0, 6));
-        }
-
-        rosterSnapshotRef.current = currentSnapshot;
-    }, [draftedPlayers, buildRosterEvent]);
-
     useEffect(() => {
         if (!league || !myTeam || activeRoster.length === 0) {
             setLiveStats([]);
@@ -193,103 +92,6 @@ export default function Dashboard() {
             setLiveStats(entries);
         }, ids);
     }, [league, myTeam, activeRoster]);
-
-    useEffect(() => {
-        if (!league) {
-            setFeedItems([]);
-            return;
-        }
-
-        const describeRosterEvent = (event: RosterEvent) => {
-            switch (event.type) {
-                case 'activate':
-                    return {
-                        title: `${event.teamName} activated ${event.playerName}`,
-                        description: `${event.position} • ${event.nhlTeam} • ${event.fromSlot === 'reserve' ? 'Bench → Active' : 'Slot updated'}`,
-                        icon: '⬆️'
-                    };
-                case 'bench':
-                    return {
-                        title: `${event.teamName} benched ${event.playerName}`,
-                        description: `${event.position} • ${event.nhlTeam} • Active → Bench`,
-                        icon: '⬇️'
-                    };
-                case 'drop':
-                    return {
-                        title: `${event.teamName} dropped ${event.playerName}`,
-                        description: `${event.position} • ${event.nhlTeam}`,
-                        icon: '➖'
-                    };
-                default:
-                    return {
-                        title: `${event.teamName} added ${event.playerName}`,
-                        description: `${event.position} • ${event.nhlTeam} • ${event.toSlot === 'reserve' ? 'Bench stash' : 'Active roster'}`,
-                        icon: '➕'
-                    };
-            }
-        };
-
-        const buildFeed = () => {
-            const items: FeedItem[] = [];
-
-            injuries
-                .filter(injury => draftedPlayerIds.has(injury.playerId))
-                .slice(0, 3)
-                .forEach(injury => {
-                    items.push({
-                        id: `injury-${injury.playerId}`,
-                        icon: '🏥',
-                        title: `${injury.playerName} (${injury.status})`,
-                        description: `${injury.teamAbbrev} • ${injury.injuryType}`,
-                        cta: 'Manage IR',
-                        onClick: goToInjuries
-                    });
-                });
-
-            rosterEvents.slice(0, 3).forEach(event => {
-                const copy = describeRosterEvent(event);
-                items.push({
-                    id: `roster-${event.id}`,
-                    icon: copy.icon,
-                    title: copy.title,
-                    description: copy.description,
-                    cta: 'Scout player',
-                    onClick: goToRoster
-                });
-            });
-
-            return items;
-        };
-
-        let baseItems = buildFeed();
-
-        const unsubscribe = subscribeRecentLeagueMessages(league.id, (chirps) => {
-            const next = [...baseItems];
-            chirps.forEach(chirp => {
-                let timestamp: Date | undefined;
-                if (chirp.createdAt) {
-                    if (typeof chirp.createdAt === 'string') {
-                        timestamp = new Date(chirp.createdAt);
-                    }
-                }
-                
-                next.push({
-                    id: `chat-${chirp.id}`,
-                    icon: '💬',
-                    title: chirp.teamName || 'Chirp',
-                    description: chirp.text,
-                    timestamp,
-                    cta: 'Reply',
-                    onClick: goToChat
-                });
-            });
-            setFeedItems(next.slice(0, MAX_FEED_ITEMS));
-        });
-
-        baseItems = buildFeed();
-
-        return () => unsubscribe();
-    }, [league, injuries, draftedPlayerIds, rosterEvents, goToChat, goToRoster, goToInjuries]);
 
     useEffect(() => {
         if (!league || !myTeam) {
@@ -473,49 +275,8 @@ export default function Dashboard() {
                 )}
             </GlassCard>
 
-            <div className="grid gap-6 lg:grid-cols-3">
-                {/* League Feed */}
-                <GlassCard className="p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-heading font-semibold text-white">📣 League Feed</h3>
-                        <button onClick={goToChat} className="text-sm text-blue-400 hover:text-blue-300">Open Chat →</button>
-                    </div>
-                    <div className="space-y-3">
-                        {feedItems.length === 0 ? (
-                            <p className="text-slate-500 text-sm">No news yet. Make the first move.</p>
-                        ) : (
-                            feedItems.map(item => (
-                                <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-800">
-                                    <div className="text-2xl leading-none">{item.icon}</div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-white font-medium truncate">
-                                                {item.title}
-                                            </p>
-                                            {item.timestamp && (
-                                                <span className="text-[10px] text-slate-500 whitespace-nowrap">
-                                                    {getRelativeTime(item.timestamp)}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-slate-400 text-xs truncate">{item.description}</p>
-                                    </div>
-                                    {item.cta && (
-                                        <button
-                                            onClick={item.onClick}
-                                            className="text-xs font-semibold text-blue-400 hover:text-blue-300 whitespace-nowrap"
-                                        >
-                                            {item.cta}
-                                        </button>
-                                    )}
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </GlassCard>
-
-                {/* Team Health & Trends */}
-                <GlassCard className="p-6 space-y-4 lg:col-span-2">
+            {/* Team Health & Trends */}
+            <GlassCard className="p-6 space-y-4">
                     <div className="flex items-center justify-between flex-wrap gap-3">
                         <h3 className="text-xl font-heading font-semibold text-white">🩺 Team Health & Trends</h3>
                         <button onClick={goToInjuries} className="text-sm text-pink-400 hover:text-pink-300">Manage IR →</button>
@@ -569,8 +330,7 @@ export default function Dashboard() {
                             )}
                         </div>
                     </div>
-                </GlassCard>
-            </div>
+            </GlassCard>
 
             {/* Waiver Wire / Hot Pickups */}
             <GlassCard className="p-6">

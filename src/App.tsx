@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import Login from './components/Login';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
+import ChatDrawer, { useUnreadChat } from './components/layout/ChatDrawer';
 import Dashboard from './components/Dashboard';
 import { useAuth } from './context/AuthContext';
 import { useDraft } from './context/DraftContext';
@@ -16,17 +17,18 @@ const NHLRoster = lazyWithRetry(() => import('./components/NHLRoster'))
 const DraftBoardGrid = lazyWithRetry(() => import('./components/DraftBoardGrid'))
 const LeagueSettings = lazyWithRetry(() => import('./components/LeagueSettings'))
 const Standings = lazyWithRetry(() => import('./components/Standings'))
-const LeagueChat = lazyWithRetry(() => import('./components/LeagueChat'))
 const Injuries = lazyWithRetry(() => import('./components/Injuries'))
 const PlayerComparisonModal = lazyWithRetry(() => import('./components/modals/PlayerComparisonModal'))
 const DraftCelebration = lazyWithRetry(() => import('./components/draft/DraftCelebration'))
 
 function App() {
   const [isNavOpen, setIsNavOpen] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationPlayer, setCelebrationPlayer] = useState('')
   const { user, loading: authLoading, signOut } = useAuth()
   const { draftState } = useDraft()
+  const unread = useUnreadChat(isChatOpen)
 
   // Turn notifications (sound + browser notification)
   useTurnNotification()
@@ -110,6 +112,18 @@ function App() {
               </div>
             )}
             <button
+              type="button"
+              onClick={() => setIsChatOpen(true)}
+              className="relative bg-transparent hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium border border-white/10 hover:border-white/30"
+            >
+              💬 Chat
+              {unread > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-live text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                  {unread}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => signOut()}
               className="bg-transparent hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium border border-white/10 hover:border-white/30"
             >
@@ -141,12 +155,13 @@ function App() {
               </div>
             } />
             <Route path="/league" element={<LeagueSettings />} />
-            <Route path="/chat" element={<LeagueChat />} />
+            <Route path="/chat" element={<Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
 
         <PlayerComparisonModal />
+        <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
         <DraftCelebration show={showCelebration} playerName={celebrationPlayer} onComplete={() => setShowCelebration(false)} />
         <ScrollToTop />
       </div>
