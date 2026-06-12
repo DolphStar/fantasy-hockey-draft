@@ -13,8 +13,8 @@ const links = [
 
 export default function Navbar() {
     return (
-        <div className="max-w-7xl mx-auto px-4 mb-8 pt-4">
-            <GlassCard className="p-2 flex-row gap-1 hidden md:flex">
+        <div className="hidden md:block max-w-7xl mx-auto px-4 mb-8 pt-4">
+            <GlassCard className="p-2 flex gap-1">
                 {links.map((link) => (
                     <NavLink
                         key={link.to}

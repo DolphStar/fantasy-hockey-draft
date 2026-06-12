@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -19,8 +19,23 @@ export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
   const { pathname } = useLocation();
   const moreActive = pathname.startsWith('/draft') || pathname.startsWith('/league');
 
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [moreOpen]);
+
+  useEffect(() => setMoreOpen(false), [pathname]);
+
   const itemCls = (active: boolean) =>
-    cn('flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-bold',
+    cn('flex-1 flex flex-col items-center justify-center gap-0.5 h-14 py-2 text-[10px] font-bold',
        active ? 'text-primary' : 'text-slate-500');
 
   return (
@@ -32,7 +47,10 @@ export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setMoreOpen(false)} />
             <motion.div
-              className="fixed bottom-14 left-0 right-0 z-50 md:hidden bg-gradient-to-br from-[#101729] to-[#0d1322] border-t border-slate-800 rounded-t-2xl p-3"
+              role="dialog"
+              aria-modal="true"
+              aria-label="More navigation"
+              className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 md:hidden bg-gradient-to-br from-[#101729] to-[#0d1322] border-t border-slate-800 rounded-t-2xl p-3"
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 400, damping: 40 }}
             >
@@ -62,7 +80,7 @@ export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
             </span>
           )}
         </button>
-        <button type="button" onClick={() => setMoreOpen((o) => !o)} className={itemCls(moreActive)}>
+        <button type="button" onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen} className={itemCls(moreActive)}>
           <span className="text-lg">⋯</span>More
         </button>
       </nav>
