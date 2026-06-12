@@ -137,9 +137,15 @@ export default function DraftBoardGrid() {
           <span className="text-3xl">📋</span>
           Draft Board
         </h2>
-        <Badge variant="info" className="text-sm px-3 py-1">
-          Pick {draftState.currentPickNumber} of {draftState.totalPicks}
-        </Badge>
+        {draftState.isComplete ? (
+          <Badge variant="success" className="text-sm px-3 py-1">
+            🏁 Draft Complete · Final Board
+          </Badge>
+        ) : (
+          <Badge variant="info" className="text-sm px-3 py-1">
+            Pick {draftState.currentPickNumber} of {draftState.totalPicks}
+          </Badge>
+        )}
       </div>
 
       {/* Mobile: vertical list of picks */}
