@@ -1,4 +1,5 @@
 import { cn } from '../../lib/utils';
+import { useCountUp } from '../../hooks/useCountUp';
 
 import PlayerGameLogPopup from './PlayerGameLogPopup';
 import { useState } from 'react';
@@ -54,6 +55,14 @@ export default function MyPlayerCard({
     };
 
     const fpColor = getFpColor(fantasyPoints);
+    const animatedFp = useCountUp(fantasyPoints, 0);
+
+    // Edge light tinted by position (G gold, D emerald, forwards blue)
+    const positionEdge = player.position === 'G'
+        ? 'border-amber-400/30 hover:border-amber-400/60'
+        : player.position === 'D'
+            ? 'border-emerald-400/30 hover:border-emerald-400/60'
+            : 'border-blue-400/30 hover:border-blue-400/60';
 
 
 
@@ -138,15 +147,12 @@ export default function MyPlayerCard({
             <div
                 className={cn(
                     'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
-                    'border-2 transition-all duration-300 bg-slate-900',
-                    'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/20',
+                    'border-2 transition-all duration-300 backdrop-blur-md bg-gradient-to-br from-slate-800/70 to-[#0d1322]/95 shadow-glass',
+                    'hover:-translate-y-1',
                     isSelected
                         ? 'border-amber-300 shadow-[0_0_30px_rgba(251,191,36,0.6),0_0_60px_rgba(251,191,36,0.3)]'
-                        : 'border-slate-700/50 hover:border-blue-400/70 shadow-xl'
+                        : cn(positionEdge, 'hover:shadow-glass-hover')
                 )}
-                style={{
-                    background: '#0f172a'
-                }}
             >
                 {/* Holographic Foil Overlay */}
                 {isTopPlayer && (
@@ -177,7 +183,7 @@ export default function MyPlayerCard({
                     {/* Injury Badge - Grayscale Effect */}
                     {injury && (
                         <div className="absolute top-3 left-3 z-20">
-                            <div className="bg-red-600 text-white px-2 py-1 rounded-sm text-xs font-black uppercase tracking-wider shadow-lg border border-red-400">
+                            <div className="bg-red-600 text-white px-2 py-1 rounded-sm text-xs font-black uppercase tracking-wider shadow-lg border border-red-400 animate-live-pulse motion-reduce:animate-none">
                                 {injury.status === 'Injured Reserve' ? 'IR' : 'INJ'}
                             </div>
                         </div>
@@ -244,8 +250,8 @@ export default function MyPlayerCard({
                             <div className="text-[9px] text-gray-400 uppercase tracking-wide font-semibold">
                                 Fantasy Points:
                             </div>
-                            <div className={cn("text-5xl font-black leading-none bg-transparent drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]", fpColor.text)}>
-                                {fantasyPoints.toFixed(0)}
+                            <div className={cn("text-5xl font-black leading-none bg-transparent drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] tabular-nums", fpColor.text)}>
+                                {animatedFp}
                             </div>
                         </div>
                     </div>

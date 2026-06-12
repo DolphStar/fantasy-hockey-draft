@@ -19,6 +19,7 @@ import {
 } from '../services/playerPerformanceService';
 import type { DraftedPlayer } from '../types/draftedPlayer';
 import { GlassCard } from './ui/GlassCard';
+import { SkeletonCard } from './ui/Skeleton';
 // Removed unused icon imports
 import MyPlayerCard from './roster/MyPlayerCard';
 import PlayerListRow from './roster/PlayerListRow';
@@ -397,8 +398,8 @@ export default function PlayerList() {
           </div>
         </div>
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 animate-pulse">
-            {[1, 2, 3, 4].map(i => (<div key={i} className="h-48 bg-gray-800/50 rounded-xl" />))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
+            {[1, 2, 3, 4].map(i => (<SkeletonCard key={i} />))}
           </div>
         ) : activePlayers.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed border-gray-700/50 rounded-xl"><p className="text-gray-400">No active players. Move players from reserve to active roster.</p></div>
@@ -431,8 +432,8 @@ export default function PlayerList() {
           </h3>
         </div>
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 animate-pulse">
-            {[1, 2].map(i => (<div key={i} className="h-48 bg-gray-800/50 rounded-xl" />))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
+            {[1, 2].map(i => (<SkeletonCard key={i} />))}
           </div>
         ) : players.length === 0 ? (
           <p className="text-gray-400">No players drafted yet. Go to the \"NHL Rosters\" tab and click \"Draft Player\" on any player!</p>

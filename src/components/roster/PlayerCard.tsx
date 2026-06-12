@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getPlayerFullName, type RosterPerson } from '../../utils/nhlApi';
 import { cn } from '../../lib/utils';
+import { useCountUp } from '../../hooks/useCountUp';
 import { useComparison } from '../../context/ComparisonContext';
 import { PlayerPositionBadge } from './PlayerPositionBadge';
 import { PlayerStatsPill } from './PlayerStatsPill';
@@ -64,6 +65,14 @@ export default function PlayerCard({
     };
 
     const fpColor = getFantasyPointsColor(lastSeasonFantasyPoints);
+    const animatedFp = useCountUp(lastSeasonFantasyPoints, 0);
+
+    // Edge light tinted by position (G gold, D emerald, forwards blue)
+    const positionEdge = position === 'G'
+        ? 'border-amber-400/30 hover:border-amber-400/60'
+        : position === 'D'
+            ? 'border-emerald-400/30 hover:border-emerald-400/60'
+            : 'border-blue-400/30 hover:border-blue-400/60';
     const isExceptional = lastSeasonFantasyPoints >= (isGoalie ? 70 : 100);
 
     const statDisplay = (value: number | undefined | null, formatter: (val: number) => string = (val) => val.toString()) => {
@@ -115,15 +124,14 @@ export default function PlayerCard({
             <div
                 className={cn(
                     'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
-                    'border-2 transition-all duration-300 bg-slate-900',
+                    'border-2 transition-all duration-300 backdrop-blur-md bg-gradient-to-br from-slate-800/70 to-[#0d1322]/95 shadow-glass',
                     'hover:-translate-y-1',
                     isDrafted
                         ? 'border-slate-700/60 opacity-80 grayscale-[0.35]'
                         : isExceptional
                             ? 'border-amber-400/70 shadow-[0_0_30px_rgba(251,191,36,0.4)] hover:shadow-[0_0_40px_rgba(251,191,36,0.6)]'
-                            : 'border-slate-700/50 hover:border-blue-400/70 shadow-xl hover:shadow-lg hover:shadow-blue-500/20'
+                            : cn(positionEdge, 'hover:shadow-glass-hover')
                 )}
-                style={{ background: '#0f172a' }}
             >
                 {/* Noise texture overlay */}
                 <div className="absolute inset-0 opacity-[0.05] pointer-events-none z-0 mix-blend-overlay rounded-xl"
@@ -244,11 +252,11 @@ export default function PlayerCard({
                             Last Season:
                         </div>
                         <div className={cn(
-                            "text-4xl font-black leading-none",
+                            "text-4xl font-black leading-none tabular-nums",
                             fpColor.text,
-                            isExceptional && "drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]"
+                            isExceptional && "drop-shadow-[0_0_15px_rgba(74,222,128,0.8)]"
                         )}>
-                            {lastSeasonFantasyPoints}
+                            {animatedFp}
                         </div>
                     </div>
                 )}
