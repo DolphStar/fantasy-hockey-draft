@@ -10,6 +10,7 @@ import { SoundProvider } from './context/SoundContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { BrowserRouter } from 'react-router-dom'
+import { MotionConfig } from 'framer-motion'
 
 // Create a client with default options
 const queryClient = new QueryClient({
@@ -31,7 +32,9 @@ createRoot(document.getElementById('root')!).render(
             <ComparisonProvider>
               <SoundProvider>
                 <BrowserRouter>
-                  <App />
+                  <MotionConfig reducedMotion="user">
+                    <App />
+                  </MotionConfig>
                 </BrowserRouter>
                 <ReactQueryDevtools initialIsOpen={false} />
               </SoundProvider>
