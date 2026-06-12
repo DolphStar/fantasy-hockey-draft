@@ -1,14 +1,16 @@
 import { motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
+import { ClipboardList, House, Settings, Trophy, Users, type LucideIcon } from 'lucide-react';
 import { GlassCard } from '../ui/GlassCard';
+import { Icon } from '../ui/Icon';
 import { cn } from '../../lib/utils';
 
-const links = [
-    { to: '/', label: 'Home', icon: '🏠', end: true },
-    { to: '/players', label: 'Players', icon: '🏒' },
-    { to: '/scores', label: 'Scores', icon: '🏆' },
-    { to: '/draft', label: 'Draft', icon: '📋' },
-    { to: '/league', label: 'League', icon: '⚙️' },
+const links: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
+    { to: '/', label: 'Home', icon: House, end: true },
+    { to: '/players', label: 'Players', icon: Users },
+    { to: '/scores', label: 'Scores', icon: Trophy },
+    { to: '/draft', label: 'Draft', icon: ClipboardList },
+    { to: '/league', label: 'League', icon: Settings },
 ];
 
 export default function Navbar() {
@@ -35,7 +37,7 @@ export default function Navbar() {
                                         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                                     />
                                 )}
-                                <span className="relative z-10 text-lg">{link.icon}</span>
+                                <span className="relative z-10"><Icon as={link.icon} size="sm" glow={isActive} /></span>
                                 <span className="relative z-10 text-sm whitespace-nowrap">{link.label}</span>
                             </>
                         )}
