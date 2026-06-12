@@ -1,30 +1,40 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
+import { CardHeader } from './ui/CardHeader';
+import { StatNumber } from './ui/StatNumber';
+import LiveStats from './LiveStats';
 import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
 import { useInjuries } from '../queries/useInjuries';
 import { useTeamTrend } from '../queries/useTeamTrend';
 import { useTodaySchedule } from '../queries/useTodaySchedule';
 import { useHotPickups } from '../queries/useHotPickups';
 import { getHockeyDay } from '../utils/dateUtils';
-import { getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
+import { getUpcomingMatchups } from '../utils/nhlSchedule';
 import type { LivePlayerStats } from '../utils/liveStats';
 import { getInjuryColor, type InjuryReport } from '../services/injuryService';
 import { subscribeLiveStatsByDate } from '../services/liveStatsService';
-import { subscribeLeagueTeamScoreSummary } from '../services/teamScoreService';
+import { subscribeLeagueTeamScores } from '../services/teamScoreService';
+import type { TeamScore } from '../types/scores';
 
 const MAX_TREND_DAYS = 7;
 
-// Position badge color helper
-const getPositionBadgeClass = (position: string) => {
-    const pos = position?.toUpperCase();
-    if (['C', 'L', 'R', 'LW', 'RW', 'F'].includes(pos)) return 'bg-blue-500/20 text-blue-300';
-    if (['D', 'LD', 'RD'].includes(pos)) return 'bg-green-500/20 text-green-300';
-    if (pos === 'G') return 'bg-amber-500/20 text-amber-300';
-    return 'bg-slate-500/20 text-slate-300';
+const ordinal = (n: number) => {
+    const rem10 = n % 10;
+    const rem100 = n % 100;
+    if (rem10 === 1 && rem100 !== 11) return `${n}st`;
+    if (rem10 === 2 && rem100 !== 12) return `${n}nd`;
+    if (rem10 === 3 && rem100 !== 13) return `${n}rd`;
+    return `${n}th`;
+};
+
+const rankMedalClass = (rank: number) => {
+    if (rank === 1) return 'bg-rank text-slate-950';
+    if (rank === 2) return 'bg-slate-300 text-slate-950';
+    return 'bg-amber-600 text-slate-950';
 };
 
 export default function Dashboard() {
@@ -35,9 +45,7 @@ export default function Dashboard() {
     const { data: injuries = [] } = useInjuries();
 
     const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
-    const [teamPoints, setTeamPoints] = useState<number>(0);
-    const [leagueAveragePoints, setLeagueAveragePoints] = useState<number>(0);
-    const [showAllMatchups, setShowAllMatchups] = useState(false);
+    const [teamScores, setTeamScores] = useState<TeamScore[]>([]);
 
     const myTeam = useMemo(() => {
         if (!league || !user) return null;
@@ -94,17 +102,35 @@ export default function Dashboard() {
     }, [league, myTeam, activeRoster]);
 
     useEffect(() => {
-        if (!league || !myTeam) {
-            setTeamPoints(0);
-            setLeagueAveragePoints(0);
+        if (!league) {
+            setTeamScores([]);
             return;
         }
 
-        return subscribeLeagueTeamScoreSummary(league.id, myTeam.teamName, (summary) => {
-            setTeamPoints(summary.teamPoints);
-            setLeagueAveragePoints(summary.leagueAveragePoints);
-        });
-    }, [league, myTeam]);
+        return subscribeLeagueTeamScores(league.id, setTeamScores);
+    }, [league?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const teamPoints = useMemo(
+        () => teamScores.find(score => score.teamName === myTeam?.teamName)?.totalPoints ?? 0,
+        [teamScores, myTeam],
+    );
+    const leagueAveragePoints = useMemo(() => {
+        if (teamScores.length === 0) return 0;
+        const total = teamScores.reduce((sum, score) => sum + score.totalPoints, 0);
+        return Number((total / teamScores.length).toFixed(1));
+    }, [teamScores]);
+    const myRank = useMemo(() => {
+        const index = teamScores.findIndex(score => score.teamName === myTeam?.teamName);
+        return index === -1 ? null : index + 1;
+    }, [teamScores, myTeam]);
+    const topThree = teamScores.slice(0, 3);
+    const standingsDelta = useMemo(() => {
+        if (!myRank || teamScores.length < 2) return null;
+        if (myRank === 1) {
+            return { up: true, text: `you lead by ${(teamPoints - teamScores[1].totalPoints).toFixed(1)}` };
+        }
+        return { up: false, text: `${(teamScores[0].totalPoints - teamPoints).toFixed(1)} behind 1st` };
+    }, [myRank, teamScores, teamPoints]);
 
     const myPlayerNameSet = useMemo(() => new Set(activeRoster.map(player => player.name.toLowerCase())), [activeRoster]);
 
@@ -152,33 +178,8 @@ export default function Dashboard() {
         };
     })();
 
-    const isLiveMode = liveStats.length > 0;
-    const matchupDisplayList = isLiveMode
-        ? liveStats
-        : showAllMatchups
-            ? matchups
-            : matchups.slice(0, 4);
-
-    useEffect(() => {
-        if (matchups.length <= 4) {
-            setShowAllMatchups(false);
-        }
-    }, [matchups.length]);
-
-    const renderTeamBadge = (abbrev: string) => (
-        <span className="inline-flex items-center gap-1">
-            <span className="font-semibold">{abbrev}</span>
-            <img
-                src={`https://assets.nhle.com/logos/nhl/svg/${abbrev}_dark.svg`}
-                alt={`${abbrev} logo`}
-                className="w-5 h-5"
-                onError={(e) => {
-                    const target = e.currentTarget as HTMLImageElement;
-                    target.style.display = 'none';
-                }}
-            />
-        </span>
-    );
+    const formatGameTime = (startTimeUTC: string) =>
+        new Date(startTimeUTC).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
     if (!league) {
         return <div className="text-white">Loading league data…</div>;
@@ -186,8 +187,8 @@ export default function Dashboard() {
 
     return (
         <div className="max-w-6xl mx-auto px-6 space-y-6">
-            {/* Matchup Command Center */}
-            <GlassCard className="p-6 space-y-6">
+            {/* Hero: status + season points */}
+            <GlassCard className="p-6">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div>
                         <p className="text-xs uppercase tracking-[0.3em] text-slate-400 flex items-center gap-2">
@@ -205,11 +206,15 @@ export default function Dashboard() {
                             </GradientButton>
                         </div>
                     </div>
-                    <div className="bg-slate-900/70 rounded-2xl p-5 min-w-[240px] text-right">
-                        <p className="text-xs uppercase text-slate-400">Season Points</p>
-                        <div className="text-4xl font-black text-green-400">{teamPoints.toFixed(1)}</div>
+                    <div className="bg-slate-900/70 rounded-card p-5 min-w-[240px] text-right">
+                        <StatNumber label="Season Points" value={teamPoints.toFixed(1)} size="xl" />
                         <p className="text-xs text-slate-500 mt-1">League Avg {leagueAveragePoints.toFixed(1)}</p>
-                        <div className="mt-4 text-sm text-slate-400">
+                        {myRank && (
+                            <span className="inline-flex items-center gap-1 mt-2 bg-rank/15 text-rank text-xs font-bold px-2.5 py-1 rounded-full">
+                                {myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🏒'} {ordinal(myRank)} place
+                            </span>
+                        )}
+                        <div className="mt-3 text-sm text-slate-400">
                             Today&apos;s Total:{' '}
                             <span className="text-white font-semibold">
                                 {liveStats.reduce((sum, stat) => sum + stat.points, 0).toFixed(1)} pts
@@ -217,201 +222,182 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
+            </GlassCard>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                    {matchupDisplayList.map((item) => (
-                        <div
-                            key={isLiveMode ? `live-${(item as LivePlayerStats).playerId}` : `${(item as PlayerMatchup).playerId}-${(item as PlayerMatchup).gameId}`}
-                            className="bg-slate-900/40 rounded-xl p-4 border border-slate-800 flex items-center justify-between"
-                        >
-                            <div>
-                                <p className="text-white font-semibold">
-                                    {isLiveMode ? (item as LivePlayerStats).playerName : (item as PlayerMatchup).playerName}
-                                </p>
-                                {isLiveMode ? (
-                                    <p className="text-xs text-slate-400">
-                                        {(item as LivePlayerStats).nhlTeam} • {(item as LivePlayerStats).goals || 0}G / {(item as LivePlayerStats).assists || 0}A
-                                    </p>
-                                ) : (
-                                    <div className="text-xs text-slate-400 space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            {renderTeamBadge((item as PlayerMatchup).teamAbbrev)}
-                                            <span className="text-slate-500">vs</span>
-                                            {renderTeamBadge((item as PlayerMatchup).opponent)}
-                                        </div>
-                                        <p>{(item as PlayerMatchup).gameTime}</p>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="text-right">
-                                {isLiveMode ? (
-                                    (item as LivePlayerStats).points > 0 ? (
-                                        <span className="text-green-400 font-bold text-xl">
-                                            +{(item as LivePlayerStats).points.toFixed(1)}
+            {/* Tonight's Games / Standings / Hot Pickups */}
+            <div className="grid gap-4 md:grid-cols-3 items-start">
+                <GlassCard>
+                    <CardHeader icon="🔴" title="Tonight's Games" />
+                    {(schedule ?? []).length === 0 ? (
+                        <p className="px-4 py-6 text-sm text-slate-500 text-center">No games today — off day.</p>
+                    ) : (
+                        (schedule ?? []).map((game) => {
+                            const isLive = game.gameState === 'LIVE' || game.gameState === 'CRIT';
+                            const isFuture = game.gameState === 'FUT' || game.gameState === 'PRE';
+                            return (
+                                <div key={game.id} className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-800/60 last:border-b-0 text-sm">
+                                    <span className="font-semibold text-white">
+                                        {game.awayTeam.abbrev} @ {game.homeTeam.abbrev}
+                                    </span>
+                                    <span className="font-extrabold text-white">
+                                        {isFuture ? '– – –' : `${game.awayTeam.score ?? 0} – ${game.homeTeam.score ?? 0}`}
+                                    </span>
+                                    {isLive ? (
+                                        <span className="text-live text-[10px] font-extrabold tracking-wider whitespace-nowrap">
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-live shadow-[0_0_6px_#ef4444] mr-1 align-middle" />
+                                            LIVE
                                         </span>
                                     ) : (
-                                        <span className="text-slate-600 font-medium text-lg">
-                                            0.0
+                                        <span className="text-slate-500 text-[10px] font-bold tracking-wider whitespace-nowrap">
+                                            {isFuture ? formatGameTime(game.startTimeUTC) : 'FINAL'}
                                         </span>
-                                    )
-                                ) : (
-                                    <span className="text-slate-300 text-xs uppercase">
-                                        {(item as PlayerMatchup).gameState === 'FUT' ? 'Scheduled' : (item as PlayerMatchup).gameState}
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </GlassCard>
+
+                <GlassCard>
+                    <CardHeader
+                        icon="🏆"
+                        title="Standings"
+                        action={<Link to="/scores" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Full table →</Link>}
+                    />
+                    {topThree.length === 0 ? (
+                        <p className="px-4 py-6 text-sm text-slate-500 text-center">No scores yet.</p>
+                    ) : (
+                        <>
+                            {topThree.map((team, index) => (
+                                <div key={team.teamName} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800/60">
+                                    <span className="flex items-center gap-2.5">
+                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${rankMedalClass(index + 1)}`}>
+                                            {index + 1}
+                                        </span>
+                                        <span className="text-sm font-semibold text-white">{team.teamName}</span>
+                                    </span>
+                                    <span className="text-sm font-extrabold text-points">{team.totalPoints.toFixed(1)}</span>
+                                </div>
+                            ))}
+                            <div className="flex items-center justify-between px-4 py-2.5 text-[11px]">
+                                <span className="text-slate-500">
+                                    {teamScores.length > 3 ? `+ ${teamScores.length - 3} more teams` : `${teamScores.length} teams`}
+                                </span>
+                                {standingsDelta && (
+                                    <span className={`font-bold ${standingsDelta.up ? 'text-points' : 'text-slate-400'}`}>
+                                        {standingsDelta.up ? '▲' : '▼'} {standingsDelta.text}
                                     </span>
                                 )}
                             </div>
-                        </div>
-                    ))}
-                </div>
-                {!isLiveMode && matchups.length > 4 && (
-                    <div className="flex justify-end">
-                        <button
-                            onClick={() => setShowAllMatchups(prev => !prev)}
-                            className="text-xs font-semibold text-blue-400 hover:text-blue-300 mt-3"
-                        >
-                            {showAllMatchups ? 'Show fewer matchups' : `View all ${matchups.length} matchups`}
-                        </button>
-                    </div>
-                )}
-            </GlassCard>
+                        </>
+                    )}
+                </GlassCard>
 
-            {/* Team Health & Trends */}
-            <GlassCard className="p-6 space-y-4">
-                    <div className="flex items-center justify-between flex-wrap gap-3">
-                        <h3 className="text-xl font-heading font-semibold text-white">🩺 Team Health & Trends</h3>
-                        <button onClick={goToInjuries} className="text-sm text-pink-400 hover:text-pink-300">Manage IR →</button>
-                    </div>
-                    <div className="grid md:grid-cols-3 gap-3">
-                        {myInjuryReports.length === 0 ? (
-                            <div className="col-span-3 text-center text-slate-500 text-sm py-6 border border-dashed border-slate-700 rounded-xl">
-                                Everyone&apos;s healthy. 🙌
-                            </div>
-                        ) : (
-                            myInjuryReports.slice(0, 3).map((injury) => (
+                <GlassCard>
+                    <CardHeader
+                        icon="🔥"
+                        title="Hot Pickups"
+                        action={<button type="button" onClick={goToRoster} className="text-xs font-semibold text-blue-400 hover:text-blue-300">Player hub →</button>}
+                    />
+                    {hotPickups.length === 0 ? (
+                        <p className="px-4 py-6 text-sm text-slate-500 text-center">No trending free agents right now.</p>
+                    ) : (
+                        <>
+                            <p className="px-4 pt-2 text-[10px] uppercase tracking-wider text-slate-500">{hotPickupsLabel}</p>
+                            {hotPickups.slice(0, 3).map((pickup) => (
                                 <button
-                                    key={injury.playerId}
-                                    onClick={() => handleInjuryCardClick(injury)}
-                                    className="rounded-xl border border-slate-800 p-3 bg-slate-900/40 text-left hover:border-blue-400/70 hover:bg-slate-900/60 transition-colors cursor-pointer"
+                                    key={pickup.id}
+                                    type="button"
+                                    onClick={() => goToPlayerCard(pickup.name)}
+                                    className="w-full flex items-center justify-between gap-3 px-4 py-2.5 border-b border-slate-800/60 last:border-b-0 text-left hover:bg-slate-900/40 transition-colors"
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <span className={`inline-flex items-center gap-1 ${getInjuryColor(injury.status)} text-white text-[10px] px-2.5 py-0.5 rounded-full font-semibold tracking-wide uppercase`}>🩹 {formatStatusLabel(injury.status)}</span>
-                                        <p className="text-white font-medium text-sm">{injury.playerName}</p>
-                                    </div>
-                                    <p className="text-xs text-slate-400 mt-1">{injury.teamAbbrev} • {injury.injuryType}</p>
-                                    <p 
-                                        className="text-xs text-slate-500 mt-2 line-clamp-2"
-                                        title={injury.description}
-                                    >
-                                        {injury.description}
-                                    </p>
-                                </button>
-                            ))
-                        )}
-                    </div>
-
-                    <div className="mt-4">
-                        <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">7-day trend</p>
-                        <div className="grid grid-cols-7 gap-2">
-                            {trend.length === 0 ? (
-                                <div className="col-span-7 text-slate-500 text-sm">Not enough games yet.</div>
-                            ) : (
-                                trend.map(point => {
-                                    // Parse date as local time to avoid timezone shift
-                                    const [year, month, day] = point.date.split('-').map(Number);
-                                    const localDate = new Date(year, month - 1, day);
-                                    return (
-                                        <div key={point.date} className="bg-slate-900/50 rounded-lg p-2 text-center">
-                                            <p className="text-[10px] uppercase text-slate-500">{localDate.toLocaleDateString('en-US', { weekday: 'short' })}</p>
-                                            <div className="mt-1 text-white font-semibold">{point.myTeam.toFixed(1)}</div>
-                                            <p className="text-[10px] text-slate-500">Avg {point.leagueAvg.toFixed(1)}</p>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-            </GlassCard>
-
-            {/* Waiver Wire / Hot Pickups */}
-            <GlassCard className="p-6">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                    <h3 className="text-xl font-heading font-semibold text-white">🔥 Waiver Wire / Hot Pickups</h3>
-                    <button onClick={goToRoster} className="text-sm text-blue-400 hover:text-blue-300">Open Player Hub →</button>
-                </div>
-                {hotPickups.length === 0 ? (
-                    <p className="text-slate-500 text-sm mt-4">No trending free agents at the moment.</p>
-                ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4">
-                        {hotPickups.map(pickup => (
-                            <div key={pickup.id} className="rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900 to-slate-950/80 p-4 flex flex-col shadow-lg shadow-black/20 hover:border-slate-600/70 hover:shadow-xl hover:shadow-black/30 transition-all duration-200">
-                                <div className="flex items-center gap-3">
-                                    {/* Player Headshot */}
-                                    <div className="relative">
+                                    <span className="flex items-center gap-2.5 min-w-0">
                                         {pickup.headshot ? (
-                                            <img 
-                                                src={pickup.headshot} 
+                                            <img
+                                                src={pickup.headshot}
                                                 alt={pickup.name}
-                                                className="w-12 h-12 rounded-full object-cover bg-slate-800 border border-slate-700"
+                                                className="w-7 h-7 rounded-full object-cover bg-slate-800 border border-slate-700"
                                                 onError={(e) => {
                                                     e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
                                                 }}
                                             />
                                         ) : (
-                                            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-lg border border-slate-700">
-                                                🏒
-                                            </div>
+                                            <span className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs">🏒</span>
                                         )}
-                                        {/* Team Logo overlay */}
-                                        <img 
-                                            src={`https://assets.nhle.com/logos/nhl/svg/${pickup.team}_dark.svg`}
-                                            alt={pickup.team}
-                                            className="absolute -bottom-1 -right-1 w-5 h-5 bg-slate-900 rounded-full p-0.5 border border-slate-700"
-                                            onError={(e) => {
-                                                e.currentTarget.style.display = 'none';
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-white font-semibold truncate">{pickup.name}</p>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getPositionBadgeClass(pickup.position)}`}>
-                                                {pickup.position}
+                                        <span className="min-w-0">
+                                            <span className="block text-sm font-semibold text-white truncate">{pickup.name}</span>
+                                            <span className="block text-[11px] text-slate-500">
+                                                {pickup.position} · {pickup.team} · {pickup.percentRostered}% rostered
                                             </span>
-                                            <span className="text-xs text-slate-400">{pickup.team}</span>
-                                        </div>
-                                    </div>
-                                    {/* Trend Badge with glow for rising */}
-                                    <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
-                                        pickup.trend === 'rising' 
-                                            ? 'bg-amber-500/20 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.3)]' 
-                                            : pickup.trend === 'steady' 
-                                                ? 'bg-blue-500/20 text-blue-200' 
-                                                : 'bg-slate-600/30 text-slate-300'
-                                    }`}>
-                                        {pickup.trend === 'rising' ? '🔥 Hot' : pickup.trend === 'steady' ? 'Steady' : 'Cooling'}
+                                        </span>
                                     </span>
-                                </div>
-                                <div className="mt-4 flex items-center justify-between text-sm">
-                                    <div>
-                                        <p className="text-slate-400 text-xs">{hotPickupsLabel}</p>
-                                        <p className="text-2xl font-black text-green-400">{pickup.points}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-slate-400 text-xs">Rostered</p>
-                                        <p className="text-white font-semibold">{pickup.percentRostered}%</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => goToPlayerCard(pickup.name)}
-                                    className="mt-4 text-sm font-semibold text-left text-blue-400 hover:text-blue-300"
-                                >
-                                    View player card →
+                                    <span className="text-sm font-bold text-points whitespace-nowrap">+{pickup.points}</span>
                                 </button>
-                            </div>
-                        ))}
+                            ))}
+                        </>
+                    )}
+                </GlassCard>
+            </div>
+
+            {/* Team Health & Trends */}
+            <GlassCard className="p-6 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                    <h3 className="text-xl font-heading font-semibold text-white">🩺 Team Health & Trends</h3>
+                    <button onClick={goToInjuries} className="text-sm text-pink-400 hover:text-pink-300">Manage IR →</button>
+                </div>
+                <div className="grid md:grid-cols-3 gap-3">
+                    {myInjuryReports.length === 0 ? (
+                        <div className="col-span-3 text-center text-slate-500 text-sm py-6 border border-dashed border-slate-700 rounded-xl">
+                            Everyone&apos;s healthy. 🙌
+                        </div>
+                    ) : (
+                        myInjuryReports.slice(0, 3).map((injury) => (
+                            <button
+                                key={injury.playerId}
+                                onClick={() => handleInjuryCardClick(injury)}
+                                className="rounded-xl border border-slate-800 p-3 bg-slate-900/40 text-left hover:border-blue-400/70 hover:bg-slate-900/60 transition-colors cursor-pointer"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center gap-1 ${getInjuryColor(injury.status)} text-white text-[10px] px-2.5 py-0.5 rounded-full font-semibold tracking-wide uppercase`}>🩹 {formatStatusLabel(injury.status)}</span>
+                                    <p className="text-white font-medium text-sm">{injury.playerName}</p>
+                                </div>
+                                <p className="text-xs text-slate-400 mt-1">{injury.teamAbbrev} • {injury.injuryType}</p>
+                                <p
+                                    className="text-xs text-slate-500 mt-2 line-clamp-2"
+                                    title={injury.description}
+                                >
+                                    {injury.description}
+                                </p>
+                            </button>
+                        ))
+                    )}
+                </div>
+
+                <div className="mt-4">
+                    <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">7-day trend</p>
+                    <div className="grid grid-cols-7 gap-2">
+                        {trend.length === 0 ? (
+                            <div className="col-span-7 text-slate-500 text-sm">Not enough games yet.</div>
+                        ) : (
+                            trend.map(point => {
+                                // Parse date as local time to avoid timezone shift
+                                const [year, month, day] = point.date.split('-').map(Number);
+                                const localDate = new Date(year, month - 1, day);
+                                return (
+                                    <div key={point.date} className="bg-slate-900/50 rounded-lg p-2 text-center">
+                                        <p className="text-[10px] uppercase text-slate-500">{localDate.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                                        <div className="mt-1 text-white font-semibold">{point.myTeam.toFixed(1)}</div>
+                                        <p className="text-[10px] text-slate-500">Avg {point.leagueAvg.toFixed(1)}</p>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
-                )}
+                </div>
             </GlassCard>
+
+            {/* Your matchups in detail (live boxes, game history) */}
+            <LiveStats />
         </div>
     );
 }

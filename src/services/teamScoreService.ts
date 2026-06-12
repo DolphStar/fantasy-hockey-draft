@@ -1,42 +1,19 @@
-import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 
 import { db } from '../firebase';
+import type { TeamScore } from '../types/scores';
 
-export interface TeamScoreSummary {
-  teamPoints: number;
-  leagueAveragePoints: number;
-}
-
-export function subscribeLeagueTeamScoreSummary(
+/** Subscribe to every team's score doc for a league, sorted by total points (desc). */
+export function subscribeLeagueTeamScores(
   leagueId: string,
-  teamName: string,
-  onSummary: (summary: TeamScoreSummary) => void,
+  onScores: (scores: TeamScore[]) => void,
 ) {
-  let teamPoints = 0;
-  let leagueAveragePoints = 0;
+  const scoresQuery = query(
+    collection(db, `leagues/${leagueId}/teamScores`),
+    orderBy('totalPoints', 'desc'),
+  );
 
-  const publish = () => onSummary({ teamPoints, leagueAveragePoints });
-
-  const unsubTeam = onSnapshot(doc(db, `leagues/${leagueId}/teamScores`, teamName), (snapshot) => {
-    teamPoints = snapshot.data()?.totalPoints ?? 0;
-    publish();
+  return onSnapshot(scoresQuery, (snapshot) => {
+    onScores(snapshot.docs.map((docSnapshot) => docSnapshot.data() as TeamScore));
   });
-
-  const unsubLeague = onSnapshot(collection(db, `leagues/${leagueId}/teamScores`), (snapshot) => {
-    if (snapshot.empty) {
-      leagueAveragePoints = 0;
-      publish();
-      return;
-    }
-
-    const totals = snapshot.docs.map((docSnapshot) => docSnapshot.data()?.totalPoints ?? 0);
-    const avg = totals.reduce((sum, value) => sum + value, 0) / totals.length;
-    leagueAveragePoints = Number(avg.toFixed(1));
-    publish();
-  });
-
-  return () => {
-    unsubTeam();
-    unsubLeague();
-  };
 }
