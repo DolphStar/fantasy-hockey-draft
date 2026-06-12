@@ -116,7 +116,7 @@ export default function Standings() {
             <table className="w-full">
               <thead className="bg-slate-900/50 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="text-left p-4 text-slate-400 font-semibold">Rank</th>
+                  <th className="text-left p-4 text-slate-400 font-semibold sticky left-0 bg-[#0d1322] z-10">Rank</th>
                   <th className="text-left p-4 text-slate-400 font-semibold">Team</th>
                   <th className="text-center p-4 text-slate-400 font-semibold">Points</th>
 
@@ -134,7 +134,7 @@ export default function Standings() {
                       key={team.teamName}
                       className="hover:bg-slate-800/30 transition-colors"
                     >
-                      <td className="p-4">
+                      <td className="p-4 sticky left-0 bg-[#0d1322] z-10">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isFirst ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' :
                           isSecond ? 'bg-slate-300 text-black shadow-lg shadow-slate-300/20' :
                             isThird ? 'bg-amber-700 text-white shadow-lg shadow-amber-700/20' :
@@ -260,7 +260,7 @@ export default function Standings() {
                       <table className="w-full">
                         <thead className="bg-slate-800/50 text-xs uppercase">
                           <tr>
-                            <th className="text-left p-3 text-slate-400 font-medium w-8">#</th>
+                            <th className="text-left p-3 text-slate-400 font-medium w-8 sticky left-0 bg-[#0d1322] z-10">#</th>
                             <th className="text-left p-3 text-slate-400 font-medium">Player</th>
                             <th className="text-center p-3 text-slate-400 font-medium">NHL</th>
                             <th className="text-center p-3 text-slate-400 font-medium">G</th>
@@ -283,7 +283,7 @@ export default function Standings() {
                                 key={player.playerId}
                                 className={`hover:bg-slate-800/30 transition-colors ${isTopPerformer ? 'bg-green-900/10' : ''}`}
                               >
-                                <td className="p-3 text-slate-500 text-sm font-medium">
+                                <td className="p-3 text-slate-500 text-sm font-medium sticky left-0 bg-[#0d1322] z-10">
                                   {index + 1}.
                                 </td>
                                 <td className="p-3">
