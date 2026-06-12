@@ -5,6 +5,7 @@ import { MessageCircle } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { pageEnter } from './lib/motion';
 import { Icon } from './components/ui/Icon';
+import { Skeleton } from './components/ui/Skeleton';
 import Login from './components/Login';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
@@ -64,8 +65,10 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
+          <div className="w-full max-w-md space-y-3 px-6">
+            <Skeleton className="h-10 w-2/3 mx-auto" />
+            <Skeleton className="h-40 w-full" />
+          </div>
         </div>
       </div>
     );

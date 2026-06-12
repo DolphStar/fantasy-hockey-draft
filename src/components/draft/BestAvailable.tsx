@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { BarChart3, Flame } from 'lucide-react';
 import { GlassCard } from '../ui/GlassCard';
 import { Badge } from '../ui/Badge';
+import { Icon } from '../ui/Icon';
 import { useBestAvailable } from '../../hooks/useBestAvailable';
 import { usePositionScarcity } from '../../hooks/usePositionScarcity';
 import type { RosterPerson } from '../../utils/nhlApi';
@@ -38,7 +40,7 @@ export default function BestAvailable({ allPlayers, draftedPlayerIds, lastSeason
                 className="w-full flex justify-between items-center group"
             >
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    <span className="text-amber-400">🔥</span> Best Available
+                    <Icon as={Flame} size="sm" className="text-amber-400" /> Best Available
                     {isCollapsed && (
                         <span className="text-xs font-normal text-slate-500 ml-2">
                             Click to expand
@@ -143,7 +145,7 @@ export default function BestAvailable({ allPlayers, draftedPlayerIds, lastSeason
                 {scarcity && (
                     <div className="mt-4 pt-4 border-t border-slate-700/40">
                         <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                            <span className="text-blue-400">📊</span> Position Scarcity
+                            <Icon as={BarChart3} size="sm" className="text-blue-400" /> Position Scarcity
                         </h4>
                         <div className="grid grid-cols-5 gap-2 text-center">
                             {(['C', 'L', 'R', 'D', 'G'] as const).map(pos => (

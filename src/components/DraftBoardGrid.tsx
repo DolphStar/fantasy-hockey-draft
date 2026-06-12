@@ -6,6 +6,8 @@ import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
 import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
+import { Icon } from './ui/Icon';
+import { ClipboardList } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface DraftedPlayer {
@@ -134,7 +136,7 @@ export default function DraftBoardGrid() {
       {/* Header */}
       <div className="bg-slate-800/80 backdrop-blur-md border-b border-slate-700 p-4 flex justify-between items-center sticky top-0 z-40">
         <h2 className="text-2xl font-heading font-bold text-white flex items-center gap-3">
-          <span className="text-3xl">📋</span>
+          <Icon as={ClipboardList} size="lg" className="text-blue-400" />
           Draft Board
         </h2>
         {draftState.isComplete ? (
@@ -267,7 +269,7 @@ export default function DraftBoardGrid() {
                           "border-b border-r border-slate-700/50 p-2 transition-all min-h-[140px] relative",
                           isCurrentPick
                             ? 'bg-amber-500/10 border-amber-500/50 border-2 animate-pulse z-10'
-                            : 'hover:bg-white/5'
+                            : 'hover:bg-white/5 hover:ring-1 hover:ring-inset hover:ring-blue-400/30'
                         )}
                         style={cellStyle}
                       >

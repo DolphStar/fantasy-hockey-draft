@@ -6,6 +6,7 @@ import type { LivePlayerStats } from '../utils/liveStats';
 import { fetchScheduleForDate, getUpcomingMatchups, type PlayerMatchup } from '../utils/nhlSchedule';
 import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
+import { SkeletonRow } from './ui/Skeleton';
 import { LIVE_STATS_REFRESH_SECONDS } from '../constants';
 import { getHockeyDay } from '../utils/dateUtils';
 import { fetchDraftedPlayers } from '../services/draftedPlayersService';
@@ -352,9 +353,8 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
       </div>
 
       {loading ? (
-        <div className="p-12 text-center">
-          <div className="animate-spin text-3xl mb-4 text-slate-500">🔄</div>
-          <p className="text-slate-400">Loading live stats...</p>
+        <div className="py-4">
+          <SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow />
         </div>
       ) : (
         <>

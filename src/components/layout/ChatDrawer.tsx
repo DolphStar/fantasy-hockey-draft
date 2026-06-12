@@ -58,7 +58,7 @@ export default function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
               </button>
             </div>
             <div className="flex-1 min-h-0 p-3">
-              <LeagueChat variant="embedded" />
+              <LeagueChat variant="embedded" hideHeader />
             </div>
           </motion.aside>
         </>
