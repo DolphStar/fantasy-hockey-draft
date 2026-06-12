@@ -367,9 +367,7 @@ export default function NHLRoster() {
   const useVirtualization = filteredRoster.length > 100;
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-6 text-white">NHL Team Roster</h2>
-
+    <div>
       {/* Draft Status Banner */}
       <DraftStatus
         draftState={draftState}

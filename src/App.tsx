@@ -8,6 +8,7 @@ import BottomNav from './components/layout/BottomNav';
 import ChatDrawer from './components/layout/ChatDrawer';
 import { useUnreadChat } from './hooks/useUnreadChat';
 import Dashboard from './components/Dashboard';
+import PlayersHub from './components/PlayersHub';
 import { useAuth } from './context/AuthContext';
 import { useDraft } from './context/DraftContext';
 import { useTurnNotification } from './hooks/useTurnNotification';
@@ -146,9 +147,11 @@ function App() {
         >
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/players" element={<PlayerList />} />
-            <Route path="/players/browse" element={<NHLRoster />} />
-            <Route path="/players/injuries" element={<Injuries />} />
+            <Route path="/players" element={<PlayersHub />}>
+              <Route index element={<PlayerList />} />
+              <Route path="browse" element={<NHLRoster />} />
+              <Route path="injuries" element={<Injuries />} />
+            </Route>
             <Route path="/scores" element={<Standings />} />
             <Route path="/draft" element={
               <div className="max-w-6xl mx-auto px-6">
