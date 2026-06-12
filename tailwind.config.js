@@ -28,6 +28,11 @@ export default {
       borderRadius: {
         card: '14px',
       },
+      boxShadow: {
+        'glass': '0 8px 32px rgba(0,0,0,.45), inset 0 1px 0 rgba(148,180,255,.14)',
+        'glass-hover': '0 16px 44px rgba(0,0,0,.55), 0 0 24px rgba(59,130,246,.18), inset 0 1px 0 rgba(148,180,255,.2)',
+        'glow-gold': '0 0 14px rgba(250,204,21,.35)',
+      },
       backgroundImage: {
         'card-surface': 'linear-gradient(160deg, #101729, #0d1322)',
         'app-radial': 'radial-gradient(ellipse at 20% -10%, #131b33 0%, #0a0e1a 55%)',
@@ -37,6 +42,8 @@ export default {
         'lock-in': 'lockIn 1s ease-out',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'float': 'float 6s ease-in-out infinite',
+        'shimmer': 'shimmer 1.4s linear infinite',
+        'live-pulse': 'live-pulse 1.6s ease-in-out infinite',
       },
       keyframes: {
         lockIn: {
@@ -58,6 +65,14 @@ export default {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        shimmer: {
+          from: { backgroundPosition: '200% 0' },
+          to: { backgroundPosition: '-200% 0' },
+        },
+        'live-pulse': {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '.5', transform: 'scale(.75)' },
         },
       },
     },
