@@ -3,11 +3,11 @@ import { db } from '../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useLeague } from '../context/LeagueContext';
 import type { TeamScore } from '../types/scores';
-import LiveStats from './LiveStats';
 import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
 import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
+import { PageHeader } from './ui/PageHeader';
 // Import utilities for existing leagues
 import '../utils/updateLeague';
 
@@ -77,7 +77,7 @@ export default function Standings() {
   if (!league) {
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <h2 className="text-3xl font-bold mb-6 text-white">Standings</h2>
+        <PageHeader title="Scores" />
         <p className="text-slate-400">No league found. Create or join a league to see standings.</p>
       </div>
     );
@@ -85,109 +85,7 @@ export default function Standings() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-white">{league.leagueName} - Standings</h2>
-      </div>
-
-      {/* Collapsible Scoring Rules */}
-      {league.scoringRules && (
-        <GlassCard className="p-0 overflow-hidden">
-          <button
-            onClick={() => setShowScoringRules(!showScoringRules)}
-            className="w-full p-4 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-xl">
-                📊
-              </div>
-              <div className="text-left">
-                <h3 className="text-lg font-bold text-white">Scoring Rules</h3>
-                <p className="text-slate-400 text-sm">How points are calculated</p>
-              </div>
-            </div>
-            <span className={`text-slate-400 transition-transform duration-300 ${showScoringRules ? 'rotate-180' : ''}`}>
-              ▼
-            </span>
-          </button>
-
-          {showScoringRules && (
-            <div className="p-6 pt-2 border-t border-slate-700/50 bg-slate-900/30">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Skaters */}
-                <div>
-                  <h4 className="text-sm font-bold text-blue-400 mb-3 uppercase tracking-wide flex items-center gap-2">
-                    <span>⚡</span> Skaters
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Goal</span>
-                      <span className="font-bold text-green-400">+{league.scoringRules.goal}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Assist</span>
-                      <span className="font-bold text-green-400">+{league.scoringRules.assist}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">SH Goal</span>
-                      <span className="font-bold text-yellow-400">+{league.scoringRules.shortHandedGoal}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">OT Goal</span>
-                      <span className="font-bold text-yellow-400">+{league.scoringRules.overtimeGoal}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Fight</span>
-                      <span className="font-bold text-red-400">+{league.scoringRules.fight}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Defense */}
-                <div>
-                  <h4 className="text-sm font-bold text-green-400 mb-3 uppercase tracking-wide flex items-center gap-2">
-                    <span>🛡️</span> Defense
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Blocked Shot</span>
-                      <span className="font-bold text-green-400">+{league.scoringRules.blockedShot}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Hit</span>
-                      <span className="font-bold text-green-400">+{league.scoringRules.hit}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Goalies */}
-                <div>
-                  <h4 className="text-sm font-bold text-purple-400 mb-3 uppercase tracking-wide flex items-center gap-2">
-                    <span>🥅</span> Goalies
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Win</span>
-                      <span className="font-bold text-green-400">+{league.scoringRules.win}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Shutout</span>
-                      <span className="font-bold text-yellow-400">+{league.scoringRules.shutout}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Save</span>
-                      <span className="font-bold text-green-400">+{league.scoringRules.save}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                      <span className="text-slate-300 text-sm">Goalie Goal</span>
-                      <span className="font-bold text-yellow-400">+{league.scoringRules.goalieGoal}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </GlassCard>
-      )}
+      <PageHeader title="Scores" />
 
       {/* Standings Table */}
       <GlassCard className="overflow-hidden">
@@ -218,7 +116,7 @@ export default function Standings() {
             <table className="w-full">
               <thead className="bg-slate-900/50 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="text-left p-4 text-slate-400 font-semibold">Rank</th>
+                  <th className="text-left p-4 text-slate-400 font-semibold sticky left-0 bg-[#0d1322] z-10">Rank</th>
                   <th className="text-left p-4 text-slate-400 font-semibold">Team</th>
                   <th className="text-center p-4 text-slate-400 font-semibold">Points</th>
 
@@ -236,7 +134,7 @@ export default function Standings() {
                       key={team.teamName}
                       className="hover:bg-slate-800/30 transition-colors"
                     >
-                      <td className="p-4">
+                      <td className="p-4 sticky left-0 bg-[#0d1322] z-10">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isFirst ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' :
                           isSecond ? 'bg-slate-300 text-black shadow-lg shadow-slate-300/20' :
                             isThird ? 'bg-amber-700 text-white shadow-lg shadow-amber-700/20' :
@@ -258,7 +156,7 @@ export default function Standings() {
                         </div>
                       </td>
                       <td className="p-4 text-center">
-                        <span className="text-2xl font-black text-green-400 drop-shadow-sm">
+                        <span className="text-2xl font-black text-points drop-shadow-sm">
                           {team.totalPoints.toFixed(2)}
                         </span>
                       </td>
@@ -276,9 +174,6 @@ export default function Standings() {
           </div>
         )}
       </GlassCard>
-
-      {/* Live Stats Section - Show all teams' stats on Standings page */}
-      <LiveStats showAllTeams={true} />
 
       {/* Player Performance Details - Grouped by Team, Aggregated by Player */}
       {playerPerformances.length > 0 && (
@@ -365,7 +260,7 @@ export default function Standings() {
                       <table className="w-full">
                         <thead className="bg-slate-800/50 text-xs uppercase">
                           <tr>
-                            <th className="text-left p-3 text-slate-400 font-medium w-8">#</th>
+                            <th className="text-left p-3 text-slate-400 font-medium w-8 sticky left-0 bg-[#0d1322] z-10">#</th>
                             <th className="text-left p-3 text-slate-400 font-medium">Player</th>
                             <th className="text-center p-3 text-slate-400 font-medium">NHL</th>
                             <th className="text-center p-3 text-slate-400 font-medium">G</th>
@@ -388,7 +283,7 @@ export default function Standings() {
                                 key={player.playerId}
                                 className={`hover:bg-slate-800/30 transition-colors ${isTopPerformer ? 'bg-green-900/10' : ''}`}
                               >
-                                <td className="p-3 text-slate-500 text-sm font-medium">
+                                <td className="p-3 text-slate-500 text-sm font-medium sticky left-0 bg-[#0d1322] z-10">
                                   {index + 1}.
                                 </td>
                                 <td className="p-3">
@@ -425,7 +320,7 @@ export default function Standings() {
                                 <td className={`p-3 text-center ${player.saves > 0 ? 'text-white' : 'text-slate-400'}`}>{player.saves}</td>
                                 <td className={`p-3 text-center ${player.shutouts > 0 ? 'text-yellow-400 font-bold' : 'text-slate-400'}`}>{player.shutouts}</td>
                                 <td className="p-3 text-center">
-                                  <span className={`font-bold text-lg ${player.totalPoints >= 10 ? 'text-green-400' : player.totalPoints > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                  <span className={`font-bold text-lg ${player.totalPoints > 0 ? 'text-points' : 'text-slate-400'}`}>
                                     {player.totalPoints.toFixed(1)}
                                   </span>
                                 </td>
@@ -450,6 +345,106 @@ export default function Standings() {
               to your team's total score.
             </p>
           </div>
+        </GlassCard>
+      )}
+
+      {/* Collapsible Scoring Rules */}
+      {league.scoringRules && (
+        <GlassCard className="p-0 overflow-hidden">
+          <button
+            onClick={() => setShowScoringRules(!showScoringRules)}
+            className="w-full p-4 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-xl">
+                📊
+              </div>
+              <div className="text-left">
+                <h3 className="text-lg font-bold text-white">Scoring Rules</h3>
+                <p className="text-slate-400 text-sm">How points are calculated</p>
+              </div>
+            </div>
+            <span className={`text-slate-400 transition-transform duration-300 ${showScoringRules ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </button>
+
+          {showScoringRules && (
+            <div className="p-6 pt-2 border-t border-slate-700/50 bg-slate-900/30">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Skaters */}
+                <div>
+                  <h4 className="text-sm font-bold text-blue-400 mb-3 uppercase tracking-wide flex items-center gap-2">
+                    <span>⚡</span> Skaters
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Goal</span>
+                      <span className="font-bold text-points">+{league.scoringRules.goal}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Assist</span>
+                      <span className="font-bold text-points">+{league.scoringRules.assist}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">SH Goal</span>
+                      <span className="font-bold text-points">+{league.scoringRules.shortHandedGoal}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">OT Goal</span>
+                      <span className="font-bold text-points">+{league.scoringRules.overtimeGoal}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Fight</span>
+                      <span className="font-bold text-points">+{league.scoringRules.fight}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Defense */}
+                <div>
+                  <h4 className="text-sm font-bold text-green-400 mb-3 uppercase tracking-wide flex items-center gap-2">
+                    <span>🛡️</span> Defense
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Blocked Shot</span>
+                      <span className="font-bold text-points">+{league.scoringRules.blockedShot}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Hit</span>
+                      <span className="font-bold text-points">+{league.scoringRules.hit}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Goalies */}
+                <div>
+                  <h4 className="text-sm font-bold text-purple-400 mb-3 uppercase tracking-wide flex items-center gap-2">
+                    <span>🥅</span> Goalies
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Win</span>
+                      <span className="font-bold text-points">+{league.scoringRules.win}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Shutout</span>
+                      <span className="font-bold text-points">+{league.scoringRules.shutout}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Save</span>
+                      <span className="font-bold text-points">+{league.scoringRules.save}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                      <span className="text-slate-300 text-sm">Goalie Goal</span>
+                      <span className="font-bold text-points">+{league.scoringRules.goalieGoal}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </GlassCard>
       )}
     </div>

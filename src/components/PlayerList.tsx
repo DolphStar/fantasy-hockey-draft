@@ -248,8 +248,7 @@ export default function PlayerList() {
 
   if (!league || !myTeam) {
     return (
-      <div className="max-w-[1600px] mx-auto p-6">
-        <h2 className="text-3xl font-bold mb-6 text-white">My Players</h2>
+      <div className="max-w-[1600px] mx-auto">
         <GlassCard className="p-8 text-center">
           <p className="text-gray-400 text-lg">No league found. Create or join a league to see your roster.</p>
         </GlassCard>

@@ -11,11 +11,15 @@ import { NHL_GAME_TYPES, type LeagueTeam } from '../types/league';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { Badge } from './ui/Badge';
+import { PageHeader } from './ui/PageHeader';
+import { SegmentedTabs } from './ui/SegmentedTabs';
 import { getAllPlayers, getTeamRoster, NHL_TEAMS, type RosterPerson, type TeamAbbrev, getPlayerFullName } from '../utils/nhlApi';
 import { toast } from 'sonner';
 import { commitAutoDraftPick, fetchDraftedRosterStatus, type AutoDraftCandidate } from '../services/adminLeagueService';
 
 type RosterPersonWithTeamAbbrev = RosterPerson & { teamAbbrev: TeamAbbrev };
+
+type LeagueTab = 'settings' | 'teams' | 'draft' | 'admin';
 
 
 export default function LeagueSettings() {
@@ -37,6 +41,15 @@ export default function LeagueSettings() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [tab, setTab] = useState<LeagueTab>('settings');
+
+  const leagueTabs: { id: LeagueTab; label: string }[] = [
+    { id: 'settings', label: 'Settings' },
+    { id: 'teams', label: 'Teams' },
+    ...(league && isAdmin
+      ? [{ id: 'draft' as const, label: 'Draft Controls' }, { id: 'admin' as const, label: 'Admin Tools' }]
+      : []),
+  ];
 
   // Populate form when league loads
   useEffect(() => {
@@ -291,25 +304,37 @@ export default function LeagueSettings() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-7xl mx-auto p-6"
     >
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-3xl font-heading font-bold text-white flex items-center gap-3">
-            <span className="text-4xl">⚙️</span>
-            League Settings
-          </h2>
-          <p className="text-slate-400 mt-1">Manage your league configuration, teams, and draft settings.</p>
-        </div>
-        {league && (
-          <Badge variant={league.status === 'live' ? 'success' : 'warning'} className="text-lg px-4 py-2">
-            {league.status === 'live' ? 'Draft Live' : 'Draft Pending'}
-          </Badge>
-        )}
-      </div>
+      <PageHeader
+        title="League"
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            {league && (
+              <Badge variant={league.status === 'live' ? 'success' : 'warning'} className="px-3 py-1.5">
+                {league.status === 'live' ? 'Draft Live' : 'Draft Pending'}
+              </Badge>
+            )}
+            <SegmentedTabs tabs={leagueTabs} active={tab} onChange={setTab} />
+          </div>
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: League Form */}
-        <div className="lg:col-span-2 space-y-8">
-          {(!league || isAdmin) ? (
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg flex items-center gap-3 mb-6">
+          <span className="text-xl">⚠️</span>
+          <p className="text-red-200">{error}</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-500/10 border border-green-500/50 p-4 rounded-lg flex items-center gap-3 mb-6">
+          <span className="text-xl">✅</span>
+          <p className="text-green-200">{success}</p>
+        </div>
+      )}
+
+      <div className="max-w-3xl space-y-6">
+        {(tab === 'settings' || tab === 'teams') && (
+          (!league || isAdmin) ? (
             <form onSubmit={league ? handleUpdateLeague : handleCreateLeague}>
               <GlassCard className="p-6 space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-700/50 pb-4">
@@ -319,20 +344,7 @@ export default function LeagueSettings() {
                   {league && <Badge variant="outline">ID: {league.id}</Badge>}
                 </div>
 
-                {error && (
-                  <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg flex items-center gap-3">
-                    <span className="text-xl">⚠️</span>
-                    <p className="text-red-200">{error}</p>
-                  </div>
-                )}
-
-                {success && (
-                  <div className="bg-green-500/10 border border-green-500/50 p-4 rounded-lg flex items-center gap-3">
-                    <span className="text-xl">✅</span>
-                    <p className="text-green-200">{success}</p>
-                  </div>
-                )}
-
+                {tab === 'settings' && (<>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* League Name */}
                   <div className="space-y-2">
@@ -413,9 +425,11 @@ export default function LeagueSettings() {
                     Standard rosters need 22 rounds (9F + 6D + 2G + 5 Bench). Currently set to {draftRounds}.
                   </div>
                 )}
+                </>)}
 
                 {/* Teams Section */}
-                <div className="space-y-4 pt-4 border-t border-slate-700/50">
+                {tab === 'teams' && (
+                <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h4 className="text-lg font-bold text-white">Teams ({teams.length})</h4>
                     <button
@@ -472,6 +486,7 @@ export default function LeagueSettings() {
                     ))}
                   </div>
                 </div>
+                )}
 
                 <div className="pt-4">
                   <GradientButton
@@ -490,12 +505,11 @@ export default function LeagueSettings() {
               <h3 className="text-xl font-bold text-white mb-2">Admin Access Required</h3>
               <p className="text-slate-400">Only the league commissioner can modify these settings.</p>
             </GlassCard>
-          )}
-        </div>
+          )
+        )}
 
-        {/* Right Column: Info & Tools */}
-        <div className="space-y-6">
-          {/* User Info Card */}
+        {/* Identity (settings tab, visible to everyone) */}
+        {tab === 'settings' && (
           <GlassCard className="p-5 space-y-4">
             <h3 className="text-lg font-bold text-white border-b border-slate-700/50 pb-2">Your Identity</h3>
             <div>
@@ -508,9 +522,10 @@ export default function LeagueSettings() {
               </p>
             </div>
           </GlassCard>
+        )}
 
-          {/* Admin Controls */}
-          {league && isAdmin && (
+        {/* Draft Controls tab */}
+        {tab === 'draft' && league && isAdmin && (
             <>
               <GlassCard className="p-5 space-y-4 border-t-4 border-t-green-500">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -574,15 +589,6 @@ export default function LeagueSettings() {
                 )}
               </GlassCard>
 
-              {/* Developer Tools */}
-              <div className="space-y-4">
-                <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider px-2">Developer Tools</h3>
-                <TestScoring />
-                <TestLiveStats />
-                <BackfillStats />
-                <AdminPlayerManagement />
-              </div>
-
               {/* Danger Zone */}
               <GlassCard className="p-5 space-y-4 border-red-900/30 bg-red-950/10">
                 <h3 className="text-lg font-bold text-red-400 flex items-center gap-2">
@@ -608,8 +614,17 @@ export default function LeagueSettings() {
                 </button>
               </GlassCard>
             </>
-          )}
-        </div>
+        )}
+
+        {/* Admin Tools tab */}
+        {tab === 'admin' && league && isAdmin && (
+          <div className="space-y-4">
+            <TestScoring />
+            <TestLiveStats />
+            <BackfillStats />
+            <AdminPlayerManagement />
+          </div>
+        )}
       </div>
     </motion.div>
   );

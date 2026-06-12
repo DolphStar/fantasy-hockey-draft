@@ -50,18 +50,16 @@ export default function PlayerCard({
         ? (playerStats?.goals || 0) + (playerStats?.assists || 0)
         : (playerStats?.wins || 0) * 2;
 
-    // Color coding based on fantasy points
-    // Skaters: 100+ = gold, 60-99 = green, 30-59 = blue, <30 = white
-    // Goalies: 70+ = gold (lower threshold since wins*2 caps lower)
+    // Fantasy points are always points-green (locked color role); glow scales with score
+    // Skaters: 100+ = exceptional glow; Goalies: 70+ (wins*2 caps lower)
     const isGoalie = position === 'G';
     const getFantasyPointsColor = (points: number) => {
         const exceptionalThreshold = isGoalie ? 70 : 100;
         const goodThreshold = isGoalie ? 50 : 60;
-        const normalThreshold = isGoalie ? 25 : 30;
-        
-        if (points >= exceptionalThreshold) return { text: 'text-amber-400', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.6)]', border: 'border-amber-400/70' };
-        if (points >= goodThreshold) return { text: 'text-emerald-400', glow: 'shadow-[0_0_15px_rgba(52,211,153,0.4)]', border: 'border-emerald-400/50' };
-        if (points >= normalThreshold) return { text: 'text-blue-400', glow: 'shadow-[0_0_10px_rgba(96,165,250,0.3)]', border: 'border-blue-400/50' };
+
+        if (points >= exceptionalThreshold) return { text: 'text-points', glow: 'shadow-[0_0_20px_rgba(74,222,128,0.6)]', border: 'border-points/70' };
+        if (points >= goodThreshold) return { text: 'text-points', glow: 'shadow-[0_0_15px_rgba(74,222,128,0.4)]', border: 'border-points/50' };
+        if (points > 0) return { text: 'text-points', glow: '', border: '' };
         return { text: 'text-white', glow: '', border: '' };
     };
 

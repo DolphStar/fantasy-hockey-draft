@@ -107,9 +107,7 @@ export default function Injuries() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-6 text-white">🏥 NHL Injury Report</h2>
-
+    <div className="max-w-6xl mx-auto">
       {/* Info Banner */}
       <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mb-6">
         <p className="text-blue-200 text-sm">

@@ -1,34 +1,36 @@
 import { useState, useEffect, Suspense } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Login from './components/Login';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
+import BottomNav from './components/layout/BottomNav';
+import ChatDrawer from './components/layout/ChatDrawer';
+import { useUnreadChat } from './hooks/useUnreadChat';
 import Dashboard from './components/Dashboard';
+import PlayersHub from './components/PlayersHub';
 import { useAuth } from './context/AuthContext';
 import { useDraft } from './context/DraftContext';
 import { useTurnNotification } from './hooks/useTurnNotification';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import ScrollToTop from './components/ui/ScrollToTop';
-import type { Tab } from './types';
 
 const PlayerList = lazyWithRetry(() => import('./components/PlayerList'))
 const NHLRoster = lazyWithRetry(() => import('./components/NHLRoster'))
 const DraftBoardGrid = lazyWithRetry(() => import('./components/DraftBoardGrid'))
 const LeagueSettings = lazyWithRetry(() => import('./components/LeagueSettings'))
 const Standings = lazyWithRetry(() => import('./components/Standings'))
-const LeagueChat = lazyWithRetry(() => import('./components/LeagueChat'))
 const Injuries = lazyWithRetry(() => import('./components/Injuries'))
 const PlayerComparisonModal = lazyWithRetry(() => import('./components/modals/PlayerComparisonModal'))
 const DraftCelebration = lazyWithRetry(() => import('./components/draft/DraftCelebration'))
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard')
-  const [isNavOpen, setIsNavOpen] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationPlayer, setCelebrationPlayer] = useState('')
-  const [rosterSearchQuery, setRosterSearchQuery] = useState('')
   const { user, loading: authLoading, signOut } = useAuth()
   const { draftState } = useDraft()
+  const unread = useUnreadChat(isChatOpen)
 
   // Turn notifications (sound + browser notification)
   useTurnNotification()
@@ -69,7 +71,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 pb-24 md:pb-8">
         {/* Toast Notifications */}
         <Toaster position="top-right" richColors />
 
@@ -89,7 +91,7 @@ function App() {
                   <ellipse cx="12" cy="19" rx="4" ry="1.4" className="text-blue-500/60" fill="currentColor" />
                 </svg>
               </div>
-              <h1 className="text-3xl font-bold text-white">Fantasy Hockey Draft</h1>
+              <p className="text-3xl font-bold text-white">Fantasy Hockey Draft</p>
             </div>
             <p className="text-gray-400 text-sm">Browse NHL rosters and manage your draft picks</p>
           </div>
@@ -112,6 +114,18 @@ function App() {
               </div>
             )}
             <button
+              type="button"
+              onClick={() => setIsChatOpen(true)}
+              className="relative bg-transparent hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium border border-white/10 hover:border-white/30"
+            >
+              💬 Chat
+              {unread > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-live text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                  {unread}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => signOut()}
               className="bg-transparent hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium border border-white/10 hover:border-white/30"
             >
@@ -120,15 +134,10 @@ function App() {
           </div>
         </header>
 
-        {/* Tab Navigation */}
-        <Navbar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          isNavOpen={isNavOpen}
-          setIsNavOpen={setIsNavOpen}
-        />
+        {/* Section Navigation */}
+        <Navbar />
 
-        {/* Tab Content */}
+        {/* Routed Content */}
         <Suspense
           fallback={
             <div className="flex justify-center items-center py-12">
@@ -136,23 +145,30 @@ function App() {
             </div>
           }
         >
-          {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} setRosterSearchQuery={setRosterSearchQuery} />}
-          {activeTab === 'roster' && <NHLRoster initialSearchQuery={rosterSearchQuery} onSearchQueryUsed={() => setRosterSearchQuery('')} />}
-          {activeTab === 'draftBoard' && (
-            <div className="max-w-6xl mx-auto px-6">
-              <DraftBoardGrid />
-            </div>
-          )}
-          {activeTab === 'myPlayers' && <PlayerList />}
-          {activeTab === 'standings' && <Standings />}
-          {activeTab === 'injuries' && <Injuries />}
-          {activeTab === 'chat' && <LeagueChat />}
-          {activeTab === 'leagueSettings' && <LeagueSettings />}
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/players" element={<PlayersHub />}>
+              <Route index element={<PlayerList />} />
+              <Route path="browse" element={<NHLRoster />} />
+              <Route path="injuries" element={<Injuries />} />
+            </Route>
+            <Route path="/scores" element={<Standings />} />
+            <Route path="/draft" element={
+              <div className="max-w-6xl mx-auto px-6">
+                <DraftBoardGrid />
+              </div>
+            } />
+            <Route path="/league" element={<LeagueSettings />} />
+            <Route path="/chat" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </Suspense>
 
         <PlayerComparisonModal />
+        <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
         <DraftCelebration show={showCelebration} playerName={celebrationPlayer} onComplete={() => setShowCelebration(false)} />
         <ScrollToTop />
+        <BottomNav onOpenChat={() => setIsChatOpen(true)} unread={unread} />
       </div>
     </ErrorBoundary>
   );

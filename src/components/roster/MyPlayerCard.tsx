@@ -46,11 +46,10 @@ export default function MyPlayerCard({
         return 'text-slate-400';
     };
 
-    // Color-code fantasy points based on score
+    // Fantasy points are always points-green (locked color role); glow scales with score
     const getFpColor = (fp: number) => {
-        if (fp >= 15) return { text: 'text-amber-400', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.6)]' };
-        if (fp >= 10) return { text: 'text-green-400', glow: 'shadow-[0_0_20px_rgba(74,222,128,0.6)]' };
-        if (fp >= 5) return { text: 'text-blue-400', glow: 'shadow-[0_0_20px_rgba(96,165,250,0.6)]' };
+        if (fp >= 10) return { text: 'text-points', glow: 'shadow-[0_0_20px_rgba(74,222,128,0.6)]' };
+        if (fp > 0) return { text: 'text-points', glow: 'shadow-[0_0_12px_rgba(74,222,128,0.35)]' };
         return { text: 'text-gray-400', glow: 'shadow-[0_0_10px_rgba(156,163,175,0.4)]' };
     };
 

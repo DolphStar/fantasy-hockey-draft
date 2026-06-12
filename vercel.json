@@ -17,6 +17,10 @@
     {
       "source": "/api/stats/:path*",
       "destination": "https://api.nhle.com/:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ],
   "crons": [

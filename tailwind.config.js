@@ -16,10 +16,21 @@ export default {
         danger: '#ef4444',     // Red 500
         warning: '#eab308',    // Yellow 500
         info: '#06b6d4',       // Cyan 500
+        points: '#4ade80',
+        rank: '#facc15',
+        live: '#ef4444',
+        card: { from: '#101729', to: '#0d1322', border: '#1e293b' },
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         heading: ['Outfit', 'sans-serif'],
+      },
+      borderRadius: {
+        card: '14px',
+      },
+      backgroundImage: {
+        'card-surface': 'linear-gradient(160deg, #101729, #0d1322)',
+        'app-radial': 'radial-gradient(ellipse at 20% -10%, #131b33 0%, #0a0e1a 55%)',
       },
       animation: {
         'spin-slow': 'spin 3s linear infinite',
