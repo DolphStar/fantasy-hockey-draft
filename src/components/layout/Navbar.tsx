@@ -3,11 +3,6 @@ import { NavLink } from 'react-router-dom';
 import { GlassCard } from '../ui/GlassCard';
 import { cn } from '../../lib/utils';
 
-interface NavbarProps {
-    isNavOpen: boolean;
-    setIsNavOpen: (isOpen: boolean | ((prev: boolean) => boolean)) => void;
-}
-
 const links = [
     { to: '/', label: 'Home', icon: '🏠', end: true },
     { to: '/players', label: 'Players', icon: '🏒' },
@@ -16,29 +11,15 @@ const links = [
     { to: '/league', label: 'League', icon: '⚙️' },
 ];
 
-export default function Navbar({ isNavOpen, setIsNavOpen }: NavbarProps) {
+export default function Navbar() {
     return (
         <div className="max-w-7xl mx-auto px-4 mb-8 pt-4">
-            <div className="flex items-center justify-between md:hidden mb-4">
-                <span className="text-slate-200 text-lg font-heading font-bold">Menu</span>
-                <button
-                    onClick={() => setIsNavOpen((open) => !open)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200"
-                >
-                    <span>{isNavOpen ? 'Close' : 'Open'}</span>
-                    <span className="text-xl">☰</span>
-                </button>
-            </div>
-            <GlassCard className={cn(
-                'p-2 flex-col md:flex-row gap-2 md:gap-1 transition-all duration-300',
-                isNavOpen ? 'flex' : 'hidden md:flex'
-            )}>
+            <GlassCard className="p-2 flex-row gap-1 hidden md:flex">
                 {links.map((link) => (
                     <NavLink
                         key={link.to}
                         to={link.to}
                         end={link.end}
-                        onClick={() => setIsNavOpen(false)}
                         className={({ isActive }) => cn(
                             'relative px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 flex-1 justify-center',
                             isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'

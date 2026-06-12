@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import Login from './components/Login';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
+import BottomNav from './components/layout/BottomNav';
 import ChatDrawer from './components/layout/ChatDrawer';
 import { useUnreadChat } from './hooks/useUnreadChat';
 import Dashboard from './components/Dashboard';
@@ -23,7 +24,6 @@ const PlayerComparisonModal = lazyWithRetry(() => import('./components/modals/Pl
 const DraftCelebration = lazyWithRetry(() => import('./components/draft/DraftCelebration'))
 
 function App() {
-  const [isNavOpen, setIsNavOpen] = useState(false)
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationPlayer, setCelebrationPlayer] = useState('')
@@ -70,7 +70,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 pb-24 md:pb-8">
         {/* Toast Notifications */}
         <Toaster position="top-right" richColors />
 
@@ -134,7 +134,7 @@ function App() {
         </header>
 
         {/* Section Navigation */}
-        <Navbar isNavOpen={isNavOpen} setIsNavOpen={setIsNavOpen} />
+        <Navbar />
 
         {/* Routed Content */}
         <Suspense
@@ -165,6 +165,7 @@ function App() {
         <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
         <DraftCelebration show={showCelebration} playerName={celebrationPlayer} onComplete={() => setShowCelebration(false)} />
         <ScrollToTop />
+        <BottomNav onOpenChat={() => setIsChatOpen(true)} unread={unread} />
       </div>
     </ErrorBoundary>
   );
