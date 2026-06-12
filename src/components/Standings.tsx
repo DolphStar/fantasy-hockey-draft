@@ -5,9 +5,15 @@ import { useLeague } from '../context/LeagueContext';
 import type { TeamScore } from '../types/scores';
 import { isPlayerInjuredByName, getInjuryIcon, getInjuryColor } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
+import { motion } from 'framer-motion';
+import { BarChart3, Medal, Trophy } from 'lucide-react';
 import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
 import { PageHeader } from './ui/PageHeader';
+import { Icon } from './ui/Icon';
+import { SkeletonRow } from './ui/Skeleton';
+import { staggerItem, staggerList } from '../lib/motion';
+import { useCountUp } from '../hooks/useCountUp';
 // Import utilities for existing leagues
 import '../utils/updateLeague';
 
@@ -19,6 +25,12 @@ interface PlayerPerformance {
   date: string;
   points: number;
   stats: Record<string, number>;
+}
+
+/** Counting team total — separate component so the hook runs per row. */
+function TeamPointsCell({ points }: { points: number }) {
+  const display = useCountUp(points, 2);
+  return <span className="text-2xl font-black text-points drop-shadow-sm tabular-nums">{display}</span>;
 }
 
 export default function Standings() {
@@ -92,7 +104,7 @@ export default function Standings() {
         <div className="p-6 border-b border-slate-700/50 bg-slate-900/30 flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-              🏆 Current Standings
+              <Icon as={Trophy} size="md" className="text-rank" /> Current Standings
             </h3>
             <p className="text-slate-400 text-sm mt-1">League rankings based on total fantasy points</p>
           </div>
@@ -102,9 +114,8 @@ export default function Standings() {
         </div>
 
         {loading ? (
-          <div className="p-12 text-center">
-            <div className="animate-spin text-4xl mb-4">🔄</div>
-            <p className="text-slate-400">Loading standings...</p>
+          <div className="py-4">
+            <SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow />
           </div>
         ) : standings.length === 0 ? (
           <div className="p-12 text-center">
@@ -123,19 +134,20 @@ export default function Standings() {
                   <th className="text-right p-4 text-slate-400 font-semibold">Last Updated</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/50">
+              <motion.tbody variants={staggerList} initial="initial" animate="animate" className="divide-y divide-slate-700/50">
                 {standings.map((team, index) => {
                   const isFirst = index === 0;
                   const isSecond = index === 1;
                   const isThird = index === 2;
 
                   return (
-                    <tr
+                    <motion.tr
                       key={team.teamName}
+                      variants={staggerItem}
                       className="hover:bg-slate-800/30 transition-colors"
                     >
                       <td className="p-4 sticky left-0 bg-[#0d1322] z-10">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isFirst ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' :
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isFirst ? 'bg-yellow-500 text-black shadow-glow-gold' :
                           isSecond ? 'bg-slate-300 text-black shadow-lg shadow-slate-300/20' :
                             isThird ? 'bg-amber-700 text-white shadow-lg shadow-amber-700/20' :
                               'bg-slate-800 text-slate-400'
@@ -156,9 +168,7 @@ export default function Standings() {
                         </div>
                       </td>
                       <td className="p-4 text-center">
-                        <span className="text-2xl font-black text-points drop-shadow-sm">
-                          {team.totalPoints.toFixed(2)}
-                        </span>
+                        <TeamPointsCell points={team.totalPoints} />
                       </td>
 
                       <td className="p-4 text-right text-slate-500 text-sm font-mono">
@@ -166,10 +176,10 @@ export default function Standings() {
                           ? new Date(team.lastUpdated).toLocaleDateString()
                           : '-'}
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })}
-              </tbody>
+              </motion.tbody>
             </table>
           </div>
         )}
@@ -181,7 +191,7 @@ export default function Standings() {
           <div className="flex items-center justify-between p-6 border-b border-slate-700/50 bg-slate-900/30">
             <div>
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <span>🏒</span> Player Performances
+                <Icon as={Medal} size="md" className="text-blue-400" /> Player Performances
               </h3>
               <p className="text-slate-400 text-sm mt-1">Season totals by player</p>
             </div>
@@ -356,8 +366,8 @@ export default function Standings() {
             className="w-full p-4 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-xl">
-                📊
+              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <Icon as={BarChart3} size="md" className="text-blue-400" />
               </div>
               <div className="text-left">
                 <h3 className="text-lg font-bold text-white">Scoring Rules</h3>
