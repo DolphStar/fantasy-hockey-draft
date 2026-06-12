@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { MessageCircle, X } from 'lucide-react';
 import LeagueChat from '../LeagueChat';
+import { Icon } from '../ui/Icon';
 
 interface ChatDrawerProps {
   isOpen: boolean;
@@ -26,7 +28,7 @@ export default function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 bg-black/50 z-[55]"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[55]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -43,18 +45,20 @@ export default function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
             transition={{ type: 'spring', stiffness: 400, damping: 40 }}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-              <h2 className="text-sm font-bold text-white">💬 League Chat</h2>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Icon as={MessageCircle} size="sm" className="text-blue-400" /> League Chat
+              </h2>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Close chat"
                 className="text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800"
               >
-                ✕
+                <Icon as={X} size="sm" />
               </button>
             </div>
             <div className="flex-1 min-h-0 p-3">
-              <LeagueChat variant="embedded" />
+              <LeagueChat variant="embedded" hideHeader />
             </div>
           </motion.aside>
         </>

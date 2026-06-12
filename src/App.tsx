@@ -1,6 +1,11 @@
 import { useState, useEffect, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { MessageCircle } from 'lucide-react';
 import { Toaster } from 'sonner';
+import { pageEnter } from './lib/motion';
+import { Icon } from './components/ui/Icon';
+import { Skeleton } from './components/ui/Skeleton';
 import Login from './components/Login';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
@@ -31,6 +36,9 @@ function App() {
   const { user, loading: authLoading, signOut } = useAuth()
   const { draftState } = useDraft()
   const unread = useUnreadChat(isChatOpen)
+  const location = useLocation()
+  // Key route transitions by top-level segment so in-hub tab switches don't re-fade
+  const routeKey = location.pathname.split('/')[1] || 'home'
 
   // Turn notifications (sound + browser notification)
   useTurnNotification()
@@ -57,8 +65,10 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
+          <div className="w-full max-w-md space-y-3 px-6">
+            <Skeleton className="h-10 w-2/3 mx-auto" />
+            <Skeleton className="h-40 w-full" />
+          </div>
         </div>
       </div>
     );
@@ -118,7 +128,7 @@ function App() {
               onClick={() => setIsChatOpen(true)}
               className="relative bg-transparent hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium border border-white/10 hover:border-white/30"
             >
-              💬 Chat
+              <span className="inline-flex items-center gap-1.5"><Icon as={MessageCircle} size="sm" /> Chat</span>
               {unread > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-live text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
                   {unread}
@@ -145,6 +155,7 @@ function App() {
             </div>
           }
         >
+          <motion.div key={routeKey} variants={pageEnter} initial="initial" animate="animate">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/players" element={<PlayersHub />}>
@@ -162,6 +173,7 @@ function App() {
             <Route path="/chat" element={<Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </motion.div>
         </Suspense>
 
         <PlayerComparisonModal />

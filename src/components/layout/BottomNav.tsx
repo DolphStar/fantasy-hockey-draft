@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ClipboardList, Ellipsis, House, MessageCircle, Settings, Trophy, Users, type LucideIcon } from 'lucide-react';
+import { Icon } from '../ui/Icon';
 import { cn } from '../../lib/utils';
 
 interface BottomNavProps {
@@ -8,10 +10,10 @@ interface BottomNavProps {
   unread: number;
 }
 
-const tabs = [
-  { to: '/', label: 'Home', icon: '🏠', end: true },
-  { to: '/players', label: 'Players', icon: '🏒' },
-  { to: '/scores', label: 'Scores', icon: '🏆' },
+const tabs: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
+  { to: '/', label: 'Home', icon: House, end: true },
+  { to: '/players', label: 'Players', icon: Users },
+  { to: '/scores', label: 'Scores', icon: Trophy },
 ];
 
 export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
@@ -54,10 +56,13 @@ export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 400, damping: 40 }}
             >
-              {[{ to: '/draft', label: '📋 Draft Board' }, { to: '/league', label: '⚙️ League Settings' }].map((l) => (
+              {[
+                { to: '/draft', label: 'Draft Board', icon: ClipboardList },
+                { to: '/league', label: 'League Settings', icon: Settings },
+              ].map((l) => (
                 <NavLink key={l.to} to={l.to} onClick={() => setMoreOpen(false)}
-                  className="block px-4 py-3 rounded-xl text-sm font-semibold text-slate-200 hover:bg-slate-800">
-                  {l.label}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-200 hover:bg-slate-800">
+                  <Icon as={l.icon} size="sm" className="text-blue-400" /> {l.label}
                 </NavLink>
               ))}
             </motion.div>
@@ -69,11 +74,11 @@ export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
         {tabs.map((t) => (
           <NavLink key={t.to} to={t.to} end={t.end} onClick={() => setMoreOpen(false)}
             className={({ isActive }) => itemCls(isActive)}>
-            <span className="text-lg">{t.icon}</span>{t.label}
+            {({ isActive }) => (<><Icon as={t.icon} size="md" glow={isActive} />{t.label}</>)}
           </NavLink>
         ))}
         <button type="button" onClick={() => { setMoreOpen(false); onOpenChat(); }} className={cn(itemCls(false), 'relative')}>
-          <span className="text-lg">💬</span>Chat
+          <Icon as={MessageCircle} size="md" />Chat
           {unread > 0 && (
             <span className="absolute top-1 right-[22%] bg-live text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
               {unread}
@@ -81,7 +86,7 @@ export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
           )}
         </button>
         <button type="button" onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen} className={itemCls(moreActive)}>
-          <span className="text-lg">⋯</span>More
+          <Icon as={Ellipsis} size="md" />More
         </button>
       </nav>
     </>

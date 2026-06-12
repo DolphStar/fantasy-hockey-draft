@@ -1,4 +1,6 @@
+import { BarChart3 } from 'lucide-react';
 import { GlassCard } from '../ui/GlassCard';
+import { Icon } from '../ui/Icon';
 import { usePositionScarcity } from '../../hooks/usePositionScarcity';
 import type { RosterPerson } from '../../utils/nhlApi';
 
@@ -26,7 +28,7 @@ export default function PositionScarcity({ allPlayers, draftedPlayerIds }: Posit
     return (
         <GlassCard className="p-4 mb-6">
             <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-                📊 Position Scarcity
+                <Icon as={BarChart3} size="sm" className="text-blue-400" /> Position Scarcity
             </h3>
             <div className="grid grid-cols-5 gap-2 text-center">
                 {(['C', 'L', 'R', 'D', 'G'] as const).map(pos => (

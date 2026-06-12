@@ -9,6 +9,8 @@ import {
   subscribeLeagueChatMessages,
 } from '../services/chatService';
 import type { ChatMessage } from '../types/chat';
+import { MessageCircle } from 'lucide-react';
+import { Icon } from './ui/Icon';
 
 interface LeagueChatProps {
   /**
@@ -17,9 +19,11 @@ interface LeagueChatProps {
    * - 'embedded': compact panel used alongside the draft board
    */
   variant?: 'full' | 'embedded';
+  /** Hide the built-in title (e.g. when a parent like ChatDrawer provides its own). */
+  hideHeader?: boolean;
 }
 
-export default function LeagueChat({ variant = 'full' }: LeagueChatProps) {
+export default function LeagueChat({ variant = 'full', hideHeader = false }: LeagueChatProps) {
   const { league, isAdmin } = useLeague();
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -141,16 +145,18 @@ export default function LeagueChat({ variant = 'full' }: LeagueChatProps) {
 
   return (
     <div className={containerClass}>
-      <h2
-        className={
-          variant === 'embedded'
-            ? 'text-sm font-semibold mb-2 text-white flex items-center gap-2'
-            : 'text-3xl font-bold mb-4 text-white'
-        }
-      >
-        <span>💬</span>
-        <span>{variant === 'embedded' ? 'League Chat' : 'League Chat'}</span>
-      </h2>
+      {!hideHeader && (
+        <h2
+          className={
+            variant === 'embedded'
+              ? 'text-sm font-semibold mb-2 text-white flex items-center gap-2'
+              : 'text-3xl font-bold mb-4 text-white flex items-center gap-2'
+          }
+        >
+          <Icon as={MessageCircle} size={variant === 'embedded' ? 'sm' : 'md'} className="text-blue-400" />
+          <span>League Chat</span>
+        </h2>
+      )}
       {variant === 'full' && (
         <p className="text-gray-400 text-sm mb-4">
           Chat with everyone in <span className="font-semibold text-blue-300">{league.leagueName}</span>.

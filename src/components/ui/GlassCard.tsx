@@ -16,17 +16,17 @@ export function GlassCard({
     ...props
 }: GlassCardProps) {
     const variants = {
-        default: "bg-slate-900/60 border-slate-700/50",
-        dark: "bg-black/40 border-white/10",
+        default: "bg-gradient-to-br from-slate-800/55 to-[#0d1322]/85 border-blue-400/20 shadow-glass",
+        dark: "bg-black/40 border-white/10 shadow-glass",
         light: "bg-white/10 border-white/20",
     };
 
     return (
         <motion.div
             className={cn(
-                "backdrop-blur-md border rounded-xl shadow-xl overflow-hidden",
+                "backdrop-blur-md border rounded-xl overflow-hidden",
                 variants[variant],
-                hoverEffect && "hover:bg-slate-800/60 hover:border-slate-600/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300",
+                hoverEffect && "hover:-translate-y-[3px] hover:border-blue-400/45 hover:shadow-glass-hover transition-all duration-300",
                 className
             )}
             initial={{ opacity: 0, y: 20 }}

@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import { Flame, HeartPulse, Radio, Trophy } from 'lucide-react';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { GlassCard } from './ui/GlassCard';
 import { GradientButton } from './ui/GradientButton';
 import { CardHeader } from './ui/CardHeader';
 import { StatNumber } from './ui/StatNumber';
+import { Icon } from './ui/Icon';
+import { Skeleton, SkeletonRow } from './ui/Skeleton';
+import { useCountUp } from '../hooks/useCountUp';
 import LiveStats from './LiveStats';
 import { useDraftedPlayers } from '../hooks/useDraftedPlayers';
 import { useInjuries } from '../queries/useInjuries';
@@ -71,7 +76,7 @@ export default function Dashboard() {
         () => (league?.allowedGameTypes && league.allowedGameTypes.length > 0 ? league.allowedGameTypes : [2]), // Default: regular season only
         [league],
     );
-    const { data: schedule } = useTodaySchedule(allowedGameTypes);
+    const { data: schedule, isLoading: scheduleLoading } = useTodaySchedule(allowedGameTypes);
     const matchups = useMemo(() => {
         if (!schedule || activeRoster.length === 0) return [];
         const roster = activeRoster.map(player => ({
@@ -83,7 +88,7 @@ export default function Dashboard() {
     }, [schedule, activeRoster]);
 
     // React Query: hot pickups
-    const { data: hotPickupsData } = useHotPickups(league?.id, draftedPlayerIds);
+    const { data: hotPickupsData, isLoading: pickupsLoading } = useHotPickups(league?.id, draftedPlayerIds);
     const hotPickups = hotPickupsData?.items ?? [];
     const hotPickupsLabel = hotPickupsData?.label ?? 'Season Leaders';
 
@@ -101,19 +106,25 @@ export default function Dashboard() {
         }, ids);
     }, [league, myTeam, activeRoster]);
 
+    const [scoresLoaded, setScoresLoaded] = useState(false);
+
     useEffect(() => {
         if (!league) {
             setTeamScores([]);
             return;
         }
 
-        return subscribeLeagueTeamScores(league.id, setTeamScores);
+        return subscribeLeagueTeamScores(league.id, (scores) => {
+            setTeamScores(scores);
+            setScoresLoaded(true);
+        });
     }, [league?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const teamPoints = useMemo(
         () => teamScores.find(score => score.teamName === myTeam?.teamName)?.totalPoints ?? 0,
         [teamScores, myTeam],
     );
+    const animatedPoints = useCountUp(teamPoints, 1);
     const leagueAveragePoints = useMemo(() => {
         if (teamScores.length === 0) return 0;
         const total = teamScores.reduce((sum, score) => sum + score.totalPoints, 0);
@@ -182,7 +193,11 @@ export default function Dashboard() {
         new Date(startTimeUTC).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
     if (!league) {
-        return <div className="text-white">Loading league data…</div>;
+        return (
+            <div className="max-w-6xl mx-auto px-6">
+                <Skeleton className="h-40 w-full rounded-xl" />
+            </div>
+        );
     }
 
     return (
@@ -192,7 +207,7 @@ export default function Dashboard() {
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div>
                         <p className="text-xs uppercase tracking-[0.3em] text-slate-400 flex items-center gap-2">
-                            <span className={`inline-flex w-2 h-2 rounded-full ${heroState.accent}`} />
+                            <span className={`inline-flex w-2 h-2 rounded-full ${heroState.accent} ${heroState.accent === 'bg-red-500' ? 'animate-live-pulse motion-reduce:animate-none' : ''}`} />
                             {heroState.label}
                         </p>
                         <h2 className="text-3xl font-heading font-bold text-white mt-1">
@@ -207,10 +222,10 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className="bg-slate-900/70 rounded-card p-5 min-w-[240px] text-right">
-                        <StatNumber label="Season Points" value={teamPoints.toFixed(1)} size="xl" />
+                        <StatNumber label="Season Points" value={animatedPoints} size="xl" className="tabular-nums" />
                         <p className="text-xs text-slate-500 mt-1">League Avg {leagueAveragePoints.toFixed(1)}</p>
                         {myRank && (
-                            <span className="inline-flex items-center gap-1 mt-2 bg-rank/15 text-rank text-xs font-bold px-2.5 py-1 rounded-full">
+                            <span className="inline-flex items-center gap-1 mt-2 bg-rank/15 text-rank text-xs font-bold px-2.5 py-1 rounded-full shadow-glow-gold">
                                 {myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🏒'} {ordinal(myRank)} place
                             </span>
                         )}
@@ -227,8 +242,10 @@ export default function Dashboard() {
             {/* Tonight's Games / Standings / Hot Pickups */}
             <div className="grid gap-4 md:grid-cols-3 items-start">
                 <GlassCard>
-                    <CardHeader icon="🔴" title="Tonight's Games" />
-                    {(schedule ?? []).length === 0 ? (
+                    <CardHeader icon={<Icon as={Radio} size="sm" className="text-live" />} title="Tonight's Games" />
+                    {scheduleLoading ? (
+                        <><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
+                    ) : (schedule ?? []).length === 0 ? (
                         <p className="px-4 py-6 text-sm text-slate-500 text-center">No games today — off day.</p>
                     ) : (
                         (schedule ?? []).map((game) => {
@@ -244,7 +261,7 @@ export default function Dashboard() {
                                     </span>
                                     {isLive ? (
                                         <span className="text-live text-[10px] font-extrabold tracking-wider whitespace-nowrap">
-                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-live shadow-[0_0_6px_#ef4444] mr-1 align-middle" />
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-live shadow-[0_0_6px_#ef4444] mr-1 align-middle animate-live-pulse motion-reduce:animate-none" />
                                             LIVE
                                         </span>
                                     ) : (
@@ -260,11 +277,13 @@ export default function Dashboard() {
 
                 <GlassCard>
                     <CardHeader
-                        icon="🏆"
+                        icon={<Icon as={Trophy} size="sm" className="text-rank" />}
                         title="Standings"
                         action={<Link to="/scores" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Full table →</Link>}
                     />
-                    {topThree.length === 0 ? (
+                    {!scoresLoaded ? (
+                        <><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
+                    ) : topThree.length === 0 ? (
                         <p className="px-4 py-6 text-sm text-slate-500 text-center">No scores yet.</p>
                     ) : (
                         <>
@@ -295,11 +314,13 @@ export default function Dashboard() {
 
                 <GlassCard>
                     <CardHeader
-                        icon="🔥"
+                        icon={<Icon as={Flame} size="sm" className="text-orange-400" />}
                         title="Hot Pickups"
                         action={<button type="button" onClick={goToRoster} className="text-xs font-semibold text-blue-400 hover:text-blue-300">Player hub →</button>}
                     />
-                    {hotPickups.length === 0 ? (
+                    {pickupsLoading ? (
+                        <><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
+                    ) : hotPickups.length === 0 ? (
                         <p className="px-4 py-6 text-sm text-slate-500 text-center">No trending free agents right now.</p>
                     ) : (
                         <>
@@ -342,7 +363,9 @@ export default function Dashboard() {
             {/* Team Health & Trends */}
             <GlassCard className="p-6 space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-3">
-                    <h3 className="text-xl font-heading font-semibold text-white">🩺 Team Health & Trends</h3>
+                    <h3 className="text-xl font-heading font-semibold text-white flex items-center gap-2">
+                        <Icon as={HeartPulse} size="md" className="text-pink-400" /> Team Health & Trends
+                    </h3>
                     <button onClick={goToInjuries} className="text-sm text-pink-400 hover:text-pink-300">Manage IR →</button>
                 </div>
                 <div className="grid md:grid-cols-3 gap-3">
@@ -375,24 +398,34 @@ export default function Dashboard() {
 
                 <div className="mt-4">
                     <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">7-day trend</p>
-                    <div className="grid grid-cols-7 gap-2">
-                        {trend.length === 0 ? (
-                            <div className="col-span-7 text-slate-500 text-sm">Not enough games yet.</div>
-                        ) : (
-                            trend.map(point => {
-                                // Parse date as local time to avoid timezone shift
-                                const [year, month, day] = point.date.split('-').map(Number);
-                                const localDate = new Date(year, month - 1, day);
-                                return (
-                                    <div key={point.date} className="bg-slate-900/50 rounded-lg p-2 text-center">
-                                        <p className="text-[10px] uppercase text-slate-500">{localDate.toLocaleDateString('en-US', { weekday: 'short' })}</p>
-                                        <div className="mt-1 text-white font-semibold">{point.myTeam.toFixed(1)}</div>
-                                        <p className="text-[10px] text-slate-500">Avg {point.leagueAvg.toFixed(1)}</p>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
+                    {trend.length === 0 ? (
+                        <div className="text-slate-500 text-sm">Not enough games yet.</div>
+                    ) : (
+                        <div className="drop-shadow-[0_0_6px_rgba(34,211,238,0.35)]">
+                            <ResponsiveContainer width="100%" height={64} minWidth={0} debounce={50}>
+                                <AreaChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+                                    <defs>
+                                        <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.4} />
+                                            <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="date" hide />
+                                    <Tooltip
+                                        contentStyle={{ background: '#0d1322', border: '1px solid #1e293b', borderRadius: 8, fontSize: 12 }}
+                                        labelStyle={{ color: '#94a3b8' }}
+                                        formatter={(value: number) => [`${value.toFixed(1)} pts`, 'My team']}
+                                        labelFormatter={(label: string) => {
+                                            // Parse date as local time to avoid timezone shift
+                                            const [year, month, day] = String(label).split('-').map(Number);
+                                            return new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                                        }}
+                                    />
+                                    <Area type="monotone" dataKey="myTeam" stroke="#22d3ee" strokeWidth={2} fill="url(#trendFill)" dot={false} activeDot={{ r: 3.5 }} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
                 </div>
             </GlassCard>
 

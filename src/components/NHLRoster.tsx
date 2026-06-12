@@ -15,6 +15,7 @@ import {
 } from '../utils/nhlApi';
 import { db } from '../firebase';
 import { collection, onSnapshot, runTransaction, doc } from 'firebase/firestore';
+import { SkeletonCard } from './ui/Skeleton';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
 import { useSound } from '../context/SoundContext';
@@ -404,8 +405,8 @@ export default function NHLRoster() {
 
       {/* Loading State */}
       {loading && (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (<SkeletonCard key={i} />))}
         </div>
       )}
 

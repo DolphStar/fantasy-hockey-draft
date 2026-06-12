@@ -13,6 +13,9 @@ import { GradientButton } from './ui/GradientButton';
 import { Badge } from './ui/Badge';
 import { PageHeader } from './ui/PageHeader';
 import { SegmentedTabs } from './ui/SegmentedTabs';
+import { Icon } from './ui/Icon';
+import { Skeleton } from './ui/Skeleton';
+import { Gamepad2, TriangleAlert } from 'lucide-react';
 import { getAllPlayers, getTeamRoster, NHL_TEAMS, type RosterPerson, type TeamAbbrev, getPlayerFullName } from '../utils/nhlApi';
 import { toast } from 'sonner';
 import { commitAutoDraftPick, fetchDraftedRosterStatus, type AutoDraftCandidate } from '../services/adminLeagueService';
@@ -293,7 +296,7 @@ export default function LeagueSettings() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="animate-spin-slow text-4xl">🏒</div>
+        <div className="w-full max-w-3xl px-6"><Skeleton className="h-40 w-full rounded-xl" /></div>
       </div>
     );
   }
@@ -529,7 +532,7 @@ export default function LeagueSettings() {
             <>
               <GlassCard className="p-5 space-y-4 border-t-4 border-t-green-500">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>🎮</span> Draft Controls
+                  <Icon as={Gamepad2} size="sm" className="text-green-400" /> Draft Controls
                 </h3>
 
                 {league.status === 'pending' ? (
@@ -592,7 +595,7 @@ export default function LeagueSettings() {
               {/* Danger Zone */}
               <GlassCard className="p-5 space-y-4 border-red-900/30 bg-red-950/10">
                 <h3 className="text-lg font-bold text-red-400 flex items-center gap-2">
-                  <span>☢️</span> Danger Zone
+                  <Icon as={TriangleAlert} size="sm" className="text-red-400" /> Danger Zone
                 </h3>
                 <p className="text-xs text-red-300/70">
                   Destructive actions that cannot be undone. Proceed with caution.
