@@ -124,7 +124,7 @@ export default function PlayerCard({
             <div
                 className={cn(
                     'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
-                    'border-2 transition-all duration-300 backdrop-blur-md bg-gradient-to-br from-slate-800/70 to-[#0d1322]/95 shadow-glass',
+                    'border-2 transition-all duration-300 bg-gradient-to-br from-[#1e293b] to-[#0d1322] shadow-glass',
                     'hover:-translate-y-1',
                     isDrafted
                         ? 'border-slate-700/60 opacity-80 grayscale-[0.35]'

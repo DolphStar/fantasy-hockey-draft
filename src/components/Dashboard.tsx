@@ -401,8 +401,8 @@ export default function Dashboard() {
                     {trend.length === 0 ? (
                         <div className="text-slate-500 text-sm">Not enough games yet.</div>
                     ) : (
-                        <div className="h-16 drop-shadow-[0_0_6px_rgba(34,211,238,0.35)]">
-                            <ResponsiveContainer width="100%" height="100%">
+                        <div className="drop-shadow-[0_0_6px_rgba(34,211,238,0.35)]">
+                            <ResponsiveContainer width="100%" height={64} minWidth={0} debounce={50}>
                                 <AreaChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
                                     <defs>
                                         <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">

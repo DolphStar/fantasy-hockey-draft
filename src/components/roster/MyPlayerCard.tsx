@@ -147,7 +147,7 @@ export default function MyPlayerCard({
             <div
                 className={cn(
                     'h-full w-full rounded-2xl overflow-visible relative flex flex-col',
-                    'border-2 transition-all duration-300 backdrop-blur-md bg-gradient-to-br from-slate-800/70 to-[#0d1322]/95 shadow-glass',
+                    'border-2 transition-all duration-300 bg-gradient-to-br from-[#1e293b] to-[#0d1322] shadow-glass',
                     'hover:-translate-y-1',
                     isSelected
                         ? 'border-amber-300 shadow-[0_0_30px_rgba(251,191,36,0.6),0_0_60px_rgba(251,191,36,0.3)]'
