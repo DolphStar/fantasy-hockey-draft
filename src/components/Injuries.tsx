@@ -1,12 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { getInjuryIcon, type InjuryReport } from '../services/injuryService';
+import { HeartPulse, RefreshCw } from 'lucide-react';
+import { type InjuryReport } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
 import { useLeague } from '../context/LeagueContext';
 import { db } from '../firebase';
 import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
 import { GradientButton } from './ui/GradientButton';
+import { Icon } from './ui/Icon';
+import { SkeletonRow } from './ui/Skeleton';
+import { InjuryCard } from './injuries/InjuryCard';
+import { nhlTeamLogo } from './injuries/nhlTeamLogo';
 
 interface DraftedPlayer {
   id: string;
@@ -15,6 +20,8 @@ interface DraftedPlayer {
   position?: string;
   nhlTeam?: string;
 }
+
+const MUG_SEASON = '20242025';
 
 export default function Injuries() {
   const [teamFilter, setTeamFilter] = useState<string>('ALL');
@@ -72,14 +79,25 @@ export default function Injuries() {
 
   const normalizeName = (name?: string) => (name || '').toLowerCase().trim();
 
-  const myPlayerNameSet = useMemo(() => {
-    return new Set(myPlayers.map((player) => normalizeName(player.name)));
+  const myPlayerByName = useMemo(() => {
+    const map = new Map<string, DraftedPlayer>();
+    for (const player of myPlayers) map.set(normalizeName(player.name), player);
+    return map;
   }, [myPlayers]);
 
-  const myInjuries = useMemo(() => {
-    if (!myPlayerNameSet.size) return [];
-    return injuries.filter((injury) => myPlayerNameSet.has(normalizeName(injury.playerName)));
-  }, [injuries, myPlayerNameSet]);
+  // My injuries, paired with an NHL headshot resolved from the matched drafted player.
+  const myInjuryCards = useMemo(() => {
+    if (!myPlayerByName.size) return [];
+    return injuries
+      .filter((injury) => myPlayerByName.has(normalizeName(injury.playerName)))
+      .map((injury) => {
+        const player = myPlayerByName.get(normalizeName(injury.playerName));
+        const headshotUrl = player?.playerId && player.nhlTeam
+          ? `https://assets.nhle.com/mugs/nhl/${MUG_SEASON}/${player.nhlTeam}/${player.playerId}.png`
+          : undefined;
+        return { injury, headshotUrl };
+      });
+  }, [injuries, myPlayerByName]);
 
   // Get unique teams
   const teams = Array.from(new Set(injuries.map(i => i.teamAbbrev))).sort();
@@ -100,37 +118,26 @@ export default function Injuries() {
     return acc;
   }, {} as Record<string, InjuryReport[]>);
 
-  const getInjuryBadgeVariant = (status: string) => {
-    const s = status.toLowerCase();
-    if (s.includes('out') || s.includes('ir') || s.includes('reserve')) return 'danger';
-    return 'warning';
-  };
+  const selectClass = 'w-full px-4 py-2 rounded-lg bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 focus:outline-none transition-colors';
 
   return (
     <div className="max-w-6xl mx-auto">
       {/* Info Banner */}
-      <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-lg mb-6">
-        <p className="text-blue-200 text-sm">
-          <strong>🏒 Real-time injury data</strong> from ESPN's NHL injury API. All league injuries fetched in one request!
-          {lastUpdated && (
-            <span className="ml-2 text-gray-400">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </span>
-          )}
-        </p>
-        <p className="text-gray-400 text-xs mt-2">
-          Fast loading (~2 seconds) • Auto-refreshes every 5 minutes • Data sorted by team
-        </p>
+      <div className="flex items-center gap-2 bg-blue-900/20 border border-blue-500/20 px-4 py-2.5 rounded-lg mb-6 text-sm">
+        <Icon as={HeartPulse} size="sm" className="text-blue-300 shrink-0" />
+        <span className="text-blue-200">Live injury data from ESPN.</span>
+        {lastUpdated && (
+          <span className="text-slate-500 text-xs">Updated {lastUpdated.toLocaleTimeString()}</span>
+        )}
       </div>
 
       {/* My Injured Players */}
       <GlassCard className="p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Icon as={HeartPulse} size="md" className="text-pink-400" />
           <div>
-            <h3 className="text-2xl font-semibold text-white">👥 My Injured Players</h3>
-            <p className="text-gray-400 text-sm">
-              Highlights injuries for your fantasy roster.
-            </p>
+            <h3 className="text-2xl font-semibold text-white leading-tight">My Injured Players</h3>
+            <p className="text-gray-400 text-sm">Injuries on your fantasy roster.</p>
           </div>
         </div>
 
@@ -141,49 +148,22 @@ export default function Injuries() {
         )}
 
         {myTeam && (loading || myPlayersLoading) && (
-          <p className="text-gray-400">Loading your roster and injury data...</p>
+          <div className="grid md:grid-cols-2 gap-3">
+            <SkeletonRow /><SkeletonRow />
+          </div>
         )}
 
-        {myTeam && !loading && !myPlayersLoading && myInjuries.length === 0 && (
-          <div className="bg-green-900/30 border border-green-600/40 p-4 rounded-lg">
+        {myTeam && !loading && !myPlayersLoading && myInjuryCards.length === 0 && (
+          <div className="bg-green-900/20 border border-green-600/40 p-4 rounded-lg">
             <p className="text-green-300 font-semibold">🎉 No current injuries on {myTeam.teamName}!</p>
             <p className="text-gray-300 text-sm mt-1">Keep an eye here during the season for quick alerts.</p>
           </div>
         )}
 
-        {myTeam && !loading && !myPlayersLoading && myInjuries.length > 0 && (
-          <div className="space-y-3">
-            {myInjuries.map((injury) => (
-              <div
-                key={`${injury.playerId}-${injury.lastUpdated}`}
-                className="bg-gray-700/50 p-4 rounded-lg border border-red-500/30 hover:bg-gray-700 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className="text-white font-semibold text-lg">
-                        {injury.playerName}
-                      </span>
-                      <Badge variant="info">
-                        {injury.position}
-                      </Badge>
-                      <Badge variant={getInjuryBadgeVariant(injury.status)} className="flex items-center gap-1">
-                        {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
-                      </Badge>
-                    </div>
-                    <p className="text-gray-300"><strong>Team:</strong> {injury.team}</p>
-                    <p className="text-gray-300"><strong>Injury:</strong> {injury.injuryType}</p>
-                    {injury.description && injury.description !== 'No details available' && (
-                      <p className="text-gray-400 text-sm mt-1">{injury.description}</p>
-                    )}
-                    {injury.returnDate && (
-                      <p className="text-gray-400 text-sm mt-1">
-                        <strong>Expected Return:</strong> {new Date(injury.returnDate).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
+        {myTeam && !loading && !myPlayersLoading && myInjuryCards.length > 0 && (
+          <div className="grid md:grid-cols-2 gap-3">
+            {myInjuryCards.map(({ injury, headshotUrl }) => (
+              <InjuryCard key={`${injury.playerId}-${injury.lastUpdated}`} injury={injury} headshotUrl={headshotUrl} />
             ))}
           </div>
         )}
@@ -198,7 +178,7 @@ export default function Injuries() {
             <select
               value={teamFilter}
               onChange={(e) => setTeamFilter(e.target.value)}
-              className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className={selectClass}
             >
               <option value="ALL">All Teams ({injuries.length} injuries)</option>
               {teams.map(team => {
@@ -218,7 +198,7 @@ export default function Injuries() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className={selectClass}
             >
               <option value="ALL">All Statuses</option>
               <option value="Out">Out</option>
@@ -237,7 +217,8 @@ export default function Injuries() {
               variant="primary"
               className="flex items-center gap-2"
             >
-              🔄 {loading ? 'Refreshing...' : 'Refresh Injuries'}
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              {loading ? 'Refreshing...' : 'Refresh Injuries'}
             </GradientButton>
           </div>
         </div>
@@ -252,14 +233,16 @@ export default function Injuries() {
 
       {/* Loading State */}
       {loading && (
-        <GlassCard className="p-8 text-center">
-          <p className="text-gray-400 text-lg">Loading injury reports from ESPN...</p>
+        <GlassCard className="p-4">
+          <div className="grid md:grid-cols-2 gap-3">
+            <SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow />
+          </div>
         </GlassCard>
       )}
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-900/50 border border-red-600 p-6 rounded-lg shadow-lg mb-8">
+        <div className="bg-red-900/40 border border-red-600/50 p-6 rounded-lg shadow-lg mb-8">
           <p className="text-red-200 font-semibold">⚠️ {(error as Error).message}</p>
           <GradientButton
             onClick={() => refetch()}
@@ -284,46 +267,20 @@ export default function Injuries() {
             .sort(([teamA], [teamB]) => teamA.localeCompare(teamB))
             .map(([team, teamInjuries]) => (
               <GlassCard key={team} className="p-6">
-                <h3 className="text-xl font-semibold mb-4 text-white">
-                  {team} - {teamInjuries[0].team} ({teamInjuries.length} injured)
-                </h3>
-                <div className="space-y-3">
+                <div className="flex items-center gap-3 mb-4">
+                  <img
+                    src={nhlTeamLogo(team)}
+                    alt=""
+                    aria-hidden
+                    className="w-8 h-8 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <h3 className="text-xl font-semibold text-white">{teamInjuries[0].team}</h3>
+                  <Badge variant="outline">{teamInjuries.length} injured</Badge>
+                </div>
+                <div className="grid md:grid-cols-2 gap-3">
                   {teamInjuries.map((injury) => (
-                    <div
-                      key={injury.playerId}
-                      className="bg-gray-700/50 p-4 rounded-lg hover:bg-gray-700 transition-colors border border-gray-600/30"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className="text-white font-semibold text-lg">
-                              {injury.playerName}
-                            </span>
-                            <Badge variant="info">
-                              {injury.position}
-                            </Badge>
-                            <Badge variant={getInjuryBadgeVariant(injury.status)} className="flex items-center gap-1">
-                              {getInjuryIcon(injury.status)} {injury.status.toUpperCase()}
-                            </Badge>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-gray-300">
-                              <strong>Injury:</strong> {injury.injuryType}
-                            </p>
-                            {injury.description && injury.description !== 'No details available' && (
-                              <p className="text-gray-400 text-sm">
-                                {injury.description}
-                              </p>
-                            )}
-                            {injury.returnDate && (
-                              <p className="text-gray-400 text-sm">
-                                <strong>Expected Return:</strong> {new Date(injury.returnDate).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <InjuryCard key={injury.playerId} injury={injury} />
                   ))}
                 </div>
               </GlassCard>
