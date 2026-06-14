@@ -73,6 +73,15 @@ describe('foldDailyScores / buildTeamAggregate', () => {
     );
     expect(incremental).toEqual(buildTeamAggregate(TEAM, scores));
   });
+
+  it('defaults missing goals/assists stats to zero', () => {
+    const agg = buildTeamAggregate(TEAM, [
+      score({ playerId: 9, date: D1, points: 3 }), // stats: {} (no goals/assists keys)
+    ]);
+    expect(agg.players[9].goals).toBe(0);
+    expect(agg.players[9].assists).toBe(0);
+    expect(agg.players[9].points).toBe(3);
+  });
 });
 
 describe('summaryFromAggregate', () => {
@@ -109,5 +118,23 @@ describe('summaryFromAggregate', () => {
     expect(summary.dailyTeamTotals).toEqual([]);
     expect(summary.lastGamePoints).toBe(0);
     expect(summary.trend).toBe('neutral');
+  });
+
+  it('reports a downward trend when the last day is lower, neutral when equal', () => {
+    const down = summaryFromAggregate(
+      buildTeamAggregate(TEAM, [
+        score({ playerId: 1, date: D1, points: 5 }),
+        score({ playerId: 1, date: D2, points: 2 }),
+      ]),
+    );
+    expect(down.trend).toBe('down');
+
+    const flat = summaryFromAggregate(
+      buildTeamAggregate(TEAM, [
+        score({ playerId: 1, date: D1, points: 3 }),
+        score({ playerId: 1, date: D2, points: 3 }),
+      ]),
+    );
+    expect(flat.trend).toBe('neutral');
   });
 });
