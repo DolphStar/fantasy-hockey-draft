@@ -107,6 +107,15 @@ export default function TestScoring() {
         deleteCount++;
       });
 
+      // Clear season aggregates (rebuilt by the next cron run / reader fallback)
+      const aggregatesRef = collection(db, `leagues/${league.id}/aggregates`);
+      const aggregatesSnap = await getDocs(aggregatesRef);
+
+      aggregatesSnap.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+        deleteCount++;
+      });
+
       await batch.commit();
 
       setResult(`✅ Cleared ${deleteCount} documents. You can now re-run scoring.`);
