@@ -67,6 +67,7 @@ export default function TestScoring() {
       'This will:\n' +
       '• Reset all team scores to 0\n' +
       '• Delete all player daily scores\n' +
+      '• Delete season aggregates (rebuilt on next scoring run)\n' +
       '• Clear processed dates (allows re-running scoring)\n\n' +
       'Are you sure?'
     );
@@ -103,6 +104,15 @@ export default function TestScoring() {
       const processedDatesSnap = await getDocs(processedDatesRef);
 
       processedDatesSnap.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+        deleteCount++;
+      });
+
+      // Clear season aggregates (rebuilt by the next cron run / reader fallback)
+      const aggregatesRef = collection(db, `leagues/${league.id}/aggregates`);
+      const aggregatesSnap = await getDocs(aggregatesRef);
+
+      aggregatesSnap.docs.forEach((docSnap) => {
         batch.delete(docSnap.ref);
         deleteCount++;
       });

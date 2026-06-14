@@ -1,15 +1,15 @@
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query } from 'firebase/firestore';
 
 import { db } from '../firebase';
+import type { AggregatedPlayerScore } from '../../packages/core/scoring/aggregateDailyScores';
+import {
+  buildTeamAggregate,
+  summaryFromAggregate,
+  type PlayerPerformanceSummary,
+  type TeamSeasonAggregate,
+} from '../../packages/core/scoring/seasonAggregate';
 
-export interface PlayerPerformanceSummary {
-  pointsMap: Record<number, number>;
-  statsMap: Record<number, { goals: number; assists: number; gamesPlayed: number; avgPoints: number }>;
-  historyMap: Record<number, { date: string; points: number }[]>;
-  dailyTeamTotals: { date: string; points: number }[];
-  lastGamePoints: number;
-  trend: 'up' | 'down' | 'neutral';
-}
+export type { PlayerPerformanceSummary };
 
 export interface TeamTrendPoint {
   date: string;
@@ -21,77 +21,20 @@ export async function fetchPlayerPerformanceSummary(
   leagueId: string,
   teamName: string,
 ): Promise<PlayerPerformanceSummary> {
+  const aggregateSnap = await getDoc(doc(db, `leagues/${leagueId}/aggregates/${teamName}`));
+  if (aggregateSnap.exists()) {
+    return summaryFromAggregate(aggregateSnap.data() as TeamSeasonAggregate);
+  }
+
+  // Fallback when no aggregate exists yet (fresh league, just-cleared, or the
+  // window before the first cron run): scan once and build it in memory through
+  // the same pure path, so output is identical to the fast path.
   const snapshot = await getDocs(query(collection(db, `leagues/${leagueId}/playerDailyScores`)));
+  const teamScores = snapshot.docs
+    .map((docSnapshot) => docSnapshot.data() as AggregatedPlayerScore)
+    .filter((score) => score.teamName === teamName);
 
-  const pointsMap: Record<number, number> = {};
-  const statsMap: Record<number, { goals: number; assists: number; gamesPlayed: number; avgPoints: number }> = {};
-  const historyMap: Record<number, { date: string; points: number }[]> = {};
-  const dailyTotalsMap: Record<string, number> = {};
-
-  snapshot.docs.forEach((docSnapshot) => {
-    const data = docSnapshot.data();
-    const playerId = data.playerId as number;
-    const points = data.points || 0;
-    const date = data.date as string;
-    const scoreTeamName = data.teamName as string;
-
-    if (pointsMap[playerId]) {
-      pointsMap[playerId] += points;
-      statsMap[playerId].goals += data.stats?.goals || 0;
-      statsMap[playerId].assists += data.stats?.assists || 0;
-      statsMap[playerId].gamesPlayed += 1;
-    } else {
-      pointsMap[playerId] = points;
-      statsMap[playerId] = {
-        goals: data.stats?.goals || 0,
-        assists: data.stats?.assists || 0,
-        gamesPlayed: 1,
-        avgPoints: 0,
-      };
-    }
-
-    historyMap[playerId] ||= [];
-    historyMap[playerId].push({ date, points });
-
-    if (scoreTeamName === teamName) {
-      dailyTotalsMap[date] = (dailyTotalsMap[date] ?? 0) + points;
-    }
-  });
-
-  Object.keys(statsMap).forEach((playerId) => {
-    const numericPlayerId = Number(playerId);
-    const gamesPlayed = statsMap[numericPlayerId].gamesPlayed;
-    statsMap[numericPlayerId].avgPoints = gamesPlayed > 0 ? pointsMap[numericPlayerId] / gamesPlayed : 0;
-  });
-
-  const processedHistory: Record<number, { points: number; date: string }[]> = {};
-  Object.keys(historyMap).forEach((playerId) => {
-    processedHistory[Number(playerId)] = historyMap[Number(playerId)]
-      .sort((left, right) => left.date.localeCompare(right.date))
-      .slice(-5)
-      .map((item) => ({ points: item.points, date: item.date }));
-  });
-
-  const sortedDates = Object.keys(dailyTotalsMap).sort();
-  const dailyTeamTotals = sortedDates.map((date) => ({ date, points: dailyTotalsMap[date] }));
-  const lastGamePoints = dailyTeamTotals.at(-1)?.points ?? 0;
-  const previousGamePoints = dailyTeamTotals.at(-2)?.points;
-
-  return {
-    pointsMap,
-    statsMap,
-    historyMap: processedHistory,
-    dailyTeamTotals,
-    lastGamePoints,
-    trend:
-      previousGamePoints === undefined
-        ? 'neutral'
-        : lastGamePoints > previousGamePoints
-          ? 'up'
-          : lastGamePoints < previousGamePoints
-            ? 'down'
-            : 'neutral',
-  };
+  return summaryFromAggregate(buildTeamAggregate(teamName, teamScores));
 }
 
 export async function fetchTeamStanding(leagueId: string, teamName: string) {
