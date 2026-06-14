@@ -6,6 +6,12 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 import { getPreviousNewYorkDateString } from '../../../packages/core/dates/dateUtils.js';
 import { aggregateDailyScores } from '../../../packages/core/scoring/aggregateDailyScores.js';
+import type { AggregatedPlayerScore } from '../../../packages/core/scoring/aggregateDailyScores.js';
+import {
+  buildTeamAggregate,
+  foldDailyScores,
+} from '../../../packages/core/scoring/seasonAggregate.js';
+import type { TeamSeasonAggregate } from '../../../packages/core/scoring/seasonAggregate.js';
 import type { PlayerGameStats } from '../../../packages/core/nhl/types.js';
 import type { ScoringRules } from '../../../packages/core/scoring/types.js';
 
@@ -205,6 +211,57 @@ export async function processYesterdayScores(
         batch.set(scoreRef, playerScore);
       }
       await batch.commit();
+    }
+
+    // Maintain per-team season aggregates so the dashboard reads one doc
+    // instead of scanning the whole playerDailyScores collection (audit F4).
+    // playerScores are already written above, so a bootstrap scan sees today.
+    const aggregatesCol = db.collection(`leagues/${leagueId}/aggregates`);
+
+    const scoresByTeam = new Map<string, AggregatedPlayerScore[]>();
+    for (const score of playerScores) {
+      const list = scoresByTeam.get(score.teamName) ?? [];
+      list.push(score);
+      scoresByTeam.set(score.teamName, list);
+    }
+
+    const anyAggregate = await aggregatesCol.limit(1).get();
+    if (anyAggregate.empty) {
+      console.log('No season aggregates found — bootstrapping from full scan');
+      const allScoresSnap = await db.collection(`leagues/${leagueId}/playerDailyScores`).get();
+
+      const allByTeam = new Map<string, AggregatedPlayerScore[]>();
+      for (const docSnap of allScoresSnap.docs) {
+        const data = docSnap.data() as AggregatedPlayerScore;
+        const list = allByTeam.get(data.teamName) ?? [];
+        list.push(data);
+        allByTeam.set(data.teamName, list);
+      }
+
+      const aggregateBatch = db.batch();
+      for (const [teamName, scores] of allByTeam) {
+        const agg = buildTeamAggregate(teamName, scores);
+        aggregateBatch.set(aggregatesCol.doc(teamName), {
+          ...agg,
+          lastUpdated: new Date().toISOString(),
+        });
+      }
+      await aggregateBatch.commit();
+      console.log(`Bootstrapped ${allByTeam.size} team aggregates`);
+    } else {
+      // Incremental: fold today's scores into each team's existing aggregate.
+      // A team with no doc yet had no prior scores (bootstrap covers every team
+      // that ever scored), so starting from null here is correct.
+      for (const [teamName, scores] of scoresByTeam) {
+        const ref = aggregatesCol.doc(teamName);
+        await db.runTransaction(async (tx) => {
+          const snap = await tx.get(ref);
+          const prev = snap.exists ? (snap.data() as TeamSeasonAggregate) : null;
+          const next = foldDailyScores(prev, teamName, scores);
+          tx.set(ref, { ...next, lastUpdated: new Date().toISOString() });
+        });
+      }
+      console.log(`Updated ${scoresByTeam.size} team aggregates incrementally`);
     }
 
     await processedDateRef.set({
