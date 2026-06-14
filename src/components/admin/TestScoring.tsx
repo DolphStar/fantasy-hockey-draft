@@ -67,6 +67,7 @@ export default function TestScoring() {
       'This will:\n' +
       '• Reset all team scores to 0\n' +
       '• Delete all player daily scores\n' +
+      '• Delete season aggregates (rebuilt on next scoring run)\n' +
       '• Clear processed dates (allows re-running scoring)\n\n' +
       'Are you sure?'
     );
