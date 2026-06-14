@@ -53,6 +53,14 @@ service cloud.firestore {
         allow write: if isLeagueAdmin(leagueId);
       }
 
+      // Season aggregates - per-team rollup of playerDailyScores for the
+      // dashboard (read by members); cron writes via Admin SDK, admin deletes
+      // them on Clear Scores.
+      match /aggregates/{teamName} {
+        allow read: if isInLeague(leagueId);
+        allow write: if isLeagueAdmin(leagueId);
+      }
+
       // Live stats - league members can read, only admin can write
       match /liveStats/{statId} {
         allow read: if isInLeague(leagueId);
