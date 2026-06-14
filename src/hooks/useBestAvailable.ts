@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import type { RosterPerson } from '../utils/nhlApi';
+import type { RosterPerson, StatsMap } from '../utils/nhlApi';
 
-export function useBestAvailable(allPlayers: RosterPerson[], draftedPlayerIds: Set<number>, lastSeasonStats: any) {
+export function useBestAvailable(allPlayers: RosterPerson[], draftedPlayerIds: Set<number>, lastSeasonStats: StatsMap) {
     return useMemo(() => {
         // Filter out drafted players
         const available = allPlayers.filter(p => !draftedPlayerIds.has(p.person.id));

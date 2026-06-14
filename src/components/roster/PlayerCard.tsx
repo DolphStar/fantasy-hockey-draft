@@ -28,7 +28,7 @@ export default function PlayerCard({
     draftState
 }: PlayerCardProps) {
     const { addPlayerToCompare } = useComparison();
-    const teamAbbrev = (player as any).teamAbbrev || 'UNK';
+    const teamAbbrev = player.teamAbbrev || 'UNK';
     const position = player.position.code;
     const isForward = ['C', 'L', 'R'].includes(position);
 

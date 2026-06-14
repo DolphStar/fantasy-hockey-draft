@@ -5,13 +5,13 @@ import { Badge } from '../ui/Badge';
 import { Icon } from '../ui/Icon';
 import { useBestAvailable } from '../../hooks/useBestAvailable';
 import { usePositionScarcity } from '../../hooks/usePositionScarcity';
-import type { RosterPerson } from '../../utils/nhlApi';
+import type { RosterPerson, StatsMap } from '../../utils/nhlApi';
 import { getPlayerFullName } from '../../utils/nhlApi';
 
 interface BestAvailableProps {
     allPlayers: RosterPerson[];
     draftedPlayerIds: Set<number>;
-    lastSeasonStats: any;
+    lastSeasonStats: StatsMap;
     onDraft: (player: RosterPerson) => void;
     isMyTurn: boolean;
 }
@@ -79,7 +79,7 @@ export default function BestAvailable({ allPlayers, draftedPlayerIds, lastSeason
                     {playersToShow.map((player, i) => {
                         const stats = lastSeasonStats[player.person.id];
                         const isGoalie = player.position.code === 'G';
-                        const teamAbbrev = (player as any).teamAbbrev;
+                        const teamAbbrev = player.teamAbbrev;
                         const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.person.id}.png`;
 
                         return (
