@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildActivePlayerToTeamMap,
-  filterCompletedGamesForScoring,
+  isCompletedGame,
   isRosterSwapDayOfWeek,
 } from './helpers';
 
@@ -14,21 +14,12 @@ describe('isRosterSwapDayOfWeek', () => {
   });
 });
 
-describe('filterCompletedGamesForScoring', () => {
-  const games = [
-    { id: 1, gameState: 'OFF', gameType: 2 },
-    { id: 2, gameState: 'FINAL', gameType: 3 },
-    { id: 3, gameState: 'LIVE', gameType: 2 },
-    { id: 4, gameState: 'OFF', gameType: 2 },
-  ] as const;
-
-  it('keeps OFF/FINAL games whose gameType is allowed', () => {
-    const { completedGames, skippedByType } = filterCompletedGamesForScoring(
-      [...games],
-      [2],
-    );
-    expect(completedGames.map((g) => g.id)).toEqual([1, 4]);
-    expect(skippedByType.map((g) => g.id)).toEqual([2]);
+describe('isCompletedGame', () => {
+  it('is true only for OFF or FINAL game states', () => {
+    expect(isCompletedGame({ gameState: 'OFF' })).toBe(true);
+    expect(isCompletedGame({ gameState: 'FINAL' })).toBe(true);
+    expect(isCompletedGame({ gameState: 'LIVE' })).toBe(false);
+    expect(isCompletedGame({ gameState: 'FUT' })).toBe(false);
   });
 });
 

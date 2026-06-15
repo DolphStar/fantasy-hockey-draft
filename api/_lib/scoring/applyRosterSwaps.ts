@@ -1,6 +1,6 @@
 /**
- * Apply pending roster swaps every Saturday (mirrors `src/utils/applyRosterSwaps` behavior).
- * Uses Firebase Admin; safe to run from Vercel cron.
+ * Apply pending roster swaps for a single league every Saturday. Scoped by
+ * leagueId so it never touches another league's players. Admin SDK; safe from cron.
  */
 
 import { getAdminDb } from '../firebaseAdmin.js';
@@ -13,62 +13,69 @@ export interface RosterSwapResult {
   error?: string;
 }
 
-export async function applyRosterSwaps(now = new Date()): Promise<RosterSwapResult> {
-  const dayOfWeek = now.getDay();
+export interface LeagueSwapPlayer {
+  name?: string;
+  pendingSlot?: string | null;
+  update: (patch: { rosterSlot: string; pendingSlot: null; lastSwapDate: string }) => Promise<void>;
+}
 
-  if (!isRosterSwapDayOfWeek(dayOfWeek)) {
-    const dayNames = [
-      'Sunday',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-    ];
-    console.log(
-      `⏰ Roster swaps only apply on Saturdays. Today is ${dayNames[dayOfWeek]}`,
-    );
+export interface RosterSwapDeps {
+  getLeaguePlayers: (leagueId: string) => Promise<LeagueSwapPlayer[]>;
+}
+
+export async function applyRosterSwaps(
+  leagueId: string,
+  now: Date = new Date(),
+  deps: RosterSwapDeps = defaultRosterSwapDeps(),
+): Promise<RosterSwapResult> {
+  if (!isRosterSwapDayOfWeek(now.getDay())) {
     return { success: true, swapsApplied: 0, message: 'Not Saturday' };
   }
 
   try {
-    console.log('📅 Saturday detected - applying pending roster swaps...');
-
-    const db = await getAdminDb();
-    const snapshot = await db.collection('draftedPlayers').get();
-
+    const players = await deps.getLeaguePlayers(leagueId);
     let swapsApplied = 0;
 
-    for (const docSnap of snapshot.docs) {
-      const player = docSnap.data();
-
+    for (const player of players) {
       if (player.pendingSlot) {
-        console.log(`Applying swap: ${player.name} → ${player.pendingSlot}`);
-
-        await docSnap.ref.update({
+        await player.update({
           rosterSlot: player.pendingSlot,
           pendingSlot: null,
           lastSwapDate: now.toISOString(),
         });
-
         swapsApplied++;
       }
     }
 
-    console.log(`✅ Applied ${swapsApplied} roster swaps`);
-
-    return {
-      success: true,
-      swapsApplied,
-      message: `Applied ${swapsApplied} roster swaps`,
-    };
+    console.log(`League ${leagueId}: applied ${swapsApplied} roster swaps`);
+    return { success: true, swapsApplied, message: `Applied ${swapsApplied} roster swaps` };
   } catch (error) {
-    console.error('❌ Error applying roster swaps:', error);
+    console.error(`League ${leagueId}: error applying roster swaps:`, error);
     return {
       success: false,
       swapsApplied: 0,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
+
+/** Production wiring: read this league's drafted players from Firestore. */
+export function defaultRosterSwapDeps(): RosterSwapDeps {
+  return {
+    getLeaguePlayers: async (leagueId) => {
+      const db = await getAdminDb();
+      const snapshot = await db
+        .collection('draftedPlayers')
+        .where('leagueId', '==', leagueId)
+        .get();
+      return snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          name: data.name as string | undefined,
+          pendingSlot: (data.pendingSlot ?? null) as string | null,
+          update: (patch) => docSnap.ref.update(patch),
+        };
+      });
+    },
+  };
 }

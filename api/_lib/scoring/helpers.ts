@@ -7,26 +7,9 @@ export function isRosterSwapDayOfWeek(dayOfWeek: number): boolean {
   return dayOfWeek === 6;
 }
 
-export interface GameForScoringFilter {
-  gameState: string;
-  gameType: number;
-  id: number;
-}
-
-export function filterCompletedGamesForScoring<T extends GameForScoringFilter>(
-  games: T[],
-  allowedGameTypes: number[],
-): { completedGames: T[]; skippedByType: T[] } {
-  const isCompleted = (g: T) => g.gameState === 'OFF' || g.gameState === 'FINAL';
-
-  const completedGames = games.filter(
-    (g) => isCompleted(g) && allowedGameTypes.includes(g.gameType),
-  );
-  const skippedByType = games.filter(
-    (g) => isCompleted(g) && !allowedGameTypes.includes(g.gameType),
-  );
-
-  return { completedGames, skippedByType };
+/** A game is scorable once it is OFF (final) or FINAL. */
+export function isCompletedGame(game: { gameState: string }): boolean {
+  return game.gameState === 'OFF' || game.gameState === 'FINAL';
 }
 
 export interface DraftedPlayerRow {
