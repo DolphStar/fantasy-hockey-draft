@@ -13,17 +13,20 @@ export interface GameForScoringFilter {
   id: number;
 }
 
+/** A game is scorable once it is OFF (final) or FINAL. */
+export function isCompletedGame(game: { gameState: string }): boolean {
+  return game.gameState === 'OFF' || game.gameState === 'FINAL';
+}
+
 export function filterCompletedGamesForScoring<T extends GameForScoringFilter>(
   games: T[],
   allowedGameTypes: number[],
 ): { completedGames: T[]; skippedByType: T[] } {
-  const isCompleted = (g: T) => g.gameState === 'OFF' || g.gameState === 'FINAL';
-
   const completedGames = games.filter(
-    (g) => isCompleted(g) && allowedGameTypes.includes(g.gameType),
+    (g) => isCompletedGame(g) && allowedGameTypes.includes(g.gameType),
   );
   const skippedByType = games.filter(
-    (g) => isCompleted(g) && !allowedGameTypes.includes(g.gameType),
+    (g) => isCompletedGame(g) && !allowedGameTypes.includes(g.gameType),
   );
 
   return { completedGames, skippedByType };
