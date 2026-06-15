@@ -1,5 +1,5 @@
 import type { User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 
 import { DEFAULT_ROSTER_SETTINGS, DEFAULT_SCORING_RULES } from '../constants/scoring';
 import { db } from '../firebase';
@@ -25,6 +25,24 @@ export function storeCurrentLeagueId(leagueId: string | null) {
   } else {
     window.localStorage.removeItem(CURRENT_LEAGUE_STORAGE_KEY);
   }
+}
+
+export interface LeagueSummary {
+  id: string;
+  leagueName: string;
+}
+
+/** Pure: map a raw league doc into the lightweight summary used by the switcher. */
+export function toLeagueSummary(id: string, data: Record<string, unknown>): LeagueSummary {
+  const leagueName = typeof data.leagueName === 'string' && data.leagueName ? data.leagueName : 'Untitled League';
+  return { id, leagueName };
+}
+
+/** All leagues the user is a member of (admin + team owners live in memberUids). */
+export async function listLeaguesForUser(userId: string): Promise<LeagueSummary[]> {
+  const q = query(collection(db, 'leagues'), where('memberUids', 'array-contains', userId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => toLeagueSummary(d.id, d.data()));
 }
 
 export async function findLeagueIdForUser(userId: string): Promise<string | null> {
