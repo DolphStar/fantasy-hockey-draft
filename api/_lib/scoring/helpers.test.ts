@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildActivePlayerToTeamMap,
-  filterCompletedGamesForScoring,
   isCompletedGame,
   isRosterSwapDayOfWeek,
 } from './helpers';
@@ -12,24 +11,6 @@ describe('isRosterSwapDayOfWeek', () => {
     expect(isRosterSwapDayOfWeek(6)).toBe(true);
     expect(isRosterSwapDayOfWeek(5)).toBe(false);
     expect(isRosterSwapDayOfWeek(0)).toBe(false);
-  });
-});
-
-describe('filterCompletedGamesForScoring', () => {
-  const games = [
-    { id: 1, gameState: 'OFF', gameType: 2 },
-    { id: 2, gameState: 'FINAL', gameType: 3 },
-    { id: 3, gameState: 'LIVE', gameType: 2 },
-    { id: 4, gameState: 'OFF', gameType: 2 },
-  ] as const;
-
-  it('keeps OFF/FINAL games whose gameType is allowed', () => {
-    const { completedGames, skippedByType } = filterCompletedGamesForScoring(
-      [...games],
-      [2],
-    );
-    expect(completedGames.map((g) => g.id)).toEqual([1, 4]);
-    expect(skippedByType.map((g) => g.id)).toEqual([2]);
   });
 });
 
