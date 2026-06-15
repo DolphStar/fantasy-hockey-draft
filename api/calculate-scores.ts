@@ -28,7 +28,7 @@ function skipMessage(reason: ScoreLeagueReason, date: string): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const leagueId = (req.query.leagueId as string) || undefined;
+  const leagueId = typeof req.query.leagueId === 'string' ? req.query.leagueId : undefined;
 
   const targetDate = req.query.date as string | undefined;
   if (targetDate !== undefined && !DATE_PATTERN.test(targetDate)) {
