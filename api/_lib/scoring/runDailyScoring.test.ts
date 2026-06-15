@@ -50,6 +50,31 @@ describe('runDailyScoring', () => {
     });
   });
 
+  it('a thrown applyRosterSwaps routes that league to an error outcome', async () => {
+    const deps = makeDeps({
+      applyRosterSwaps: vi.fn(async (leagueId) => {
+        if (leagueId === 'B') throw new Error('swap-boom');
+        return { success: true, swapsApplied: 1 };
+      }),
+    });
+
+    const summary = await runDailyScoring(deps, {});
+
+    // B's swap throw kills both its swap increment and its scoreLeagueForDate call.
+    expect(summary.leaguesScored).toBe(2);
+    expect(summary.leaguesErrored).toBe(1);
+    expect(summary.rosterSwapsApplied).toBe(2);
+    expect(summary.results.find((r) => r.leagueId === 'B')).toMatchObject({
+      status: 'error',
+      error: 'swap-boom',
+    });
+    expect(deps.scoreLeagueForDate).not.toHaveBeenCalledWith(
+      'B',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
   it('counts skipped leagues', async () => {
     const deps = makeDeps({
       scoreLeagueForDate: vi.fn(async (leagueId): Promise<ScoreLeagueResult> =>
