@@ -37,7 +37,7 @@ export default async function handler(
   try {
     console.log('Starting daily score calculation...');
 
-    const swapResult = await applyRosterSwaps();
+    const swapResult = await applyRosterSwaps(leagueId);
     await processYesterdayScores(leagueId, targetDate);
 
     console.log(`Successfully calculated scores for league: ${leagueId}`);
