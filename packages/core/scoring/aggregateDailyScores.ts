@@ -32,9 +32,8 @@ const TRACKED_STAT_KEYS = [
 
 /**
  * Pure aggregation of per-game player stats into fantasy team totals and
- * per-player daily score records. Mirrors the historical behavior of
- * `processYesterdayScores`: undrafted players are ignored, non-finite point
- * results are skipped, and player score records are only emitted for
+ * per-player daily score records. Undrafted players are ignored, non-finite
+ * point results are skipped, and player score records are only emitted for
  * positive-point performances.
  */
 export function aggregateDailyScores(

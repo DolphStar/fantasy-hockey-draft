@@ -12,7 +12,6 @@
  *
  * Environment:
  *   FIREBASE_SERVICE_ACCOUNT_KEY - JSON string of Firebase service account credentials
- *   DEFAULT_LEAGUE_ID - Fallback league ID if --league-id not provided
  */
 
 import { initializeApp, cert } from 'firebase-admin/app';
@@ -26,7 +25,7 @@ const OLYMPIC_END = '2026-02-22';
 const args = process.argv.slice(2);
 const commitMode = args.includes('--commit');
 const leagueIdFlag = args.indexOf('--league-id');
-const leagueId = leagueIdFlag !== -1 ? args[leagueIdFlag + 1] : process.env.DEFAULT_LEAGUE_ID;
+const leagueId = leagueIdFlag !== -1 ? args[leagueIdFlag + 1] : undefined;
 
 if (!leagueId) {
   console.error('Error: No league ID provided.');

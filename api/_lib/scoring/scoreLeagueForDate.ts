@@ -113,7 +113,7 @@ export async function scoreLeagueForDate(
   };
 }
 
-/** Production wiring: Firebase Admin reads + writes (relocated from processYesterdayScores). */
+/** Production wiring: Firebase Admin reads + writes. */
 export function defaultScoreLeagueDeps(): ScoreLeagueDeps {
   return {
     getLeague: async (leagueId) => {
