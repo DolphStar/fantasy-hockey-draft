@@ -17,7 +17,7 @@ export default function LeagueLayout() {
 
   useEffect(() => {
     if (!loading && leagueId && !isMember) {
-      toast.error('League not available');
+      toast.error('League not available', { id: 'league-guard' });
       navigate('/', { replace: true });
     }
   }, [loading, leagueId, isMember, navigate]);

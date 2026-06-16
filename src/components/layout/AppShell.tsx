@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
@@ -101,9 +101,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
           {children}
         </motion.div>
 
-        <PlayerComparisonModal />
+        {/* Lazy modals get their own boundary so loading their chunks never
+            blanks the whole shell behind App's "Loading view…" fallback. */}
+        <Suspense fallback={null}>
+          <PlayerComparisonModal />
+        </Suspense>
         <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-        <DraftCelebration show={showCelebration} playerName={celebrationPlayer} onComplete={() => setShowCelebration(false)} />
+        <Suspense fallback={null}>
+          <DraftCelebration show={showCelebration} playerName={celebrationPlayer} onComplete={() => setShowCelebration(false)} />
+        </Suspense>
         <ScrollToTop />
         <BottomNav onOpenChat={() => setIsChatOpen(true)} unread={unread} />
       </div>
