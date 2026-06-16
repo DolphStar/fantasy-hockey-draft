@@ -1,5 +1,5 @@
 import type { User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 
 import { DEFAULT_ROSTER_SETTINGS, DEFAULT_SCORING_RULES } from '../constants/scoring';
 import { db } from '../firebase';
@@ -43,32 +43,6 @@ export async function listLeaguesForUser(userId: string): Promise<LeagueSummary[
   const q = query(collection(db, 'leagues'), where('memberUids', 'array-contains', userId));
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => toLeagueSummary(d.id, d.data()));
-}
-
-export async function findLeagueIdForUser(userId: string): Promise<string | null> {
-  const savedLeagueId = getStoredLeagueId();
-  if (savedLeagueId) {
-    const leagueDoc = await getDoc(doc(db, 'leagues', savedLeagueId));
-    if (leagueDoc.exists()) {
-      const leagueData = leagueDoc.data() as Omit<League, 'id'>;
-      if (leagueData.teams.some(team => team.ownerUid === userId)) {
-        return savedLeagueId;
-      }
-    }
-
-    storeCurrentLeagueId(null);
-  }
-
-  const snapshot = await getDocs(collection(db, 'leagues'));
-  for (const leagueDoc of snapshot.docs) {
-    const leagueData = leagueDoc.data() as Omit<League, 'id'>;
-    if (leagueData.teams.some(team => team.ownerUid === userId)) {
-      storeCurrentLeagueId(leagueDoc.id);
-      return leagueDoc.id;
-    }
-  }
-
-  return null;
 }
 
 export function subscribeToLeague(
