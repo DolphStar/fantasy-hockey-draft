@@ -11,6 +11,7 @@ import Navbar from './Navbar';
 import BottomNav from './BottomNav';
 import ChatDrawer from './ChatDrawer';
 import ScrollToTop from '../ui/ScrollToTop';
+import LeagueSwitcher from './LeagueSwitcher';
 import { useUnreadChat } from '../../hooks/useUnreadChat';
 import { useAuth } from '../../context/AuthContext';
 import { useDraft } from '../../context/DraftContext';
@@ -47,7 +48,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <Toaster position="top-right" richColors />
 
         <header className="max-w-6xl mx-auto px-6 mb-8 grid grid-cols-3 items-center">
-          <div className="justify-self-start" />
+          <div className="justify-self-start"><LeagueSwitcher /></div>
           <div className="justify-self-center text-center">
             <div className="flex items-center justify-center gap-3 mb-1">
               <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-white/15 flex items-center justify-center shadow-inner shadow-blue-900/40">
