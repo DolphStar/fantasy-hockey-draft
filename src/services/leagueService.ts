@@ -1,5 +1,5 @@
 import type { User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 
 import { DEFAULT_ROSTER_SETTINGS, DEFAULT_SCORING_RULES } from '../constants/scoring';
 import { db } from '../firebase';
@@ -7,7 +7,7 @@ import type { CreateLeagueData, League } from '../types/league';
 
 const CURRENT_LEAGUE_STORAGE_KEY = 'currentLeagueId';
 
-function getStoredLeagueId(): string | null {
+export function getStoredLeagueId(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
@@ -27,30 +27,22 @@ export function storeCurrentLeagueId(leagueId: string | null) {
   }
 }
 
-export async function findLeagueIdForUser(userId: string): Promise<string | null> {
-  const savedLeagueId = getStoredLeagueId();
-  if (savedLeagueId) {
-    const leagueDoc = await getDoc(doc(db, 'leagues', savedLeagueId));
-    if (leagueDoc.exists()) {
-      const leagueData = leagueDoc.data() as Omit<League, 'id'>;
-      if (leagueData.teams.some(team => team.ownerUid === userId)) {
-        return savedLeagueId;
-      }
-    }
+export interface LeagueSummary {
+  id: string;
+  leagueName: string;
+}
 
-    storeCurrentLeagueId(null);
-  }
+/** Pure: map a raw league doc into the lightweight summary used by the switcher. */
+export function toLeagueSummary(id: string, data: Record<string, unknown>): LeagueSummary {
+  const leagueName = typeof data.leagueName === 'string' && data.leagueName ? data.leagueName : 'Untitled League';
+  return { id, leagueName };
+}
 
-  const snapshot = await getDocs(collection(db, 'leagues'));
-  for (const leagueDoc of snapshot.docs) {
-    const leagueData = leagueDoc.data() as Omit<League, 'id'>;
-    if (leagueData.teams.some(team => team.ownerUid === userId)) {
-      storeCurrentLeagueId(leagueDoc.id);
-      return leagueDoc.id;
-    }
-  }
-
-  return null;
+/** All leagues the user is a member of (admin + team owners live in memberUids). */
+export async function listLeaguesForUser(userId: string): Promise<LeagueSummary[]> {
+  const q = query(collection(db, 'leagues'), where('memberUids', 'array-contains', userId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => toLeagueSummary(d.id, d.data()));
 }
 
 export function subscribeToLeague(

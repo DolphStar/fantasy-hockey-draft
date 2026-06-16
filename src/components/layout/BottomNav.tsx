@@ -11,15 +11,15 @@ interface BottomNavProps {
 }
 
 const tabs: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
-  { to: '/', label: 'Home', icon: House, end: true },
-  { to: '/players', label: 'Players', icon: Users },
-  { to: '/scores', label: 'Scores', icon: Trophy },
+  { to: '.', label: 'Home', icon: House, end: true },
+  { to: 'players', label: 'Players', icon: Users },
+  { to: 'scores', label: 'Scores', icon: Trophy },
 ];
 
 export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname } = useLocation();
-  const moreActive = pathname.startsWith('/draft') || pathname.startsWith('/league');
+  const moreActive = pathname.includes('/draft') || pathname.includes('/settings');
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -57,8 +57,8 @@ export default function BottomNav({ onOpenChat, unread }: BottomNavProps) {
               transition={{ type: 'spring', stiffness: 400, damping: 40 }}
             >
               {[
-                { to: '/draft', label: 'Draft Board', icon: ClipboardList },
-                { to: '/league', label: 'League Settings', icon: Settings },
+                { to: 'draft', label: 'Draft Board', icon: ClipboardList },
+                { to: 'settings', label: 'League Settings', icon: Settings },
               ].map((l) => (
                 <NavLink key={l.to} to={l.to} onClick={() => setMoreOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-200 hover:bg-slate-800">

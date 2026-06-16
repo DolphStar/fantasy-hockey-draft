@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
+import { useMemberships } from '../context/MembershipContext';
+import { buildLeaguePath } from '../lib/leaguePaths';
 import TestScoring from './admin/TestScoring';
 import TestLiveStats from './admin/TestLiveStats';
 import BackfillStats from './admin/BackfillStats';
@@ -29,6 +32,8 @@ export default function LeagueSettings() {
   const { user } = useAuth();
   const { league, loading, isAdmin, createLeague, updateLeague, startDraft } = useLeague();
   const { resetDraft, draftState } = useDraft();
+  const navigate = useNavigate();
+  const { refresh: refreshMemberships } = useMemberships();
 
   const [leagueName, setLeagueName] = useState('');
   const [draftRounds, setDraftRounds] = useState(15);
@@ -111,6 +116,8 @@ export default function LeagueSettings() {
       });
       setSuccess(`League created! ID: ${leagueId}`);
       setLeagueName('');
+      refreshMemberships();
+      navigate(buildLeaguePath(leagueId));
     } catch (err) {
       setError('Failed to create league');
       console.error(err);

@@ -1,11 +1,13 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useParams } from 'react-router-dom';
+
 import { useAuth } from './AuthContext';
 import type { League, LeagueTeam, CreateLeagueData } from '../types/league';
 import {
   createLeague as createLeagueRecord,
-  findLeagueIdForUser,
   startLeagueDraft,
+  storeCurrentLeagueId,
   subscribeToLeague,
   updateLeagueDocument,
 } from '../services/leagueService';
@@ -25,119 +27,61 @@ const LeagueContext = createContext<LeagueContextType | undefined>(undefined);
 
 export function LeagueProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { leagueId } = useParams<{ leagueId: string }>();
   const [league, setLeague] = useState<League | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-discover user's league
-  const [currentLeagueId, setCurrentLeagueId] = useState<string | null>(null);
-
-  // Find the league that contains this user's UID
   useEffect(() => {
-    if (!user) {
+    if (!leagueId) {
+      setLeague(null);
       setLoading(false);
       return;
     }
 
-    const findUserLeague = async () => {
-      try {
-        const leagueId = await findLeagueIdForUser(user.uid);
-        if (leagueId) {
-          setCurrentLeagueId(leagueId);
-          return;
-        }
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Error finding user league:', err);
-        setError('Failed to find league');
-        setLoading(false);
-      }
-    };
-
-    findUserLeague();
-  }, [user]);
-
-  // Load league data in real-time
-  useEffect(() => {
-    if (!currentLeagueId) {
-      return;
-    }
+    setLoading(true);
+    storeCurrentLeagueId(leagueId);
 
     const unsubscribe = subscribeToLeague(
-      currentLeagueId,
+      leagueId,
       (nextLeague) => {
-        if (nextLeague) {
-          setLeague(nextLeague);
-        } else {
-          setLeague(null);
-          setError('League not found');
-        }
+        setLeague(nextLeague);
+        if (!nextLeague) setError('League not found');
+        else setError(null);
         setLoading(false);
       },
       (err) => {
         console.error('Error loading league:', err);
         setError('Failed to load league');
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
-  }, [currentLeagueId]);
+  }, [leagueId]);
 
-  // Create a new league
   const createLeague = async (data: CreateLeagueData): Promise<string> => {
     if (!user) throw new Error('Must be signed in to create a league');
-
-    try {
-      const leagueId = await createLeagueRecord(user, data);
-      setCurrentLeagueId(leagueId);
-      return leagueId;
-    } catch (err) {
-      console.error('Error creating league:', err);
-      throw err;
-    }
+    return createLeagueRecord(user, data);
   };
 
-  // Update league
-  const updateLeague = async (leagueId: string, updates: Partial<League>) => {
-    try {
-      await updateLeagueDocument(leagueId, updates, league?.admin);
-    } catch (err) {
-      console.error('Error updating league:', err);
-      throw err;
-    }
+  const updateLeague = async (id: string, updates: Partial<League>) => {
+    await updateLeagueDocument(id, updates, league?.admin);
   };
 
-  // Start the draft (change status to "live")
-  const startDraft = async (leagueId: string) => {
+  const startDraft = async (id: string) => {
     if (!user || league?.admin !== user.uid) {
       throw new Error('Only the admin can start the draft');
     }
-
-    try {
-      await startLeagueDraft(leagueId);
-    } catch (err) {
-      console.error('Error starting draft:', err);
-      throw err;
-    }
+    await startLeagueDraft(id);
   };
 
   const isAdmin = user ? league?.admin === user.uid : false;
-  const myTeam = league?.teams.find(team => team.ownerUid === user?.uid) || null;
+  const myTeam = league?.teams.find((team) => team.ownerUid === user?.uid) || null;
 
   return (
     <LeagueContext.Provider
-      value={{
-        league,
-        loading,
-        error,
-        isAdmin,
-        myTeam,
-        createLeague,
-        updateLeague,
-        startDraft,
-      }}
+      value={{ league, loading, error, isAdmin, myTeam, createLeague, updateLeague, startDraft }}
     >
       {children}
     </LeagueContext.Provider>

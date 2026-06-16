@@ -6,11 +6,11 @@ import { Icon } from '../ui/Icon';
 import { cn } from '../../lib/utils';
 
 const links: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
-    { to: '/', label: 'Home', icon: House, end: true },
-    { to: '/players', label: 'Players', icon: Users },
-    { to: '/scores', label: 'Scores', icon: Trophy },
-    { to: '/draft', label: 'Draft', icon: ClipboardList },
-    { to: '/league', label: 'League', icon: Settings },
+    { to: '.', label: 'Home', icon: House, end: true },
+    { to: 'players', label: 'Players', icon: Users },
+    { to: 'scores', label: 'Scores', icon: Trophy },
+    { to: 'draft', label: 'Draft', icon: ClipboardList },
+    { to: 'settings', label: 'League', icon: Settings },
 ];
 
 export default function Navbar() {
