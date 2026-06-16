@@ -7,7 +7,7 @@ import type { CreateLeagueData, League } from '../types/league';
 
 const CURRENT_LEAGUE_STORAGE_KEY = 'currentLeagueId';
 
-function getStoredLeagueId(): string | null {
+export function getStoredLeagueId(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }

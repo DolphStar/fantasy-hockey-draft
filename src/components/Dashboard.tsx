@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useLeaguePath } from '../hooks/useLeaguePath';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { Flame, HeartPulse, Radio, Trophy } from 'lucide-react';
 import { useLeague } from '../context/LeagueContext';
@@ -44,6 +45,7 @@ const rankMedalClass = (rank: number) => {
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const leaguePath = useLeaguePath();
     const { league } = useLeague();
     const { user } = useAuth();
     const { draftedPlayers, draftedPlayerIds } = useDraftedPlayers();
@@ -57,11 +59,11 @@ export default function Dashboard() {
         return league.teams.find(t => t.ownerUid === user.uid) || null;
     }, [league, user]);
 
-    const goToRoster = useCallback(() => navigate('/players/browse'), [navigate]);
-    const goToInjuries = useCallback(() => navigate('/players/injuries'), [navigate]);
+    const goToRoster = useCallback(() => navigate(leaguePath('players/browse')), [navigate, leaguePath]);
+    const goToInjuries = useCallback(() => navigate(leaguePath('players/injuries')), [navigate, leaguePath]);
     const goToPlayerCard = useCallback((playerName: string) => {
-        navigate(`/players/browse?search=${encodeURIComponent(playerName)}`);
-    }, [navigate]);
+        navigate(`${leaguePath('players/browse')}?search=${encodeURIComponent(playerName)}`);
+    }, [navigate, leaguePath]);
 
     const activeRoster = useMemo(() => {
         if (!myTeam) return [];
@@ -216,7 +218,7 @@ export default function Dashboard() {
                         <p className="text-slate-300 text-lg mt-2">{heroState.message}</p>
                         <div className="mt-4 flex flex-wrap gap-2">
                             <GradientButton onClick={goToRoster}>Set Lines</GradientButton>
-                            <GradientButton variant="outline" onClick={() => navigate('/scores')}>
+                            <GradientButton variant="outline" onClick={() => navigate(leaguePath('scores'))}>
                                 View Schedule
                             </GradientButton>
                         </div>
@@ -279,7 +281,7 @@ export default function Dashboard() {
                     <CardHeader
                         icon={<Icon as={Trophy} size="sm" className="text-rank" />}
                         title="Standings"
-                        action={<Link to="/scores" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Full table →</Link>}
+                        action={<Link to={leaguePath('scores')} className="text-xs font-semibold text-blue-400 hover:text-blue-300">Full table →</Link>}
                     />
                     {!scoresLoaded ? (
                         <><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
