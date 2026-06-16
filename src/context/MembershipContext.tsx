@@ -23,6 +23,7 @@ export function MembershipProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) {
       setMemberships([]);
+      setError(null);
       setLoading(false);
       return;
     }
