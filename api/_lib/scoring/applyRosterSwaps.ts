@@ -73,7 +73,9 @@ export function defaultRosterSwapDeps(): RosterSwapDeps {
         return {
           name: data.name as string | undefined,
           pendingSlot: (data.pendingSlot ?? null) as string | null,
-          update: (patch) => docSnap.ref.update(patch),
+          update: async (patch) => {
+            await docSnap.ref.update(patch);
+          },
         };
       });
     },

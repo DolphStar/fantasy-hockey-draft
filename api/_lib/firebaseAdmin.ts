@@ -5,13 +5,17 @@ export function parseServiceAccountKey(raw = process.env.FIREBASE_SERVICE_ACCOUN
     throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is not configured');
   }
 
-  const parsed = JSON.parse(raw) as ServiceAccount;
+  // The downloaded service-account JSON uses snake_case keys (private_key, …),
+  // whereas firebase-admin's ServiceAccount type is camelCase. cert() accepts the
+  // snake_case object at runtime, so parse into a loose shape, normalize the
+  // escaped newlines, and hand it back typed as ServiceAccount.
+  const parsed = JSON.parse(raw) as { private_key?: string; [key: string]: unknown };
 
-  if (parsed.private_key) {
+  if (typeof parsed.private_key === 'string') {
     parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
   }
 
-  return parsed;
+  return parsed as unknown as ServiceAccount;
 }
 
 export async function getAdminDb() {

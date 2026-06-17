@@ -116,8 +116,8 @@ export function summaryFromAggregate(agg: TeamSeasonAggregate): PlayerPerformanc
   }
 
   const dailyTeamTotals = [...agg.dailyTotals].sort(byDateAsc);
-  const lastGamePoints = dailyTeamTotals.at(-1)?.points ?? 0;
-  const previousGamePoints = dailyTeamTotals.at(-2)?.points;
+  const lastGamePoints = dailyTeamTotals[dailyTeamTotals.length - 1]?.points ?? 0;
+  const previousGamePoints = dailyTeamTotals[dailyTeamTotals.length - 2]?.points;
 
   return {
     pointsMap,

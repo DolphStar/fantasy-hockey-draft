@@ -32,7 +32,7 @@ export default async function handler(
     // Fetch schedule/scores for date (Using /score endpoint as requested)
     const scheduleRes = await fetch(`https://api-web.nhle.com/v1/score/${dateStr}`);
     if (!scheduleRes.ok) throw new Error(`Schedule API error: ${scheduleRes.status}`);
-    const scheduleData = await scheduleRes.json();
+    const scheduleData = (await scheduleRes.json()) as { games?: any[] };
 
     const gameIds: number[] = [];
     // /score endpoint returns { games: [...] } directly
@@ -61,7 +61,7 @@ export default async function handler(
     const batchSize = 5;
     for (let i = 0; i < gameIds.length; i += batchSize) {
       const batch = gameIds.slice(i, i + batchSize);
-      const boxscores = await Promise.all(
+      const boxscores: any[] = await Promise.all(
         batch.map(id => fetch(`https://api-web.nhle.com/v1/gamecenter/${id}/boxscore`).then(r => r.ok ? r.json() : null))
       );
 

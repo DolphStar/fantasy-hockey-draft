@@ -27,7 +27,7 @@ export default async function handler(
       throw new Error(`NHL API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { points?: unknown[] };
     
     // Map to our internal format
     // The API returns { points: [{ id, firstName, lastName, teamAbbrev, position, value }, ...] }

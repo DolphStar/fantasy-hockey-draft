@@ -40,10 +40,10 @@ export default async function handler(
       });
     }
 
-    const [skatersData, goaliesData] = await Promise.all([
+    const [skatersData, goaliesData] = (await Promise.all([
       skatersRes.json(),
       goaliesRes.json()
-    ]);
+    ])) as [{ data: unknown[] }, { data: unknown[] }];
 
     // Combine and return both datasets
     return res.status(200).json({

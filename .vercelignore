@@ -1,0 +1,4 @@
+# Test files are not serverless functions. Vercel turns every top-level api/*.ts
+# file into a function, so leaving these in pushes the deployment over the Hobby
+# plan's 12-function limit. They aren't needed at runtime.
+**/*.test.ts
