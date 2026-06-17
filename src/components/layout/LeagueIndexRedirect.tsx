@@ -4,7 +4,6 @@ import { Skeleton } from '../ui/Skeleton';
 import { useMemberships } from '../../context/MembershipContext';
 import { getStoredLeagueId } from '../../services/leagueService';
 import { buildLeaguePath, pickDefaultLeague } from '../../lib/leaguePaths';
-import NoLeaguePlaceholder from './NoLeaguePlaceholder';
 
 export default function LeagueIndexRedirect() {
   const { memberships, loading } = useMemberships();
@@ -21,6 +20,6 @@ export default function LeagueIndexRedirect() {
   }
 
   const target = pickDefaultLeague(memberships, getStoredLeagueId());
-  if (!target) return <NoLeaguePlaceholder />;
+  if (!target) return <Navigate to="/leagues" replace />;
   return <Navigate to={buildLeaguePath(target)} replace />;
 }
