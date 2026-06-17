@@ -84,6 +84,13 @@ service cloud.firestore {
         allow create: if isInLeague(leagueId) && !isChatBanned(leagueId);
         allow delete, update: if isLeagueAdmin(leagueId);
       }
+
+      // Private league data (e.g. the current invite code). Admin may read; only
+      // the Admin SDK writes it.
+      match /private/{doc} {
+        allow read: if isLeagueAdmin(leagueId);
+        allow write: if false;
+      }
     }
 
     // Drafted players - linked to specific league
@@ -121,6 +128,12 @@ service cloud.firestore {
     match /nhl_daily_stats/{date} {
       allow read: if isSignedIn();
       allow write: if false;
+    }
+
+    // Invite code → leagueId mapping. Server (Admin SDK) only; never client-readable
+    // so codes can't be enumerated from the world-readable league docs.
+    match /inviteCodes/{code} {
+      allow read, write: if false;
     }
 
     // Deny everything else by default

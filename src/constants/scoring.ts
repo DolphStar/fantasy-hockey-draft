@@ -9,3 +9,5 @@ export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {
   goalies: 2,
   reserves: 5,
 };
+
+export const DEFAULT_MAX_TEAMS = 12;

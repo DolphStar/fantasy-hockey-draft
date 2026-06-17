@@ -22,6 +22,7 @@ import { Gamepad2, TriangleAlert } from 'lucide-react';
 import { getAllPlayers, getTeamRoster, NHL_TEAMS, type RosterPerson, type TeamAbbrev, getPlayerFullName } from '../utils/nhlApi';
 import { toast } from 'sonner';
 import { commitAutoDraftPick, fetchDraftedRosterStatus, type AutoDraftCandidate } from '../services/adminLeagueService';
+import { getInviteCode, rotateInviteCode } from '../services/membershipService';
 
 type RosterPersonWithTeamAbbrev = RosterPerson & { teamAbbrev: TeamAbbrev };
 
@@ -68,6 +69,24 @@ export default function LeagueSettings() {
       setAllowedGameTypes(league.allowedGameTypes || [2]);
     }
   }, [league]);
+
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (league && isAdmin) {
+      getInviteCode(league.id).then(setInviteCode).catch(() => setInviteCode(null));
+    }
+  }, [league, isAdmin]);
+
+  const handleRotate = async () => {
+    if (!league) return;
+    try {
+      const code = await rotateInviteCode(league.id);
+      setInviteCode(code);
+      setSuccess('Invite code rotated.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rotate invite code');
+    }
+  };
 
   // Update team field
   const updateTeam = (index: number, field: keyof LeagueTeam, value: string) => {
@@ -623,6 +642,20 @@ export default function LeagueSettings() {
                   🔄 Reset Draft State
                 </button>
               </GlassCard>
+
+              {isAdmin && league && (
+                <div className="mt-6 p-4 rounded-card bg-card-surface border border-card-border">
+                  <h3 className="font-semibold text-white mb-2">Invite players</h3>
+                  <p className="text-gray-400 text-sm mb-2">Share this code (or a link) so people can join.</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <code className="font-mono text-slate-200 bg-slate-900/80 px-3 py-1.5 rounded">{inviteCode ?? '—'}</code>
+                    {inviteCode && (
+                      <button type="button" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/join?code=${inviteCode}`); setSuccess('Invite link copied!'); }} className="text-xs text-blue-400 hover:text-blue-300">Copy link</button>
+                    )}
+                    <button type="button" onClick={handleRotate} className="text-xs text-gray-400 hover:text-white">Rotate</button>
+                  </div>
+                </div>
+              )}
             </>
         )}
 
