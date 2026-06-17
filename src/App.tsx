@@ -7,6 +7,8 @@ import LeagueLayout from './components/layout/LeagueLayout';
 import LeagueIndexRedirect from './components/layout/LeagueIndexRedirect';
 import Dashboard from './components/Dashboard';
 import PlayersHub from './components/PlayersHub';
+import LeaguesHub from './components/leagues/LeaguesHub';
+import CreateLeague from './components/leagues/CreateLeague';
 import { useAuth } from './context/AuthContext';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -63,6 +65,8 @@ function App() {
           />
           <Route path="settings" element={<LeagueSettings />} />
         </Route>
+        <Route path="/leagues" element={<LeaguesHub />} />
+        <Route path="/leagues/new" element={<CreateLeague />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
