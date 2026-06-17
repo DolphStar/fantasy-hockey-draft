@@ -1,9 +1,10 @@
 import type { User } from 'firebase/auth';
 import { collection, doc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 
-import { DEFAULT_ROSTER_SETTINGS, DEFAULT_SCORING_RULES } from '../constants/scoring';
+import { DEFAULT_MAX_TEAMS, DEFAULT_ROSTER_SETTINGS, DEFAULT_SCORING_RULES } from '../constants/scoring';
 import { db } from '../firebase';
 import type { CreateLeagueData, League } from '../types/league';
+import { rotateInviteCode } from './membershipService';
 
 const CURRENT_LEAGUE_STORAGE_KEY = 'currentLeagueId';
 
@@ -81,11 +82,17 @@ export async function createLeague(user: User, data: CreateLeagueData): Promise<
     scoringRules: DEFAULT_SCORING_RULES,
     rosterSettings: DEFAULT_ROSTER_SETTINGS,
     allowedGameTypes: data.allowedGameTypes || [2],
+    maxTeams: data.maxTeams ?? DEFAULT_MAX_TEAMS,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
   await setDoc(doc(db, 'leagues', leagueId), leagueData);
+  try {
+    await rotateInviteCode(leagueId);
+  } catch (err) {
+    console.error('Failed to generate initial invite code:', err);
+  }
   storeCurrentLeagueId(leagueId);
   return leagueId;
 }

@@ -42,6 +42,7 @@ export interface League {
   scoringRules: ScoringRules;
   rosterSettings: RosterSettings;
   allowedGameTypes: number[]; // NHL gameType values: 2=Regular Season, 3=Playoffs
+  maxTeams: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,4 +52,5 @@ export interface CreateLeagueData {
   teams: LeagueTeam[];
   draftRounds?: number;
   allowedGameTypes?: number[];
+  maxTeams?: number;
 }
