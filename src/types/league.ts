@@ -43,6 +43,7 @@ export interface League {
   rosterSettings: RosterSettings;
   allowedGameTypes: number[]; // NHL gameType values: 2=Regular Season, 3=Playoffs
   maxTeams: number;
+  isPublic: boolean;
   createdAt: string;
   updatedAt: string;
 }
