@@ -83,6 +83,7 @@ export async function createLeague(user: User, data: CreateLeagueData): Promise<
     rosterSettings: DEFAULT_ROSTER_SETTINGS,
     allowedGameTypes: data.allowedGameTypes || [2],
     maxTeams: data.maxTeams ?? DEFAULT_MAX_TEAMS,
+    isPublic: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
