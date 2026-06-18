@@ -16,20 +16,21 @@ const MembershipContext = createContext<MembershipContextType | undefined>(undef
 export function MembershipProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [memberships, setMemberships] = useState<LeagueSummary[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // The uid we've finished resolving memberships for. `undefined` = nothing resolved
+  // yet; `null` = resolved the signed-out state.
+  const [resolvedUid, setResolvedUid] = useState<string | null | undefined>(undefined);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!user) {
       setMemberships([]);
       setError(null);
-      setLoading(false);
+      setResolvedUid(null);
       return;
     }
-
-    let cancelled = false;
-    setLoading(true);
 
     listLeaguesForUser(user.uid)
       .then((leagues) => {
@@ -43,13 +44,20 @@ export function MembershipProvider({ children }: { children: ReactNode }) {
         setError('Failed to load your leagues');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setResolvedUid(user.uid);
       });
 
     return () => {
       cancelled = true;
     };
   }, [user, nonce]);
+
+  // Derived, not a separate `loading` state set inside the effect: we're loading until
+  // memberships have been resolved for the *current* user. This closes the race where,
+  // right after sign-in, a stale `loading === false` (left over from the signed-out
+  // phase) let consumers redirect on empty memberships before the fetch had run — which
+  // bounced signed-in users to /leagues instead of their league.
+  const loading = resolvedUid !== (user?.uid ?? null);
 
   return (
     <MembershipContext.Provider
