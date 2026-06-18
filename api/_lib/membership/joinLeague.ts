@@ -1,7 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { getAdminDb } from '../firebaseAdmin.js';
-import { resolveJoinTarget } from './resolveJoinTarget.js';
+import { resolveJoinTarget } from '../../../packages/core/membership/resolveJoinTarget.js';
 
 const DEFAULT_MAX_TEAMS = 12;
 
