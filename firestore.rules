@@ -91,6 +91,16 @@ service cloud.firestore {
         allow read: if isLeagueAdmin(leagueId);
         allow write: if false;
       }
+
+      // Public-league join requests: a user creates/cancels their own request; the
+      // league admin reads them and deletes on approve/deny.
+      match /joinRequests/{requesterUid} {
+        allow read:   if isLeagueAdmin(leagueId) || request.auth.uid == requesterUid;
+        allow create: if isSignedIn()
+                        && request.auth.uid == requesterUid
+                        && request.resource.data.uid == requesterUid;
+        allow delete: if isLeagueAdmin(leagueId) || request.auth.uid == requesterUid;
+      }
     }
 
     // Drafted players - linked to specific league
