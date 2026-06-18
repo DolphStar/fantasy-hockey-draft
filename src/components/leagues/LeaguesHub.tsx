@@ -74,6 +74,7 @@ export default function LeaguesHub() {
           <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Your team name" className="w-full bg-slate-900/80 border border-white/15 rounded-lg px-3 py-2 text-sm text-white" />
           <button type="submit" disabled={busy || !code.trim() || !teamName.trim()} className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg px-3 py-2 text-sm font-semibold">Join</button>
         </form>
+        <Link to="/leagues/browse" className="text-sm text-blue-400 hover:text-blue-300">Browse public leagues →</Link>
       </GlassCard>
 
       <GlassCard className="p-4">

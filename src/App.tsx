@@ -8,6 +8,7 @@ import LeagueIndexRedirect from './components/layout/LeagueIndexRedirect';
 import Dashboard from './components/Dashboard';
 import PlayersHub from './components/PlayersHub';
 import LeaguesHub from './components/leagues/LeaguesHub';
+import LeaguesBrowse from './components/leagues/LeaguesBrowse';
 import CreateLeague from './components/leagues/CreateLeague';
 import JoinByLink from './components/leagues/JoinByLink';
 import { useAuth } from './context/AuthContext';
@@ -67,6 +68,7 @@ function App() {
           <Route path="settings" element={<LeagueSettings />} />
         </Route>
         <Route path="/leagues" element={<LeaguesHub />} />
+        <Route path="/leagues/browse" element={<LeaguesBrowse />} />
         <Route path="/leagues/new" element={<CreateLeague />} />
         <Route path="/join" element={<JoinByLink />} />
         <Route path="*" element={<Navigate to="/" replace />} />
