@@ -23,6 +23,12 @@ import { getAllPlayers, getTeamRoster, NHL_TEAMS, type RosterPerson, type TeamAb
 import { toast } from 'sonner';
 import { commitAutoDraftPick, fetchDraftedRosterStatus, type AutoDraftCandidate } from '../services/adminLeagueService';
 import { getInviteCode, rotateInviteCode } from '../services/membershipService';
+import {
+  approveJoinRequest,
+  denyJoinRequest,
+  subscribeToJoinRequests,
+  type JoinRequest,
+} from '../services/joinRequestService';
 
 type RosterPersonWithTeamAbbrev = RosterPerson & { teamAbbrev: TeamAbbrev };
 
@@ -85,6 +91,42 @@ export default function LeagueSettings() {
       setSuccess('Invite code rotated.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to rotate invite code');
+    }
+  };
+
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  useEffect(() => {
+    if (!league || !isAdmin) return;
+    return subscribeToJoinRequests(league.id, setJoinRequests);
+  }, [league, isAdmin]);
+
+  const handleTogglePublic = async () => {
+    if (!league) return;
+    try {
+      await updateLeague(league.id, { isPublic: !league.isPublic });
+      setSuccess(league.isPublic ? 'League is now private.' : 'League is now public — others can find and request to join.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update visibility');
+    }
+  };
+
+  const handleApprove = async (req: JoinRequest) => {
+    if (!league) return;
+    try {
+      await approveJoinRequest(league.id, req.uid, req.teamName);
+      setSuccess(`Approved ${req.teamName}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve request');
+    }
+  };
+
+  const handleDeny = async (req: JoinRequest) => {
+    if (!league) return;
+    try {
+      await denyJoinRequest(league.id, req.uid);
+      setSuccess(`Denied ${req.teamName}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to deny request');
     }
   };
 
@@ -654,6 +696,32 @@ export default function LeagueSettings() {
                     )}
                     <button type="button" onClick={handleRotate} className="text-xs text-gray-400 hover:text-white">Rotate</button>
                   </div>
+                </div>
+              )}
+
+              {isAdmin && league && (
+                <div className="mt-6 p-4 rounded-card bg-card-surface border border-card-border">
+                  <h3 className="font-semibold text-white mb-2">Discovery</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-200 mb-3">
+                    <input type="checkbox" checked={!!league.isPublic} onChange={handleTogglePublic} />
+                    Public — list this league so others can find and request to join
+                  </label>
+                  <h4 className="font-semibold text-white text-sm mb-1">Join requests</h4>
+                  {joinRequests.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No pending requests.</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {joinRequests.map((req) => (
+                        <li key={req.uid} className="flex items-center justify-between text-sm py-1 border-b border-slate-800 last:border-0">
+                          <span className="text-slate-200">{req.teamName}</span>
+                          <span className="flex gap-3">
+                            <button type="button" onClick={() => handleApprove(req)} className="text-points hover:opacity-80">Approve</button>
+                            <button type="button" onClick={() => handleDeny(req)} className="text-gray-400 hover:text-live">Deny</button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
             </>
