@@ -14,7 +14,7 @@ import {
   type StatsMap
 } from '../utils/nhlApi';
 import { db } from '../firebase';
-import { collection, onSnapshot, runTransaction, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, runTransaction, doc } from 'firebase/firestore';
 import { SkeletonCard } from './ui/Skeleton';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
@@ -130,9 +130,14 @@ export default function NHLRoster() {
     loadStats();
   }, []);
 
-  // Set up real-time listener for drafted players
+  // Set up real-time listener for THIS league's drafted players
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'draftedPlayers'), (snapshot) => {
+    if (!league) return;
+    const draftedQuery = query(
+      collection(db, 'draftedPlayers'),
+      where('leagueId', '==', league.id),
+    );
+    const unsubscribe = onSnapshot(draftedQuery, (snapshot) => {
       const draftedIds = new Set<number>();
       let activeForwards = 0, activeDefense = 0, activeGoalies = 0;
       let reserveCount = 0, myTotal = 0;
@@ -171,7 +176,7 @@ export default function NHLRoster() {
     });
 
     return () => unsubscribe();
-  }, [myTeam]);
+  }, [league?.id, myTeam]);
 
   // Check if we can draft a player to active roster
   const canDraftToActive = (position: string): boolean => {

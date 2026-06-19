@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { useDraft } from '../context/DraftContext';
@@ -37,14 +37,18 @@ export default function DraftBoardGrid() {
   const [draftedPlayers, setDraftedPlayers] = useState<DraftedPlayer[]>([]);
   const [animatingPick, setAnimatingPick] = useState<number | null>(null);
 
-  // Listen to drafted players in real-time
-  // IMPORTANT: Empty dependency array - runs once on mount
-  // Using ref to track previous players for animation detection
+  // Listen to THIS league's drafted players in real-time (re-subscribes when the
+  // active league changes). Using a ref to track previous players for animation.
   const prevPlayersRef = useRef<DraftedPlayer[]>([]);
-  
+
   useEffect(() => {
+    if (!league) return;
+    // New league → reset the animation baseline so we don't flash on switch.
+    prevPlayersRef.current = [];
+
     const q = query(
       collection(db, 'draftedPlayers'),
+      where('leagueId', '==', league.id),
       orderBy('pickNumber', 'asc')
     );
 
@@ -69,7 +73,7 @@ export default function DraftBoardGrid() {
     });
 
     return () => unsubscribe();
-  }, []); // ← FIXED: Empty array - listener runs once, onSnapshot handles updates
+  }, [league?.id]);
 
   if (!league || !draftState) {
     return (

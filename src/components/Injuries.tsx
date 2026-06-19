@@ -31,39 +31,45 @@ export default function Injuries() {
 
   // React Query hook - automatic caching and refetching!
   const { data: injuries = [], isLoading: loading, dataUpdatedAt, error, refetch } = useInjuries();
-  const { myTeam } = useLeague();
+  const { myTeam, league } = useLeague();
 
   // Convert dataUpdatedAt timestamp to Date
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
   // Load my drafted players to highlight their injuries
   useEffect(() => {
-    if (!myTeam) {
+    if (!myTeam || !league) {
       setMyPlayers([]);
       setMyPlayersLoading(false);
       return;
     }
 
     setMyPlayersLoading(true);
+    const teamName = myTeam.teamName;
+    // Scope to THIS league (the leagueId+pickNumber index already exists), then keep
+    // only my team's players client-side — avoids a cross-league leak when two leagues
+    // happen to share a team name, without needing a new composite index.
     const playersQuery = query(
       collection(db, 'draftedPlayers'),
-      where('draftedByTeam', '==', myTeam.teamName),
+      where('leagueId', '==', league.id),
       orderBy('pickNumber', 'asc')
     );
 
     const unsubscribe = onSnapshot(
       playersQuery,
       (snapshot) => {
-        const data = snapshot.docs.map((doc) => {
-          const player = doc.data() as DraftedPlayer & { id?: string };
-          const { id, ...rest } = player;
-          void id;
+        const data = snapshot.docs
+          .filter((doc) => (doc.data() as { draftedByTeam?: string }).draftedByTeam === teamName)
+          .map((doc) => {
+            const player = doc.data() as DraftedPlayer & { id?: string };
+            const { id, ...rest } = player;
+            void id;
 
-          return {
-            id: doc.id,
-            ...rest,
-          };
-        });
+            return {
+              id: doc.id,
+              ...rest,
+            };
+          });
         setMyPlayers(data);
         setMyPlayersLoading(false);
       },
@@ -75,7 +81,7 @@ export default function Injuries() {
     );
 
     return () => unsubscribe();
-  }, [myTeam]);
+  }, [myTeam, league]);
 
   const normalizeName = (name?: string) => (name || '').toLowerCase().trim();
 
