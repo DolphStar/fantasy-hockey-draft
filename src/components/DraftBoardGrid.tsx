@@ -8,6 +8,7 @@ import { GlassCard } from './ui/GlassCard';
 import { Badge } from './ui/Badge';
 import { Icon } from './ui/Icon';
 import { ClipboardList } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 
 interface DraftedPlayer {
@@ -33,9 +34,10 @@ const addAlpha = (hex: string, alpha: number) => {
 
 export default function DraftBoardGrid() {
   const { draftState } = useDraft();
-  const { league } = useLeague();
+  const { league, isAdmin, startDraft } = useLeague();
   const [draftedPlayers, setDraftedPlayers] = useState<DraftedPlayer[]>([]);
   const [animatingPick, setAnimatingPick] = useState<number | null>(null);
+  const [starting, setStarting] = useState(false);
 
   // Listen to THIS league's drafted players in real-time (re-subscribes when the
   // active league changes). Using a ref to track previous players for animation.
@@ -75,7 +77,62 @@ export default function DraftBoardGrid() {
     return () => unsubscribe();
   }, [league?.id]);
 
-  if (!league || !draftState) {
+  if (!league) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin-slow text-4xl">🏒</div>
+      </div>
+    );
+  }
+
+  // Before the admin starts the draft, show a pending lobby (registered teams +
+  // a Start control for the admin) rather than the live snake board.
+  if (league.status === 'pending') {
+    const handleStart = async () => {
+      setStarting(true);
+      try {
+        await startDraft(league.id);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to start the draft');
+      } finally {
+        setStarting(false);
+      }
+    };
+
+    return (
+      <GlassCard className="max-w-3xl mx-auto">
+        <div className="p-6 sm:p-8 text-center space-y-4">
+          <div className="flex items-center justify-center gap-2 text-blue-400">
+            <Icon as={ClipboardList} size="md" />
+            <span className="text-lg font-bold text-white">Draft pending</span>
+          </div>
+          <p className="text-gray-400 text-sm">
+            The draft hasn't started yet. {league.teams.length} team{league.teams.length === 1 ? '' : 's'} registered —
+            the snake order and picks appear once the draft begins.
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {league.teams.map((t) => (
+              <Badge key={t.teamName}>{t.teamName}</Badge>
+            ))}
+          </div>
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={handleStart}
+              disabled={starting}
+              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg px-4 py-2 text-sm font-semibold"
+            >
+              {starting ? 'Starting…' : '🚀 Start Draft'}
+            </button>
+          ) : (
+            <p className="text-gray-500 text-sm">Waiting for the league admin to start the draft.</p>
+          )}
+        </div>
+      </GlassCard>
+    );
+  }
+
+  if (!draftState) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin-slow text-4xl">🏒</div>
