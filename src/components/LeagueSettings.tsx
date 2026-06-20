@@ -403,7 +403,7 @@ export default function LeagueSettings() {
         </div>
       )}
 
-      <div className="max-w-3xl space-y-6">
+      <div className="space-y-6">
         {(tab === 'settings' || tab === 'teams') && (
           (!league || isAdmin) ? (
             <form onSubmit={league ? handleUpdateLeague : handleCreateLeague}>
@@ -577,22 +577,6 @@ export default function LeagueSettings() {
               <p className="text-slate-400">Only the league commissioner can modify these settings.</p>
             </GlassCard>
           )
-        )}
-
-        {/* Identity (settings tab, visible to everyone) */}
-        {tab === 'settings' && (
-          <GlassCard className="p-5 space-y-4">
-            <h3 className="text-lg font-bold text-white border-b border-slate-700/50 pb-2">Your Identity</h3>
-            <div>
-              <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">Your Firebase UID</label>
-              <div className="bg-slate-900/80 p-3 rounded-lg border border-slate-700 font-mono text-xs text-blue-300 break-all select-all cursor-pointer hover:bg-slate-900 transition-colors" onClick={() => navigator.clipboard.writeText(user?.uid || '')}>
-                {user?.uid}
-              </div>
-              <p className="text-slate-500 text-xs mt-2">
-                Share this UID with your league admin so they can add you to a team.
-              </p>
-            </div>
-          </GlassCard>
         )}
 
         {/* Draft Controls tab */}
