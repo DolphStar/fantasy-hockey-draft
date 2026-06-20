@@ -1,9 +1,8 @@
 # Fantasy Hockey Draft
 
-A **real-time fantasy hockey draft application** built with React, TypeScript, Firebase, and the NHL API. The app provides a complete fantasy hockey league experience including live drafting, automated daily scoring, real-time game stats, roster management, injury tracking, and league chat.
+A **real-time fantasy hockey draft application** built with React, TypeScript, Firebase, and the NHL API. The app provides a complete fantasy hockey experience across multiple leagues — including live drafting, automated daily scoring, real-time game stats, roster management, injury tracking, and league chat.
 
-> ⚠️ **Current Status: Single-League Demo**  
-> Currently, the app is hardcoded to run a single active league for demonstration purposes. Multi-tenancy (supporting multiple different leagues simultaneously) is planned for v2.
+> ✅ **Multi-league** — create or join multiple leagues, switch between them from the header, share invite codes, and browse/request public leagues. Each league has its own draft, rosters, standings, chat, and scoring.
 
 ---
 
@@ -220,13 +219,12 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 
 ## 🎮 Usage
 
-### Creating a League
-1. Sign in with Google
-2. Go to League Settings
-3. Enter league name and configure draft rounds
-4. Add teams and assign owner UIDs
-5. Click "Create League"
-6. Share your league ID with other players
+### Creating or Joining a League
+1. Sign in with Google — you land on the **My Leagues** hub
+2. **Create:** click "Create league", name it, set max teams, and you're the commissioner
+3. **Join:** enter an invite code, or **Browse public leagues** and request to join (the admin approves)
+4. Switch between your leagues anytime from the league switcher in the header
+5. Configure draft rounds, teams, and scoring under the **League** tab (admin only)
 
 ### Starting a Draft
 1. Go to League Settings (admin only)
