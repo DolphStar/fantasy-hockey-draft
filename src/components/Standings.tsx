@@ -131,7 +131,7 @@ export default function Standings() {
                   <th className="text-left p-4 text-slate-400 font-semibold">Team</th>
                   <th className="text-center p-4 text-slate-400 font-semibold">Points</th>
 
-                  <th className="text-right p-4 text-slate-400 font-semibold">Last Updated</th>
+                  <th className="hidden sm:table-cell text-right p-4 text-slate-400 font-semibold">Last Updated</th>
                 </tr>
               </thead>
               <motion.tbody variants={staggerList} initial="initial" animate="animate" className="divide-y divide-slate-700/50">
@@ -171,7 +171,7 @@ export default function Standings() {
                         <TeamPointsCell points={team.totalPoints} />
                       </td>
 
-                      <td className="p-4 text-right text-slate-500 text-sm font-mono">
+                      <td className="hidden sm:table-cell p-4 text-right text-slate-500 text-sm font-mono">
                         {team.lastUpdated
                           ? new Date(team.lastUpdated).toLocaleDateString()
                           : '-'}
@@ -272,14 +272,14 @@ export default function Standings() {
                           <tr>
                             <th className="text-left p-3 text-slate-400 font-medium w-8 sticky left-0 bg-[#0d1322] z-10">#</th>
                             <th className="text-left p-3 text-slate-400 font-medium">Player</th>
-                            <th className="text-center p-3 text-slate-400 font-medium">NHL</th>
+                            <th className="hidden md:table-cell text-center p-3 text-slate-400 font-medium">NHL</th>
                             <th className="text-center p-3 text-slate-400 font-medium">G</th>
                             <th className="text-center p-3 text-slate-400 font-medium">A</th>
-                            <th className="text-center p-3 text-slate-400 font-medium">H</th>
-                            <th className="text-center p-3 text-slate-400 font-medium">BS</th>
-                            <th className="text-center p-3 text-slate-400 font-medium">W</th>
-                            <th className="text-center p-3 text-slate-400 font-medium">Sv</th>
-                            <th className="text-center p-3 text-slate-400 font-medium">SO</th>
+                            <th className="hidden md:table-cell text-center p-3 text-slate-400 font-medium">H</th>
+                            <th className="hidden md:table-cell text-center p-3 text-slate-400 font-medium">BS</th>
+                            <th className="hidden md:table-cell text-center p-3 text-slate-400 font-medium">W</th>
+                            <th className="hidden md:table-cell text-center p-3 text-slate-400 font-medium">Sv</th>
+                            <th className="hidden md:table-cell text-center p-3 text-slate-400 font-medium">SO</th>
                             <th className="text-center p-3 text-slate-400 font-bold">Points</th>
                           </tr>
                         </thead>
@@ -309,7 +309,7 @@ export default function Standings() {
                                     })()}
                                   </div>
                                 </td>
-                                <td className="p-3 text-center">
+                                <td className="hidden md:table-cell p-3 text-center">
                                   <div className="flex items-center justify-center">
                                     <img
                                       src={`https://assets.nhle.com/logos/nhl/svg/${player.nhlTeam}_dark.svg`}
@@ -324,11 +324,11 @@ export default function Standings() {
                                 </td>
                                 <td className={`p-3 text-center ${player.goals > 0 ? 'text-white font-bold' : 'text-slate-400'}`}>{player.goals}</td>
                                 <td className={`p-3 text-center ${player.assists > 0 ? 'text-white font-bold' : 'text-slate-400'}`}>{player.assists}</td>
-                                <td className={`p-3 text-center ${player.hits > 0 ? 'text-white' : 'text-slate-400'}`}>{player.hits}</td>
-                                <td className={`p-3 text-center ${player.blockedShots > 0 ? 'text-white' : 'text-slate-400'}`}>{player.blockedShots}</td>
-                                <td className={`p-3 text-center ${player.wins > 0 ? 'text-white font-bold' : 'text-slate-400'}`}>{player.wins}</td>
-                                <td className={`p-3 text-center ${player.saves > 0 ? 'text-white' : 'text-slate-400'}`}>{player.saves}</td>
-                                <td className={`p-3 text-center ${player.shutouts > 0 ? 'text-yellow-400 font-bold' : 'text-slate-400'}`}>{player.shutouts}</td>
+                                <td className={`hidden md:table-cell p-3 text-center ${player.hits > 0 ? 'text-white' : 'text-slate-400'}`}>{player.hits}</td>
+                                <td className={`hidden md:table-cell p-3 text-center ${player.blockedShots > 0 ? 'text-white' : 'text-slate-400'}`}>{player.blockedShots}</td>
+                                <td className={`hidden md:table-cell p-3 text-center ${player.wins > 0 ? 'text-white font-bold' : 'text-slate-400'}`}>{player.wins}</td>
+                                <td className={`hidden md:table-cell p-3 text-center ${player.saves > 0 ? 'text-white' : 'text-slate-400'}`}>{player.saves}</td>
+                                <td className={`hidden md:table-cell p-3 text-center ${player.shutouts > 0 ? 'text-yellow-400 font-bold' : 'text-slate-400'}`}>{player.shutouts}</td>
                                 <td className="p-3 text-center">
                                   <span className={`font-bold text-lg ${player.totalPoints > 0 ? 'text-points' : 'text-slate-400'}`}>
                                     {player.totalPoints.toFixed(1)}
