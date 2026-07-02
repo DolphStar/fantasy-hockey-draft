@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import type { GoalEventStats } from '../../../packages/core/nhl/parseGoalEvents';
+import type { PlayerGameStats } from '../../../packages/core/nhl/types';
 import {
+  applyDerivedStats,
   countFightsFromPlayByPlay,
   filterGameStatsByType,
   type DailyGameStats,
@@ -46,5 +49,62 @@ describe('countFightsFromPlayByPlay', () => {
   it('returns an empty map for malformed input', () => {
     expect(countFightsFromPlayByPlay(null).size).toBe(0);
     expect(countFightsFromPlayByPlay({}).size).toBe(0);
+  });
+});
+
+describe('applyDerivedStats', () => {
+  const skater = (over: Partial<PlayerGameStats>): PlayerGameStats => ({
+    playerId: 1,
+    name: { default: 'Skater' },
+    position: 'C',
+    ...over,
+  });
+
+  const goalEvents = (entries: [number, Partial<GoalEventStats>][]) =>
+    new Map<number, GoalEventStats>(
+      entries.map(([id, s]) => [
+        id,
+        { goals: 0, assists: 0, shortHandedGoals: 0, overtimeGoals: 0, ...s },
+      ]),
+    );
+
+  it('sets fights, SHG and OTG on skaters and maps sog to shots', () => {
+    const player = skater({ playerId: 7, goals: 2, sog: 5 });
+    applyDerivedStats(
+      [player],
+      new Map([[7, 1]]),
+      goalEvents([[7, { goals: 2, shortHandedGoals: 1, overtimeGoals: 1 }]]),
+    );
+    expect(player.fights).toBe(1);
+    expect(player.shortHandedGoals).toBe(1);
+    expect(player.overtimeGoals).toBe(1);
+    expect(player.shots).toBe(5);
+    // boxscore skater goals/assists are authoritative — not overwritten
+    expect(player.goals).toBe(2);
+  });
+
+  it('derives goalie wins/shutouts and fills goalie goals/assists from goal events', () => {
+    const goalie = skater({
+      playerId: 9,
+      position: 'G',
+      decision: 'W',
+      goalsAgainst: 0,
+      saves: 22,
+    });
+    applyDerivedStats([goalie], new Map(), goalEvents([[9, { assists: 1 }]]));
+    expect(goalie.wins).toBe(1);
+    expect(goalie.shutouts).toBe(1);
+    expect(goalie.goals).toBe(0);
+    expect(goalie.assists).toBe(1);
+  });
+
+  it('zeroes derived fields when no events exist for the player', () => {
+    const goalie = skater({ playerId: 9, position: 'G', decision: 'L', goalsAgainst: 5, saves: 17 });
+    applyDerivedStats([goalie], new Map(), new Map());
+    expect(goalie.wins).toBe(0);
+    expect(goalie.shutouts).toBe(0);
+    expect(goalie.goals).toBe(0);
+    expect(goalie.assists).toBe(0);
+    expect(goalie.fights).toBe(0);
   });
 });
