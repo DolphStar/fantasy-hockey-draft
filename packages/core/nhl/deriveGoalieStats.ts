@@ -7,6 +7,8 @@
  * shutouts are rare enough that this is an accepted simplification.
  */
 
+const DECISIONS = ['W', 'L', 'O'];
+
 export function deriveGoalieWin(decision: string | undefined): number {
   return decision === 'W' ? 1 : 0;
 }
@@ -16,6 +18,7 @@ export function deriveGoalieShutout(goalie: {
   goalsAgainst?: number;
   saves?: number;
 }): number {
+  const hasDecision = typeof goalie.decision === 'string' && DECISIONS.includes(goalie.decision);
   const facedShots = (goalie.saves ?? 0) > 0;
-  return goalie.decision !== undefined && goalie.goalsAgainst === 0 && facedShots ? 1 : 0;
+  return hasDecision && goalie.goalsAgainst === 0 && facedShots ? 1 : 0;
 }

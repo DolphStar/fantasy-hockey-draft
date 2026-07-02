@@ -32,4 +32,13 @@ describe('deriveGoalieShutout', () => {
     expect(deriveGoalieShutout({ decision: 'W', goalsAgainst: 0, saves: 0 })).toBe(0);
     expect(deriveGoalieShutout({ decision: 'W', goalsAgainst: 0 })).toBe(0);
   });
+
+  it('does not credit a shutout for a null/unknown decision value', () => {
+    expect(deriveGoalieShutout({ decision: null as unknown as string, goalsAgainst: 0, saves: 4 })).toBe(0);
+    expect(deriveGoalieShutout({ decision: 'X', goalsAgainst: 0, saves: 4 })).toBe(0);
+  });
+
+  it('does not credit a shutout when goalsAgainst is missing', () => {
+    expect(deriveGoalieShutout({ decision: 'W', saves: 22 })).toBe(0);
+  });
 });
