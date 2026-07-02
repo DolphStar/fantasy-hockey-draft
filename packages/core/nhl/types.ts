@@ -11,6 +11,7 @@ export interface PlayerGameStats {
   points?: number;
   plusMinus?: number;
   powerPlayGoals?: number;
+  /** From the boxscore when present; in practice backfilled from the landing goal summary. */
   shortHandedGoals?: number;
   /** Derived: OT goals counted from the landing goal summary (not in the boxscore). */
   overtimeGoals?: number;

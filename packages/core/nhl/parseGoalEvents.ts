@@ -2,6 +2,8 @@
  * Parses the NHL `gamecenter/{id}/landing` goal summary into per-player counts
  * the boxscore does not provide: SH goals, OT goals, and (for goalies) goals
  * and assists. Shootout periods are excluded — shootout goals never score.
+ * `goals` is the player's total (all strengths/periods); `shortHandedGoals` and
+ * `overtimeGoals` are overlapping subsets of it, not disjoint categories.
  */
 
 export interface GoalEventStats {
@@ -32,8 +34,11 @@ const emptyStats = (): GoalEventStats => ({
 export function parseGoalEvents(landing: unknown): Map<number, GoalEventStats> {
   const byPlayer = new Map<number, GoalEventStats>();
 
-  const periods =
-    ((landing as { summary?: { scoring?: LandingPeriod[] } })?.summary?.scoring ?? []);
+  const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+  const periods = asArray<LandingPeriod>(
+    (landing as { summary?: { scoring?: unknown } })?.summary?.scoring,
+  );
 
   const bump = (playerId: number | undefined, apply: (s: GoalEventStats) => void) => {
     if (!playerId) return;
@@ -46,13 +51,13 @@ export function parseGoalEvents(landing: unknown): Map<number, GoalEventStats> {
     if (period?.periodDescriptor?.periodType === 'SO') continue;
     const isOvertime = period?.periodDescriptor?.periodType === 'OT';
 
-    for (const goal of period?.goals ?? []) {
+    for (const goal of asArray<LandingGoal>(period?.goals)) {
       bump(goal.playerId, (s) => {
         s.goals += 1;
         if (goal.strength === 'sh') s.shortHandedGoals += 1;
         if (isOvertime) s.overtimeGoals += 1;
       });
-      for (const assist of goal.assists ?? []) {
+      for (const assist of asArray<{ playerId?: number }>(goal.assists)) {
         bump(assist.playerId, (s) => {
           s.assists += 1;
         });
