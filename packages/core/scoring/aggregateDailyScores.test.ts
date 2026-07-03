@@ -113,6 +113,22 @@ describe('aggregateDailyScores (golden master)', () => {
 
     // win 1 + saves 30*0.04 + shutout 2 + goalie fight 5 = 9.2
     expect(teamPoints.get('Team B')).toBeCloseTo(9.2, 5);
-    expect(playerScores[0].stats).toEqual({ wins: 1, saves: 30, shutouts: 1 });
+    expect(playerScores[0].stats).toEqual({ wins: 1, saves: 30, shutouts: 1, fights: 1 });
+  });
+
+  it('persists fights, SHG and OTG in the stats record', () => {
+    const playerToTeamMap = new Map([[5, 'Team A']]);
+    const { playerScores } = aggregateDailyScores(
+      [[skater({ playerId: 5, goals: 1, fights: 1, shortHandedGoals: 1, overtimeGoals: 1 })]],
+      playerToTeamMap,
+      DEFAULT_SCORING_RULES,
+      '2026-01-01',
+    );
+    expect(playerScores[0].stats).toMatchObject({
+      goals: 1,
+      fights: 1,
+      shortHandedGoals: 1,
+      overtimeGoals: 1,
+    });
   });
 });

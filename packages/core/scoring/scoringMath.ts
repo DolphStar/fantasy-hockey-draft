@@ -37,8 +37,7 @@ function calculateSkaterPoints(
   points += (stats.goals || 0) * rules.goal;
   points += (stats.assists || 0) * rules.assist;
   points += (stats.shortHandedGoals || 0) * rules.shortHandedGoal;
-  // `overtimeGoal` stays in the shared rules shape for config stability, but
-  // current player game stats do not expose a distinct OT-goal count to score.
+  points += (stats.overtimeGoals || 0) * rules.overtimeGoal;
   points += (stats.fights || 0) * rules.fight;
 
   if (isDefenseman) {

@@ -154,4 +154,22 @@ describe('calculatePlayerPoints', () => {
       ),
     ).toBeCloseTo(6, 5);
   });
+
+  describe('overtime and short-handed goal bonuses', () => {
+    it('awards SH and OT bonuses on top of the base goal', () => {
+      const points = calculatePlayerPoints(
+        {
+          playerId: 1,
+          name: { default: 'Hero' },
+          position: 'C',
+          goals: 2,
+          shortHandedGoals: 1,
+          overtimeGoals: 1,
+        },
+        DEFAULT_SCORING_RULES,
+      );
+      // 2 goals + 1 SH bonus + 1 OT bonus = 4
+      expect(points).toBe(4);
+    });
+  });
 });

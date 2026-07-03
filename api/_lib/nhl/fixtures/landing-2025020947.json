@@ -1,0 +1,87 @@
+{
+ "summary": {
+  "scoring": [
+   {
+    "periodDescriptor": {
+     "number": 1,
+     "periodType": "REG"
+    },
+    "goals": [
+     {
+      "playerId": 8485414,
+      "strength": "ev",
+      "assists": [
+       {
+        "playerId": 8477511
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "periodDescriptor": {
+     "number": 2,
+     "periodType": "REG"
+    },
+    "goals": [
+     {
+      "playerId": 8482475,
+      "strength": "ev",
+      "assists": [
+       {
+        "playerId": 8478438
+       },
+       {
+        "playerId": 8479638
+       }
+      ]
+     },
+     {
+      "playerId": 8475810,
+      "strength": "pp",
+      "assists": [
+       {
+        "playerId": 8474578
+       },
+       {
+        "playerId": 8471215
+       }
+      ]
+     },
+     {
+      "playerId": 8476483,
+      "strength": "pp",
+      "assists": [
+       {
+        "playerId": 8474578
+       },
+       {
+        "playerId": 8475810
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "periodDescriptor": {
+     "number": 3,
+     "periodType": "REG"
+    },
+    "goals": [
+     {
+      "playerId": 8479638,
+      "strength": "ev",
+      "assists": [
+       {
+        "playerId": 8485414
+       },
+       {
+        "playerId": 8471724
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

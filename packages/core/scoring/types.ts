@@ -2,8 +2,7 @@ export interface ScoringRules {
   goal: number;
   assist: number;
   shortHandedGoal: number;
-  // Kept in the shared config shape for compatibility even though the current
-  // NHL boxscore player stats do not expose a separate overtime-goal field.
+  /** Bonus on top of the goal itself; derived from the landing goal summary. */
   overtimeGoal: number;
   fight: number;
   blockedShot: number;

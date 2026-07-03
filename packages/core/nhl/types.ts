@@ -11,8 +11,13 @@ export interface PlayerGameStats {
   points?: number;
   plusMinus?: number;
   powerPlayGoals?: number;
+  /** Derived: set from the landing goal summary during enrichment (the boxscore does not provide it). */
   shortHandedGoals?: number;
+  /** Derived: OT goals counted from the landing goal summary (not in the boxscore). */
+  overtimeGoals?: number;
   shots?: number;
+  /** Shots on goal as returned by the boxscore API (the API has no `shots` field). */
+  sog?: number;
   hits?: number;
   blockedShots?: number;
   pim?: number;
@@ -22,6 +27,8 @@ export interface PlayerGameStats {
   wins?: number;
   losses?: number;
   otLosses?: number;
+  /** Goalie decision from the boxscore: 'W' | 'L' | 'O'; absent when not charged with one. */
+  decision?: string;
   saves?: number;
   goalsAgainst?: number;
   shutouts?: number;

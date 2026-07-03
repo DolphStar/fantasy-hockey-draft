@@ -85,6 +85,15 @@ export async function getGamePlayByPlay(gameId: number): Promise<unknown> {
   return response.json();
 }
 
+export async function getGameLanding(gameId: number): Promise<unknown> {
+  const url = `${NHL_WEB_API_BASE}/gamecenter/${gameId}/landing`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw createHttpError(`Failed to fetch landing for game ${gameId}`, url, response);
+  }
+  return response.json();
+}
+
 export function getAllPlayersFromBoxscore(boxscore: NhlBoxscore): PlayerGameStats[] {
   const players: PlayerGameStats[] = [];
 
