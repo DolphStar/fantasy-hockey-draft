@@ -91,11 +91,13 @@ describe('applyDerivedStats', () => {
       goalsAgainst: 0,
       saves: 22,
     });
-    applyDerivedStats([goalie], new Map(), goalEvents([[9, { assists: 1 }]]));
+    applyDerivedStats([goalie], new Map([[9, 1]]), goalEvents([[9, { assists: 1 }]]));
     expect(goalie.wins).toBe(1);
     expect(goalie.shutouts).toBe(1);
     expect(goalie.goals).toBe(0);
     expect(goalie.assists).toBe(1);
+    // goalie fights enrich like any player's (goalieFight is a scored rule)
+    expect(goalie.fights).toBe(1);
   });
 
   it('zeroes derived fields when no events exist for the player', () => {
