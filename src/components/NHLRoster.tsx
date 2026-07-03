@@ -299,6 +299,7 @@ export default function NHLRoster() {
           jerseyNumber: rosterPlayer.jerseyNumber,
           nhlTeam: rosterPlayer.teamAbbrev || 'UNK',
           draftedByTeam: pickInfo.team,
+          ownerUid: myTeam.ownerUid,
           pickNumber: pickInfo.pick,
           round: pickInfo.round,
           leagueId: league.id,

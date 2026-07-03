@@ -68,6 +68,7 @@ export async function fetchDraftedRosterStatus(leagueId: string): Promise<{
 export async function commitAutoDraftPick(params: {
   leagueId: string;
   teamName: string;
+  ownerUid: string;
   currentPickNumber: number;
   totalPicks: number;
   draftPick: DraftOrderPick;
@@ -78,6 +79,7 @@ export async function commitAutoDraftPick(params: {
   const {
     leagueId,
     teamName,
+    ownerUid,
     currentPickNumber,
     totalPicks,
     draftPick,
@@ -98,6 +100,7 @@ export async function commitAutoDraftPick(params: {
       jerseyNumber: selectedPlayer.jerseyNumber,
       nhlTeam: selectedPlayer.teamAbbrev || 'UNK',
       draftedByTeam: teamName,
+      ownerUid,
       pickNumber: draftPick.pick,
       round: draftPick.round,
       leagueId,

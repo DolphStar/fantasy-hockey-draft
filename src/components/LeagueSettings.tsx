@@ -336,6 +336,7 @@ export default function LeagueSettings() {
         await commitAutoDraftPick({
           leagueId: league.id,
           teamName,
+          ownerUid: league.teams.find((t) => t.teamName === teamName)?.ownerUid ?? '',
           currentPickNumber: currentPickNum,
           totalPicks: draftState.totalPicks,
           draftPick: { pick: pickInfo.pick, round: pickInfo.round },
