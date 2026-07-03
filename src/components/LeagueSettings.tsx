@@ -219,6 +219,7 @@ export default function LeagueSettings() {
     try {
       setCreating(true);
       await updateLeague(league.id, { teams: normalizedTeams, draftRounds, allowedGameTypes });
+      setTeams(normalizedTeams); // reflect trimmed names back into the form
       setSuccess('League updated successfully! Remember to reset the draft if you changed rounds.');
     } catch (err) {
       setError('Failed to update league');

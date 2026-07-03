@@ -67,6 +67,21 @@ npm --prefix functions run build
 
 The same verification now runs in GitHub Actions via `.github/workflows/ci.yml`. Production deploys are still expected to come from Vercel's Git integration after those checks pass.
 
+## Deploying Firestore rules changes (ordered — read before deploying)
+
+Firestore rules deploy separately from the app (`firebase deploy --only firestore:rules`) and are NOT part of the Vercel deploy. When a release changes both app code and `firestore.rules`, the order is **load-bearing**:
+
+1. **Deploy the app** (Vercel picks up `main`). New writes now include the fields the tightened rules require.
+2. **Run the data migrations with `--commit`** (require `FIREBASE_SERVICE_ACCOUNT_KEY`):
+   ```bash
+   node scripts/backfill-drafted-owner.mjs --commit   # stamp ownerUid on existing draftedPlayers
+   node scripts/strip-owner-emails.mjs --commit        # remove ownerEmail from existing league docs
+   ```
+   Each script is dry-run by default — run without `--commit` first and review the output.
+3. **Deploy the rules last:** `firebase deploy --only firestore:rules`.
+
+**Why the order matters:** the `draftedPlayers` roster-slot rule gates updates on `ownerUid == request.auth.uid`. Pre-existing docs have no `ownerUid`, so deploying the rules *before* the backfill would leave every member unable to move their own roster slots (only the admin could) until the backfill runs. Always backfill, then deploy rules. Run the migrations outside the ~5:00 UTC scoring-cron window.
+
 After deployment:
 1. Visit your Vercel URL (e.g., `fantasy-hockey-draft.vercel.app`)
 2. Sign in with Google

@@ -237,6 +237,7 @@ export default function LeagueChat({ variant = 'full', hideHeader = false }: Lea
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={2}
+            maxLength={2000}
             placeholder="Type a message and press Enter to send..."
             className="flex-1 resize-none px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-500 text-sm"
             disabled={isBanned}
