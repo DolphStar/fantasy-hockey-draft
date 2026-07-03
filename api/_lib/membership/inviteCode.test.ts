@@ -14,4 +14,14 @@ describe('generateInviteCode', () => {
   it('defaults to length 8', () => {
     expect(generateInviteCode(undefined, () => 0)).toHaveLength(8);
   });
+
+  it('uses an unbiased integer source by default (crypto.randomInt) and stays in-alphabet', () => {
+    const codes = new Set(Array.from({ length: 50 }, () => generateInviteCode()));
+    for (const code of codes) {
+      expect(code).toHaveLength(8);
+      expect([...code].every((c) => INVITE_CODE_ALPHABET.includes(c))).toBe(true);
+    }
+    // 50 crypto-random 8-char codes colliding is astronomically unlikely
+    expect(codes.size).toBe(50);
+  });
 });
