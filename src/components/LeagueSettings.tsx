@@ -46,10 +46,10 @@ export default function LeagueSettings() {
   const [leagueName, setLeagueName] = useState('');
   const [draftRounds, setDraftRounds] = useState(15);
   const [teams, setTeams] = useState<LeagueTeam[]>([
-    { teamName: 'My Team', ownerUid: user?.uid || '', ownerEmail: user?.email || '' },
-    { teamName: 'Friend 1', ownerUid: '', ownerEmail: '' },
-    { teamName: 'Friend 2', ownerUid: '', ownerEmail: '' },
-    { teamName: 'Friend 3', ownerUid: '', ownerEmail: '' },
+    { teamName: 'My Team', ownerUid: user?.uid || '' },
+    { teamName: 'Friend 1', ownerUid: '' },
+    { teamName: 'Friend 2', ownerUid: '' },
+    { teamName: 'Friend 3', ownerUid: '' },
   ]);
 
   const [allowedGameTypes, setAllowedGameTypes] = useState<number[]>([2]); // Default: regular season
@@ -140,7 +140,7 @@ export default function LeagueSettings() {
 
   // Add team
   const addTeam = () => {
-    setTeams([...teams, { teamName: `Team ${teams.length + 1}`, ownerUid: '', ownerEmail: '' }]);
+    setTeams([...teams, { teamName: `Team ${teams.length + 1}`, ownerUid: '' }]);
   };
 
   // Remove team
@@ -168,19 +168,21 @@ export default function LeagueSettings() {
       return;
     }
 
-    for (const team of teams) {
-      const check = validateTeamName(team.teamName);
+    const normalizedTeams = [...teams];
+    for (let i = 0; i < normalizedTeams.length; i++) {
+      const check = validateTeamName(normalizedTeams[i].teamName);
       if (!check.ok) {
-        setError(`Team "${team.teamName}": ${check.error}`);
+        setError(`Team "${normalizedTeams[i].teamName}": ${check.error}`);
         return;
       }
+      normalizedTeams[i] = { ...normalizedTeams[i], teamName: check.teamName };
     }
 
     try {
       setCreating(true);
       const leagueId = await createLeague({
         leagueName: leagueName.trim(),
-        teams,
+        teams: normalizedTeams,
         draftRounds,
         allowedGameTypes,
       });
@@ -204,17 +206,19 @@ export default function LeagueSettings() {
     setError(null);
     setSuccess(null);
 
-    for (const team of teams) {
-      const check = validateTeamName(team.teamName);
+    const normalizedTeams = [...teams];
+    for (let i = 0; i < normalizedTeams.length; i++) {
+      const check = validateTeamName(normalizedTeams[i].teamName);
       if (!check.ok) {
-        setError(`Team "${team.teamName}": ${check.error}`);
+        setError(`Team "${normalizedTeams[i].teamName}": ${check.error}`);
         return;
       }
+      normalizedTeams[i] = { ...normalizedTeams[i], teamName: check.teamName };
     }
 
     try {
       setCreating(true);
-      await updateLeague(league.id, { teams, draftRounds, allowedGameTypes });
+      await updateLeague(league.id, { teams: normalizedTeams, draftRounds, allowedGameTypes });
       setSuccess('League updated successfully! Remember to reset the draft if you changed rounds.');
     } catch (err) {
       setError('Failed to update league');

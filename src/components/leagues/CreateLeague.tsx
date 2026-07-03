@@ -34,7 +34,7 @@ export default function CreateLeague() {
     try {
       const id = await createLeague(user, {
         leagueName: leagueName.trim(),
-        teams: [{ teamName: teamNameCheck.teamName, ownerUid: user.uid, ownerEmail: user.email ?? undefined }],
+        teams: [{ teamName: teamNameCheck.teamName, ownerUid: user.uid }],
         maxTeams: Number.isFinite(maxTeams) ? maxTeams : undefined,
       });
       refresh();

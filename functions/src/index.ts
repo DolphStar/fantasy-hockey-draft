@@ -29,7 +29,6 @@ interface DraftState {
 interface LeagueTeam {
   teamName: string;
   ownerUid?: string;
-  ownerEmail?: string;
   discordId?: string;
 }
 

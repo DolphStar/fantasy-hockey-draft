@@ -7,7 +7,6 @@ export type LeagueStatus = 'pending' | 'live' | 'complete';
 export interface LeagueTeam {
   teamName: string;
   ownerUid: string;
-  ownerEmail?: string; // Optional: to help identify users
 }
 
 // Reuse the canonical shared scoring rules type without changing src imports.
