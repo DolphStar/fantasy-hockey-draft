@@ -78,10 +78,17 @@ service cloud.firestore {
         allow read, write: if isLeagueAdmin(leagueId);
       }
 
-      // League chat messages - simple league-wide chat
+      // League chat messages - simple league-wide chat.
+      // Create binds the message to the caller's uid so members cannot
+      // impersonate each other, and caps message size.
       match /chatMessages/{messageId} {
         allow read: if isInLeague(leagueId);
-        allow create: if isInLeague(leagueId) && !isChatBanned(leagueId);
+        allow create: if isInLeague(leagueId)
+                        && !isChatBanned(leagueId)
+                        && request.resource.data.userId == request.auth.uid
+                        && request.resource.data.text is string
+                        && request.resource.data.text.size() > 0
+                        && request.resource.data.text.size() <= 2000;
         allow delete, update: if isLeagueAdmin(leagueId);
       }
 
@@ -98,7 +105,11 @@ service cloud.firestore {
         allow read:   if isLeagueAdmin(leagueId) || request.auth.uid == requesterUid;
         allow create: if isSignedIn()
                         && request.auth.uid == requesterUid
-                        && request.resource.data.uid == requesterUid;
+                        && request.resource.data.uid == requesterUid
+                        && request.resource.data.teamName is string
+                        && request.resource.data.teamName.size() > 0
+                        && request.resource.data.teamName.size() <= 40
+                        && !request.resource.data.teamName.matches('.*/.*');
         allow delete: if isLeagueAdmin(leagueId) || request.auth.uid == requesterUid;
       }
     }
@@ -108,20 +119,29 @@ service cloud.firestore {
       // Any authenticated user can read (player names/picks aren't sensitive)
       allow read: if isSignedIn();
 
-      // Only league members can draft players
+      // Created during the draft: a member drafts for their own team
+      // (ownerUid == self), or the league admin drafts for any team
+      // (auto-complete fills unclaimed teams with ownerUid '').
       allow create: if isSignedIn() &&
                       request.resource.data.leagueId != null &&
-                      isInLeague(request.resource.data.leagueId);
+                      isInLeague(request.resource.data.leagueId) &&
+                      request.resource.data.ownerUid is string &&
+                      (request.resource.data.ownerUid == request.auth.uid ||
+                       isLeagueAdmin(request.resource.data.leagueId));
 
       // Only league admin can delete (for draft reset)
       allow delete: if isSignedIn() &&
                       resource.data.leagueId != null &&
                       isLeagueAdmin(resource.data.leagueId);
 
-      // Only league members can update roster slots
+      // Roster-slot changes: only the owning member (or the admin) — members
+      // must not be able to bench other teams' players (scoring counts
+      // active players only).
       allow update: if isSignedIn() &&
                       resource.data.leagueId != null &&
                       isInLeague(resource.data.leagueId) &&
+                      (resource.data.ownerUid == request.auth.uid ||
+                       isLeagueAdmin(resource.data.leagueId)) &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rosterSlot', 'pendingSlot', 'lastSwapDate']);
     }
 
