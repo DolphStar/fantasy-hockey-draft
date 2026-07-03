@@ -16,6 +16,7 @@ Every day at **5:00 AM UTC**, a Vercel cron job runs:
 This function:
 - Fetches all NHL games from yesterday
 - Gets player statistics from each game's boxscore
+- Derives goalie wins/shutouts from the boxscore decision, and SH/OT goals + goalie goals/assists from the game landing summary
 - Matches NHL players to your drafted players
 - Calculates fantasy points using your league's scoring rules
 - Updates team standings in Firestore
@@ -36,6 +37,7 @@ This function:
 #### Goalies
 - **Win**: 1 pt
 - **Shutout**: 2 pts
+  - Shutout = credited decision + 0 goals against + at least one save (a goalie who loses in the shootout with 0 GA still earns it; shared shutouts credit the decision goalie)
 - **Save**: 0.04 pts
 - **Assist**: 1 pt
 - **Goal**: 20 pts (!)
@@ -107,6 +109,21 @@ curl "https://your-app.vercel.app/api/calculate-scores?leagueId=league-123&date=
 
    In League Settings, click **Test Scoring** — this calls `GET /api/calculate-scores` with your Firebase ID token in the `Authorization: Bearer` header (league-admin authentication required). You can specify any date in the dialog.
 
+### Rescoring a season
+
+After deploying a scoring-engine fix, historical scores can be recalculated:
+
+```bash
+# Dry run (lists processed dates and current totals, changes nothing)
+FIREBASE_SERVICE_ACCOUNT_KEY='...' node scripts/rescore-season.mjs --league-id <leagueId>
+
+# Execute: clears playerDailyScores/teamScores/aggregates/processedDates,
+# then replays every date through the deployed /api/calculate-scores
+FIREBASE_SERVICE_ACCOUNT_KEY='...' CRON_SECRET='...' node scripts/rescore-season.mjs --league-id <leagueId> --commit
+```
+
+`BASE_URL` overrides the deployed origin (defaults to the production URL). **Deploy the fix first** — the script exercises the deployed engine, not local code.
+
 ## Viewing Standings
 
 Go to the **🏆 Standings** tab to see:
@@ -143,7 +160,7 @@ await updateDoc(doc(db, 'leagues', leagueId), {
 
 ### Missing Player Stats?
 - NHL API only provides stats for completed games
-- Some stats (fights, overtime goals) may require additional play-by-play data
+- Fights come from play-by-play; SH/OT goals and goalie goals/assists come from the landing summary — if either fetch fails for a game, those stats default to 0 for that game (base boxscore stats still score)
 - Goalie wins/shutouts are calculated based on game outcome
 
 ### Testing Locally?
