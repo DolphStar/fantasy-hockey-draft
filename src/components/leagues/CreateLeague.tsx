@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useMemberships } from '../../context/MembershipContext';
 import { createLeague } from '../../services/leagueService';
 import { buildLeaguePath } from '../../lib/leaguePaths';
+import { validateTeamName } from '../../../packages/core/membership/validateTeamName';
 import { GlassCard } from '../ui/GlassCard';
 import { GlowBackdrop } from '../ui/GlowBackdrop';
 import { Logo } from '../ui/Logo';
@@ -24,11 +25,16 @@ export default function CreateLeague() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !leagueName.trim() || !myTeamName.trim()) return;
+    const teamNameCheck = validateTeamName(myTeamName);
+    if (!teamNameCheck.ok) {
+      toast.error(teamNameCheck.error);
+      return;
+    }
     setBusy(true);
     try {
       const id = await createLeague(user, {
         leagueName: leagueName.trim(),
-        teams: [{ teamName: myTeamName.trim(), ownerUid: user.uid, ownerEmail: user.email ?? undefined }],
+        teams: [{ teamName: teamNameCheck.teamName, ownerUid: user.uid, ownerEmail: user.email ?? undefined }],
         maxTeams: Number.isFinite(maxTeams) ? maxTeams : undefined,
       });
       refresh();

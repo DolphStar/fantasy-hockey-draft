@@ -11,6 +11,7 @@ import {
 
 import { db } from '../firebase';
 import { resolveJoinTarget } from '../../packages/core/membership/resolveJoinTarget';
+import { validateTeamName } from '../../packages/core/membership/validateTeamName';
 
 export interface JoinRequest {
   uid: string;
@@ -20,9 +21,11 @@ export interface JoinRequest {
 
 /** Requester writes their own request doc (rules: create allowed when uid === self). */
 export async function requestToJoin(leagueId: string, uid: string, teamName: string): Promise<void> {
+  const check = validateTeamName(teamName);
+  if (!check.ok) throw new Error(check.error);
   await setDoc(doc(db, 'leagues', leagueId, 'joinRequests', uid), {
     uid,
-    teamName,
+    teamName: check.teamName,
     requestedAt: new Date().toISOString(),
   });
 }
@@ -58,6 +61,9 @@ export async function approveJoinRequest(
   requesterUid: string,
   teamName: string,
 ): Promise<void> {
+  const check = validateTeamName(teamName);
+  if (!check.ok) throw new Error(`Cannot approve: ${check.error}`);
+  const safeTeamName = check.teamName;
   const leagueRef = doc(db, 'leagues', leagueId);
   const requestRef = doc(db, 'leagues', leagueId, 'joinRequests', requesterUid);
   await runTransaction(db, async (tx) => {
@@ -77,10 +83,10 @@ export async function approveJoinRequest(
     let nextTeams = teams;
     if (target.kind === 'claim') {
       nextTeams = teams.map((t, i) =>
-        i === target.index ? { ...t, ownerUid: requesterUid, teamName } : t,
+        i === target.index ? { ...t, ownerUid: requesterUid, teamName: safeTeamName } : t,
       );
     } else if (target.kind === 'append') {
-      nextTeams = [...teams, { teamName, ownerUid: requesterUid }];
+      nextTeams = [...teams, { teamName: safeTeamName, ownerUid: requesterUid }];
     }
 
     tx.update(leagueRef, {

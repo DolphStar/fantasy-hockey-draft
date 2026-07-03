@@ -21,6 +21,7 @@ import { Skeleton } from './ui/Skeleton';
 import { Gamepad2, TriangleAlert } from 'lucide-react';
 import { getAllPlayers, getTeamRoster, NHL_TEAMS, type RosterPerson, type TeamAbbrev, getPlayerFullName } from '../utils/nhlApi';
 import { toast } from 'sonner';
+import { validateTeamName } from '../../packages/core/membership/validateTeamName';
 import { commitAutoDraftPick, fetchDraftedRosterStatus, type AutoDraftCandidate } from '../services/adminLeagueService';
 import { getInviteCode, rotateInviteCode } from '../services/membershipService';
 import {
@@ -167,6 +168,14 @@ export default function LeagueSettings() {
       return;
     }
 
+    for (const team of teams) {
+      const check = validateTeamName(team.teamName);
+      if (!check.ok) {
+        setError(`Team "${team.teamName}": ${check.error}`);
+        return;
+      }
+    }
+
     try {
       setCreating(true);
       const leagueId = await createLeague({
@@ -194,6 +203,14 @@ export default function LeagueSettings() {
 
     setError(null);
     setSuccess(null);
+
+    for (const team of teams) {
+      const check = validateTeamName(team.teamName);
+      if (!check.ok) {
+        setError(`Team "${team.teamName}": ${check.error}`);
+        return;
+      }
+    }
 
     try {
       setCreating(true);
