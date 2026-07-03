@@ -15,6 +15,13 @@
  *   BASE_URL                     - deployed app origin (default https://fantasy-hockey-draft.vercel.app)
  *
  * IMPORTANT: deploy the scoring fix BEFORE running with --commit.
+ *
+ * CAVEATS (read before --commit):
+ * - Roster drift: replay scores against the CURRENT roster (active players only).
+ *   Players moved to reserve since a date was originally scored lose those points;
+ *   totals will shift beyond the engine fix itself.
+ * - Cron window: do not run near 5:00 UTC — the daily cron and this script can
+ *   both score yesterday's date (both pass the processedDates check pre-write).
  */
 
 import { initializeApp, cert } from 'firebase-admin/app';
@@ -65,6 +72,10 @@ async function main() {
     return;
   }
   console.log(`Processed dates: ${dates.length} (${dates[0]} .. ${dates[dates.length - 1]})`);
+  // Full list printed BEFORE any clearing: if the replay dies mid-run, this log
+  // is the recovery record (replaying a superset is safe — the clear already
+  // removed the processedDates markers, so every date scores exactly once).
+  console.log(`Full date list: ${dates.join(', ')}`);
 
   const teamScoresSnap = await db.collection(`leagues/${leagueId}/teamScores`).get();
   console.log('\nCurrent team totals (before):');
@@ -104,7 +115,12 @@ async function main() {
 
   console.log(`\nRescored ${ok}/${dates.length} dates.`);
   if (failures.length) {
-    console.log(`Failed dates (re-run individually via Test Scoring or this script): ${failures.join(', ')}`);
+    console.log(`Failed dates: ${failures.join(', ')}`);
+    console.log(
+      'RECOVERY: re-run this script (full clear + replay is self-correcting). Do NOT re-run ' +
+        'individual dates — a date that failed mid-persist may already have partial team-score ' +
+        'increments, and replaying just that date would double-count them.',
+    );
   }
 
   const afterSnap = await db.collection(`leagues/${leagueId}/teamScores`).get();

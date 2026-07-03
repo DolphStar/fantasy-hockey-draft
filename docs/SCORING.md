@@ -124,6 +124,11 @@ FIREBASE_SERVICE_ACCOUNT_KEY='...' CRON_SECRET='...' node scripts/rescore-season
 
 `BASE_URL` overrides the deployed origin (defaults to the production URL). **Deploy the fix first** — the script exercises the deployed engine, not local code.
 
+Caveats before running `--commit`:
+- **Roster drift:** the replay scores every date against the *current* roster (active players only). Players moved to reserve since a date was originally scored lose those historical points, so totals can shift beyond the engine fix itself.
+- **Cron window:** avoid running near 5:00 AM UTC — the daily cron and the script can both score yesterday's date.
+- **If the replay fails partway:** re-run the whole script (the full clear + replay is self-correcting). Don't re-run individual failed dates — a date that failed mid-persist may already have partial team-score increments, and replaying only it would double-count.
+
 ## Viewing Standings
 
 Go to the **🏆 Standings** tab to see:
