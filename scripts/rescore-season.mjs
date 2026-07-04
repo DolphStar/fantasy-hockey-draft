@@ -26,13 +26,27 @@
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { readFileSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const commitMode = args.includes('--commit');
 const leagueIdFlag = args.indexOf('--league-id');
 const leagueId = leagueIdFlag !== -1 ? args[leagueIdFlag + 1] : undefined;
+// Optional explicit date list. The default worklist is derived from
+// processedDates, but the clear step deletes those markers — so a run that
+// fails partway loses the dates it hasn't replayed yet. Pass --dates-file
+// <path> (comma/newline-separated YYYY-MM-DD) to replay an authoritative list
+// captured up-front (the run logs one as "Full date list:").
+const datesFileFlag = args.indexOf('--dates-file');
+const datesFile = datesFileFlag !== -1 ? args[datesFileFlag + 1] : undefined;
 const baseUrl = process.env.BASE_URL || 'https://fantasy-hockey-draft.vercel.app';
 const cronSecret = process.env.CRON_SECRET;
+// Delay between date calls. Each date triggers boxscore+PBP+landing fetches for
+// every game, so dense schedules can trip NHL API rate limits at a tight pace.
+// Bump RESCORE_DELAY_MS (e.g. 4000) for a full-season replay. No in-run retry:
+// the endpoint's persist isn't atomic, so retrying a partially-persisted date
+// would double-count — re-run the whole script instead (full clear is self-correcting).
+const delayMs = Number(process.env.RESCORE_DELAY_MS) || 1000;
 
 if (!leagueId) {
   console.error('Usage: node scripts/rescore-season.mjs --league-id <LEAGUE_ID> [--commit]');
@@ -65,13 +79,22 @@ async function main() {
   console.log(`League: ${leagueId}`);
   console.log(`Endpoint: ${baseUrl}/api/calculate-scores\n`);
 
-  const processedSnap = await db.collection(`leagues/${leagueId}/processedDates`).get();
-  const dates = processedSnap.docs.map((d) => d.id).sort();
+  let dates;
+  if (datesFile) {
+    dates = [...new Set(
+      readFileSync(datesFile, 'utf8').split(/[\s,]+/).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)),
+    )].sort();
+    console.log(`Date source: --dates-file ${datesFile}`);
+  } else {
+    const processedSnap = await db.collection(`leagues/${leagueId}/processedDates`).get();
+    dates = processedSnap.docs.map((d) => d.id).sort();
+    console.log('Date source: processedDates collection');
+  }
   if (dates.length === 0) {
-    console.log('No processed dates found — nothing to rescore.');
+    console.log('No dates to rescore.');
     return;
   }
-  console.log(`Processed dates: ${dates.length} (${dates[0]} .. ${dates[dates.length - 1]})`);
+  console.log(`Dates to rescore: ${dates.length} (${dates[0]} .. ${dates[dates.length - 1]})`);
   // Full list printed BEFORE any clearing: if the replay dies mid-run, this log
   // is the recovery record (replaying a superset is safe — the clear already
   // removed the processedDates markers, so every date scores exactly once).
@@ -110,7 +133,7 @@ async function main() {
       console.error(`  ${date}: FAILED — ${err.message}`);
       failures.push(date);
     }
-    await new Promise((r) => setTimeout(r, 1000)); // be gentle to NHL API + Vercel
+    await new Promise((r) => setTimeout(r, delayMs)); // be gentle to NHL API + Vercel
   }
 
   console.log(`\nRescored ${ok}/${dates.length} dates.`);
