@@ -65,4 +65,18 @@ describe('buildSeasonArchive', () => {
     });
     expect(archive.standings[0].ownerUid).toBe('');
   });
+
+  it('attaches awards, stats, and team summaries from enriched player totals', () => {
+    const archive = buildSeasonArchive({
+      ...base,
+      playerTotals: [
+        { playerId: 1, name: 'Ace', position: 'C', nhlTeam: 'COL', points: 95, draftedByTeam: 'Kolya', round: 1, pickNumber: 1, bestDay: { date: '2026-03-01', points: 6 } },
+        { playerId: 2, name: 'Keeper', position: 'G', nhlTeam: 'MTL', points: 57, draftedByTeam: 'Bozo', round: 5, pickNumber: 25, bestDay: { date: '2026-02-02', points: 4 } },
+      ],
+    });
+    expect(archive.awards?.mvp?.name).toBe('Ace');
+    expect(archive.awards?.topGoalie?.name).toBe('Keeper');
+    expect(archive.stats?.totalPoints).toBeGreaterThan(0);
+    expect(archive.teamSummaries?.length).toBe(archive.standings.length);
+  });
 });

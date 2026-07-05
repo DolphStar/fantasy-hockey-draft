@@ -1,4 +1,4 @@
-import { collection, documentId, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 
 import type { SeasonArchive } from '../../packages/core/season/types';
 import { db } from '../firebase';
@@ -20,10 +20,11 @@ export async function startNewSeason(leagueId: string): Promise<{ newSeasonId: s
   return { newSeasonId: data.newSeasonId as string };
 }
 
-/** All archived seasons for a league, newest first (doc id = seasonId). */
+/** All archived seasons for a league, newest first (doc id = seasonId). Few docs
+ *  per league, so fetch unordered and sort in JS — avoids a composite index. */
 export async function fetchSeasonArchives(leagueId: string): Promise<SeasonArchive[]> {
-  const snap = await getDocs(
-    query(collection(db, `leagues/${leagueId}/seasons`), orderBy(documentId(), 'desc')),
-  );
-  return snap.docs.map((d) => d.data() as SeasonArchive);
+  const snap = await getDocs(collection(db, `leagues/${leagueId}/seasons`));
+  return snap.docs
+    .map((d) => d.data() as SeasonArchive)
+    .sort((a, b) => b.seasonId.localeCompare(a.seasonId));
 }
