@@ -19,6 +19,7 @@ export interface EndSeasonDeps {
   getPlayerTotals: (leagueId: string) => Promise<Array<{
     playerId: number; name: string; position: string; nhlTeam: string;
     points: number; draftedByTeam: string;
+    round?: number; pickNumber?: number; bestDay?: { date: string; points: number } | null;
   }>>;
   getPendingSwapDocIds: (leagueId: string) => Promise<string[]>;
   writeSeasonArchive: (leagueId: string, archive: SeasonArchive) => Promise<void>;
@@ -119,31 +120,44 @@ export function defaultEndSeasonDeps(): EndSeasonDeps {
         db.collection(`leagues/${leagueId}/playerDailyScores`).get(),
         db.collection('draftedPlayers').where('leagueId', '==', leagueId).get(),
       ]);
-      const positionByPlayerId = new Map<number, string>();
+      const metaByPlayerId = new Map<number, { position: string; round?: number; pickNumber?: number }>();
       playersSnap.docs.forEach((d) => {
-        positionByPlayerId.set(d.data().playerId as number, (d.data().position as string) ?? '');
+        const data = d.data();
+        metaByPlayerId.set(data.playerId as number, {
+          position: (data.position as string) ?? '',
+          round: data.round as number | undefined,
+          pickNumber: data.pickNumber as number | undefined,
+        });
       });
 
       const totals = new Map<number, {
         playerId: number; name: string; position: string; nhlTeam: string;
         points: number; draftedByTeam: string;
+        round?: number; pickNumber?: number; bestDay?: { date: string; points: number } | null;
       }>();
       scoresSnap.docs.forEach((d) => {
         const data = d.data() as {
-          playerId: number; playerName: string; teamName: string; nhlTeam: string; points: number;
+          playerId: number; playerName: string; teamName: string; nhlTeam: string; points: number; date: string;
         };
+        const meta = metaByPlayerId.get(data.playerId);
         const existing = totals.get(data.playerId);
         if (existing) {
           existing.points += data.points;
           existing.nhlTeam = data.nhlTeam || existing.nhlTeam;
+          if (!existing.bestDay || data.points > existing.bestDay.points) {
+            existing.bestDay = { date: data.date, points: data.points };
+          }
         } else {
           totals.set(data.playerId, {
             playerId: data.playerId,
             name: data.playerName,
-            position: positionByPlayerId.get(data.playerId) ?? '',
+            position: meta?.position ?? '',
             nhlTeam: data.nhlTeam,
             points: data.points,
             draftedByTeam: data.teamName,
+            round: meta?.round,
+            pickNumber: meta?.pickNumber,
+            bestDay: { date: data.date, points: data.points },
           });
         }
       });
