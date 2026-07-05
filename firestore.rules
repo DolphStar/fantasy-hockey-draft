@@ -99,6 +99,13 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Season archives: readable history, written only by the Admin SDK
+      // (end-season endpoint / cron). Client writes are never allowed.
+      match /seasons/{seasonId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+
       // Public-league join requests: a user creates/cancels their own request; the
       // league admin reads them and deletes on approve/deny.
       match /joinRequests/{requesterUid} {

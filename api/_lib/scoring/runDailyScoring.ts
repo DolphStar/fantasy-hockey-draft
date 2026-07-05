@@ -5,7 +5,9 @@
  */
 
 import { getPreviousNewYorkDateString } from '../../../packages/core/dates/dateUtils.js';
+import { isSeasonOver } from '../../../packages/core/season/isSeasonOver.js';
 import { getAdminDb } from '../firebaseAdmin.js';
+import { defaultEndSeasonDeps, endSeason } from '../season/endSeason.js';
 import {
   applyRosterSwaps as applyRosterSwapsImpl,
   type RosterSwapResult,
@@ -29,6 +31,7 @@ export interface DailyScoringSummary {
   leaguesSkipped: number;
   leaguesErrored: number;
   rosterSwapsApplied: number;
+  leaguesAutoEnded: number;
   results: LeagueScoringOutcome[];
 }
 
@@ -43,6 +46,7 @@ export interface DailyScoringDeps {
     date: string,
     games: DailyGameStats[],
   ) => Promise<ScoreLeagueResult>;
+  maybeAutoEndSeason: (leagueId: string, now: Date) => Promise<boolean>;
 }
 
 export async function runDailyScoring(
@@ -57,6 +61,7 @@ export async function runDailyScoring(
 
   const results: LeagueScoringOutcome[] = [];
   let rosterSwapsApplied = 0;
+  let leaguesAutoEnded = 0;
 
   for (const leagueId of leagueIds) {
     try {
@@ -64,6 +69,7 @@ export async function runDailyScoring(
       rosterSwapsApplied += swap.swapsApplied;
       const result = await deps.scoreLeagueForDate(leagueId, date, games);
       results.push(result);
+      if (await deps.maybeAutoEndSeason(leagueId, now)) leaguesAutoEnded++;
     } catch (error) {
       console.error(`League ${leagueId}: scoring failed:`, error);
       results.push({
@@ -80,6 +86,7 @@ export async function runDailyScoring(
     leaguesSkipped: results.filter((r) => r.status === 'skipped').length,
     leaguesErrored: results.filter((r) => r.status === 'error').length,
     rosterSwapsApplied,
+    leaguesAutoEnded,
     results,
   };
 }
@@ -97,5 +104,18 @@ export function defaultDailyScoringDeps(): DailyScoringDeps {
     fetchDailyGameStats: fetchDailyGameStatsImpl,
     applyRosterSwaps: (leagueId, now) => applyRosterSwapsImpl(leagueId, now),
     scoreLeagueForDate: (leagueId, date, games) => scoreLeagueForDateImpl(leagueId, date, games),
+    maybeAutoEndSeason: async (leagueId, now) => {
+      const db = await getAdminDb();
+      const snap = await db
+        .collection(`leagues/${leagueId}/playerDailyScores`)
+        .orderBy('date', 'desc')
+        .limit(1)
+        .get();
+      const lastActivityDate = snap.empty ? null : ((snap.docs[0].data().date as string) ?? null);
+      if (!isSeasonOver(now, lastActivityDate)) return false;
+      const result = await endSeason(leagueId, 'auto', defaultEndSeasonDeps(), now);
+      if (result.success) console.log(`League ${leagueId}: season auto-ended (${result.seasonId})`);
+      return result.success;
+    },
   };
 }

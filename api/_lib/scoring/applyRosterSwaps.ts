@@ -20,6 +20,7 @@ export interface LeagueSwapPlayer {
 }
 
 export interface RosterSwapDeps {
+  getLeagueStatus: (leagueId: string) => Promise<string | null>;
   getLeaguePlayers: (leagueId: string) => Promise<LeagueSwapPlayer[]>;
 }
 
@@ -30,6 +31,13 @@ export async function applyRosterSwaps(
 ): Promise<RosterSwapResult> {
   if (!isRosterSwapDayOfWeek(now.getDay())) {
     return { success: true, swapsApplied: 0, message: 'Not Saturday' };
+  }
+
+  // Guard direct single-league runs (calculate-scores?leagueId=X) which bypass
+  // the live-only league listing in runDailyScoring.
+  const status = await deps.getLeagueStatus(leagueId);
+  if (status !== 'live') {
+    return { success: true, swapsApplied: 0, message: 'League is not live' };
   }
 
   try {
@@ -63,6 +71,11 @@ export async function applyRosterSwaps(
 /** Production wiring: read this league's drafted players from Firestore. */
 export function defaultRosterSwapDeps(): RosterSwapDeps {
   return {
+    getLeagueStatus: async (leagueId) => {
+      const db = await getAdminDb();
+      const snap = await db.doc(`leagues/${leagueId}`).get();
+      return snap.exists ? ((snap.data()?.status as string) ?? null) : null;
+    },
     getLeaguePlayers: async (leagueId) => {
       const db = await getAdminDb();
       const snapshot = await db
