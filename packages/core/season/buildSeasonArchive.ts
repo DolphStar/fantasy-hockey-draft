@@ -1,3 +1,4 @@
+import { buildSeasonAwards } from './buildSeasonAwards.js';
 import type { SeasonArchive } from './types.js';
 
 export interface BuildSeasonArchiveInput {
@@ -13,12 +14,15 @@ export interface BuildSeasonArchiveInput {
     nhlTeam: string;
     points: number;
     draftedByTeam: string;
+    round?: number;
+    pickNumber?: number;
+    bestDay?: { date: string; points: number } | null;
   }>;
 }
 
 const TOP_PLAYERS_LIMIT = 10;
 
-/** Pure: final standings + champion + top players from season aggregates. */
+/** Pure: final standings + champion + top players + awards from season aggregates. */
 export function buildSeasonArchive(input: BuildSeasonArchiveInput): SeasonArchive {
   const ownerByTeam = new Map(input.teams.map((t) => [t.teamName, t.ownerUid]));
 
@@ -33,9 +37,19 @@ export function buildSeasonArchive(input: BuildSeasonArchiveInput): SeasonArchiv
 
   const topPlayers = [...input.playerTotals]
     .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
-    .slice(0, TOP_PLAYERS_LIMIT);
+    .slice(0, TOP_PLAYERS_LIMIT)
+    .map((p) => ({
+      playerId: p.playerId,
+      name: p.name,
+      position: p.position,
+      nhlTeam: p.nhlTeam,
+      points: p.points,
+      draftedByTeam: p.draftedByTeam,
+    }));
 
   const champion = standings[0] ?? { teamName: '', ownerUid: '', totalPoints: 0 };
+
+  const { awards, stats, teamSummaries } = buildSeasonAwards(input.playerTotals, standings, standings.length);
 
   return {
     seasonId: input.seasonId,
@@ -45,5 +59,8 @@ export function buildSeasonArchive(input: BuildSeasonArchiveInput): SeasonArchiv
     standings,
     topPlayers,
     teamCount: standings.length,
+    awards,
+    stats,
+    teamSummaries,
   };
 }
