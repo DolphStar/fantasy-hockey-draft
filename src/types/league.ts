@@ -43,6 +43,10 @@ export interface League {
   allowedGameTypes: number[]; // NHL gameType values: 2=Regular Season, 3=Playoffs
   maxTeams: number;
   isPublic: boolean;
+  /** NHL season currently being played, e.g. '2025-26'. Set by end-season / new-season. */
+  currentSeasonId?: string;
+  /** ISO timestamp when the season was marked complete; null while live. */
+  completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
