@@ -19,10 +19,17 @@ import {
 } from '../services/playerPerformanceService';
 import type { DraftedPlayer } from '../types/draftedPlayer';
 import { GlassCard } from './ui/GlassCard';
+import { Icon } from './ui/Icon';
+import { Archive, ArrowLeftRight, Users } from 'lucide-react';
 import { SkeletonCard } from './ui/Skeleton';
-// Removed unused icon imports
 import MyPlayerCard from './roster/MyPlayerCard';
 import PlayerListRow from './roster/PlayerListRow';
+
+const FORWARD_POSITIONS = ['C', 'L', 'R'];
+/** Positions swap within their group: any forward with any forward, D with D, G with G. */
+const positionGroup = (position: string) => (FORWARD_POSITIONS.includes(position) ? 'F' : position);
+const GROUP_SINGULAR: Record<string, string> = { F: 'forward', D: 'defenseman', G: 'goalie' };
+const GROUP_PLURAL: Record<string, string> = { F: 'Forwards', D: 'Defensemen', G: 'Goalies' };
 
 export default function PlayerList() {
   useAuth();
@@ -64,56 +71,94 @@ export default function PlayerList() {
     return 'th';
   };
 
+  const exitSwapMode = () => {
+    setSwapMode(false);
+    setSelectedPlayerId(null);
+  };
+
   const handleSwap = async (player: DraftedPlayer) => {
     if (!swapMode) {
+      if (player.pendingSlot) {
+        toast.info(`${player.name} already has a pending swap. Cancel it first to start a new one.`);
+        return;
+      }
       setSwapMode(true);
       setSelectedPlayerId(player.id);
-      toast.info(`Select a player to swap with ${player.name}`);
-    } else {
-      if (player.id === selectedPlayerId) {
-        setSwapMode(false);
-        setSelectedPlayerId(null);
-        toast.info('Swap cancelled');
-        return;
-      }
-      const player1 = players.find(p => p.id === selectedPlayerId);
-      const player2 = player;
-      if (!player1) return;
-      const forwardPositions = ['C', 'L', 'R'];
-      const isP1Forward = forwardPositions.includes(player1.position);
-      const isP2Forward = forwardPositions.includes(player2.position);
-      const isValidSwap = (isP1Forward && isP2Forward) || player1.position === player2.position;
-      if (!isValidSwap) {
-        toast.error(`Cannot swap ${player1.position} with ${player2.position}`);
-        return;
-      }
-      try {
-        if ((player1.rosterSlot || 'active') !== (player2.rosterSlot || 'active')) {
-          await requestRosterSwap(player1, player2);
-          toast.success('Swap requested!');
-        } else {
-          toast.info('Swapping players in the same slot has no effect yet.');
-        }
-        setSwapMode(false);
-        setSelectedPlayerId(null);
-      } catch (error) {
-        console.error('Error swapping:', error);
-        toast.error('Failed to swap players');
-      }
+      return;
+    }
+
+    // Swap mode armed: clicking the selected player again deselects it
+    if (player.id === selectedPlayerId) {
+      exitSwapMode();
+      return;
+    }
+    const player1 = players.find(p => p.id === selectedPlayerId);
+    const player2 = player;
+    if (!player1) {
+      exitSwapMode();
+      return;
+    }
+    const group1 = positionGroup(player1.position);
+    if (group1 !== positionGroup(player2.position)) {
+      toast.error(`${GROUP_PLURAL[group1]} can only swap with other ${GROUP_PLURAL[group1].toLowerCase()}.`);
+      return;
+    }
+    if (player2.pendingSlot) {
+      toast.error(`${player2.name} already has a pending swap. Cancel it first.`);
+      return;
+    }
+    const slot1 = player1.rosterSlot || 'active';
+    const slot2 = player2.rosterSlot || 'active';
+    if (slot1 === slot2) {
+      toast.info(`Both players are already ${slot1}. Pick a highlighted ${GROUP_SINGULAR[group1]} from the ${slot1 === 'active' ? 'reserve' : 'active'} roster.`);
+      return;
+    }
+    try {
+      await requestRosterSwap(player1, player2);
+      toast.success(`Swap requested — applies ${swapLockLabel}`);
+      exitSwapMode();
+    } catch (error) {
+      console.error('Error swapping:', error);
+      toast.error('Could not request the swap. Try again.');
     }
   };
 
   const handleCancelSwap = async (player: DraftedPlayer) => {
-    if (window.confirm(`Are you sure you want to cancel the pending swap for ${player.name}?`)) {
-      try {
-        await clearPendingRosterSwap(player.id);
-        toast.success('Swap cancelled successfully');
-      } catch (error) {
-        console.error('Error cancelling swap:', error);
-        toast.error('Failed to cancel swap');
+    const partner = player.pendingSwapWith
+      ? players.find(p => p.id === player.pendingSwapWith)
+      : undefined;
+    try {
+      await clearPendingRosterSwap(player);
+      if (partner) {
+        toast.success('Swap cancelled', {
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              requestRosterSwap(player, partner).catch((error) => {
+                console.error('Error restoring swap:', error);
+                toast.error('Could not restore the swap.');
+              });
+            },
+          },
+        });
+      } else {
+        toast.success('Swap cancelled');
       }
+    } catch (error) {
+      console.error('Error cancelling swap:', error);
+      toast.error('Could not cancel the swap. Try again.');
     }
   };
+
+  // Esc backs out of swap mode
+  useEffect(() => {
+    if (!swapMode) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') exitSwapMode();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [swapMode]);
 
   const countActiveRoster = () => {
     const active = players.filter(p => (p.rosterSlot || 'active') === 'active');
@@ -246,6 +291,27 @@ export default function PlayerList() {
   const reservePlayers = getFilteredAndSortedPlayers('reserve');
   const rosterCounts = countActiveRoster();
   const nextSaturday = getNextSaturday();
+  const swapLockLabel = `${nextSaturday.toLocaleDateString(undefined, { weekday: 'short' })} ${nextSaturday.toLocaleTimeString(undefined, { hour: 'numeric' })}`;
+
+  const playerNameById = new Map(players.map(p => [p.id, p.name]));
+  const selectedPlayer = swapMode && selectedPlayerId ? players.find(p => p.id === selectedPlayerId) : undefined;
+
+  const isSwapEligible = (player: DraftedPlayer) =>
+    !!selectedPlayer &&
+    player.id !== selectedPlayer.id &&
+    positionGroup(player.position) === positionGroup(selectedPlayer.position) &&
+    (player.rosterSlot || 'active') !== (selectedPlayer.rosterSlot || 'active') &&
+    !player.pendingSlot;
+
+  const swapPropsFor = (player: DraftedPlayer) => {
+    const eligible = isSwapEligible(player);
+    return {
+      isSelected: selectedPlayerId === player.id,
+      swapEligible: eligible,
+      swapDimmed: swapMode && selectedPlayerId !== player.id && !eligible,
+      pendingSwapWithName: player.pendingSwapWith ? playerNameById.get(player.pendingSwapWith) : undefined,
+    };
+  };
 
   if (!league || !myTeam) {
     return (
@@ -330,6 +396,13 @@ export default function PlayerList() {
 
       {/* Active Roster */}
       <GlassCard className="p-6 mb-6 bg-gray-900/40 border-gray-700/30 backdrop-blur-md">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+            <span className="bg-blue-500/15 text-blue-400 p-2 rounded-lg"><Icon as={Users} size="sm" /></span>
+            Active Roster
+            <span className="text-gray-500 text-lg font-normal">({rosterCounts.total})</span>
+          </h3>
+        </div>
         <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4">
           {/* Color-Coded Filter Navigation - Synced with card badge colors */}
           <div className="flex items-center gap-2">
@@ -408,28 +481,29 @@ export default function PlayerList() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
               {activePlayers.map(player => (
                 <div key={`${player.id}-${sortBy}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <MyPlayerCard player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(String(player.playerId))} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
+                  <MyPlayerCard player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(String(player.playerId))} onSwap={handleSwap} onCancelSwap={handleCancelSwap} swapModeActive={swapMode} swapLockLabel={swapLockLabel} {...swapPropsFor(player)} />
                 </div>
               ))}
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               {activePlayers.map(player => (
-                <PlayerListRow key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
+                <PlayerListRow key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={handleSwap} onCancelSwap={handleCancelSwap} {...swapPropsFor(player)} />
               ))}
             </div>
           )
         )}
       </GlassCard>
 
-      {/* Reserve Roster */}
+      {/* Reserve Roster — compact rows so the bench reads differently than the lineup */}
       <GlassCard className="p-6 mb-6 bg-gray-900/40 border-gray-700/30 backdrop-blur-md">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
           <h3 className="text-2xl font-bold text-white flex items-center gap-3">
-            <span className="bg-yellow-500/20 text-yellow-400 p-2 rounded-lg">💼</span>
+            <span className="bg-amber-500/15 text-amber-400 p-2 rounded-lg"><Icon as={Archive} size="sm" /></span>
             Reserve Roster
             <span className="text-gray-500 text-lg font-normal">({reservePlayers.length})</span>
           </h3>
+          <p className="text-xs text-slate-400">Swaps apply {swapLockLabel} · click a player to start one</p>
         </div>
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
@@ -440,9 +514,9 @@ export default function PlayerList() {
         ) : reservePlayers.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed border-gray-700/50 rounded-xl"><p className="text-gray-400">No reserve players. All players are on active roster.</p></div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
+          <div className="flex flex-col gap-2">
             {reservePlayers.map(player => (
-              <MyPlayerCard key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)] || 0} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(String(player.playerId))} onSwap={handleSwap} onCancelSwap={handleCancelSwap} isSelected={selectedPlayerId === player.id} />
+              <PlayerListRow key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)] || 0} stats={playerStats[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={handleSwap} onCancelSwap={handleCancelSwap} {...swapPropsFor(player)} />
             ))}
           </div>
         )}
@@ -458,6 +532,29 @@ export default function PlayerList() {
           </p>
         </div>
       </div>
+
+      {/* Swap-mode command bar */}
+      {swapMode && selectedPlayer && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300 motion-reduce:animate-none">
+          <div className="flex items-center gap-4 pl-5 pr-3 py-3 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-blue-400/40 shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_24px_rgba(59,130,246,0.25)]">
+            <Icon as={ArrowLeftRight} size="sm" className="text-blue-400" glow />
+            <div className="leading-tight">
+              <p className="text-sm font-bold text-white">Swapping {selectedPlayer.name}</p>
+              <p className="text-xs text-slate-400">
+                Choose a highlighted {GROUP_SINGULAR[positionGroup(selectedPlayer.position)]} in the{' '}
+                {(selectedPlayer.rosterSlot || 'active') === 'active' ? 'reserve' : 'active'} roster · Esc to cancel
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={exitSwapMode}
+              className="ml-2 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-200 border border-slate-600/60 hover:border-slate-400 hover:text-white transition-colors"
+            >
+              Cancel swap
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

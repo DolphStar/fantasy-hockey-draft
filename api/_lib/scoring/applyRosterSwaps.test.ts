@@ -28,7 +28,7 @@ describe('applyRosterSwaps', () => {
     expect(deps.getLeaguePlayers).toHaveBeenCalledWith('L1');
     expect(result.swapsApplied).toBe(1);
     expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ rosterSlot: 'active', pendingSlot: null }),
+      expect.objectContaining({ rosterSlot: 'active', pendingSlot: null, pendingSwapWith: null }),
     );
     expect(noop).not.toHaveBeenCalled();
   });
