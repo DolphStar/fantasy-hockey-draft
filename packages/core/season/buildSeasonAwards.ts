@@ -22,8 +22,6 @@ export interface StandingRow {
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const byPointsThenName = (a: AwardPlayerInput, b: AwardPlayerInput) =>
   b.points - a.points || a.name.localeCompare(b.name);
-const byRatioThenName = (a: AwardPlayerInput, b: AwardPlayerInput) =>
-  b.points / b.pickNumber! - a.points / a.pickNumber! || a.name.localeCompare(b.name);
 
 const toAward = (p: AwardPlayerInput): AwardPlayer => ({
   playerId: p.playerId,
@@ -46,8 +44,23 @@ export function buildSeasonAwards(
   const goalies = players.filter((p) => p.position === 'G');
   const topGoalie = goalies.length ? toAward([...goalies].sort(byPointsThenName)[0]) : null;
 
+  // "Steal score": how far a player finished above their draft slot. Rank all
+  // drafted players by season points (1 = most) and by pick order (1 = earliest);
+  // score = draftRank - pointsRank. A late pick who scored big wins; an early
+  // pick who merely met expectations scores ~0. Rewards value over draft slot,
+  // not raw production, so elite first-rounders don't automatically "steal."
+  const pointsRank = new Map<number, number>();
+  [...drafted].sort(byPointsThenName).forEach((p, i) => pointsRank.set(p.playerId, i + 1));
+  const draftRank = new Map<number, number>();
+  [...drafted]
+    .sort((a, b) => a.pickNumber! - b.pickNumber! || a.name.localeCompare(b.name))
+    .forEach((p, i) => draftRank.set(p.playerId, i + 1));
+  const stealScore = (p: AwardPlayerInput) => draftRank.get(p.playerId)! - pointsRank.get(p.playerId)!;
+  const byStealScoreThenName = (a: AwardPlayerInput, b: AwardPlayerInput) =>
+    stealScore(b) - stealScore(a) || a.name.localeCompare(b.name);
+
   const stealPool = drafted.filter((p) => p.points > 0);
-  const bestSteal = stealPool.length ? toAward([...stealPool].sort(byRatioThenName)[0]) : null;
+  const bestSteal = stealPool.length ? toAward([...stealPool].sort(byStealScoreThenName)[0]) : null;
 
   let biggestBust: AwardPlayer | null = null;
   if (drafted.length >= 3) {
@@ -85,7 +98,7 @@ export function buildSeasonAwards(
     const teamPlayers = players.filter((p) => p.draftedByTeam === row.teamName);
     const top = teamPlayers.length ? [...teamPlayers].sort(byPointsThenName)[0] : null;
     const picks = teamPlayers.filter((p) => typeof p.pickNumber === 'number' && p.points > 0);
-    const best = picks.length ? [...picks].sort(byRatioThenName)[0] : null;
+    const best = picks.length ? [...picks].sort(byStealScoreThenName)[0] : null;
     return {
       teamName: row.teamName,
       ownerUid: row.ownerUid,
