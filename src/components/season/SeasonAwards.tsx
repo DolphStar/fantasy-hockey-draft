@@ -38,7 +38,7 @@ export function SeasonAwards({ awards }: { awards?: SeasonAwardsData }) {
           </div>
           <div className="text-white font-heading font-bold text-lg leading-tight">{c.name}</div>
           <div className="mt-auto flex items-baseline justify-between">
-            <span className="text-points font-black text-2xl tabular-nums">{c.points}</span>
+            <span className="text-points font-black text-2xl tabular-nums">{c.points.toFixed(1)}</span>
             <span className="text-[11px] text-slate-500">{c.subtitle}</span>
           </div>
         </GlassCard>
