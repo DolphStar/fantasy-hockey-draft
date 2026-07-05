@@ -71,12 +71,15 @@ export default function PlayerList() {
     return 'th';
   };
 
+  const seasonComplete = league?.status === 'complete';
+
   const exitSwapMode = () => {
     setSwapMode(false);
     setSelectedPlayerId(null);
   };
 
   const handleSwap = async (player: DraftedPlayer) => {
+    if (seasonComplete) return;
     if (!swapMode) {
       if (player.pendingSlot) {
         toast.info(`${player.name} already has a pending swap. Cancel it first to start a new one.`);
@@ -481,14 +484,14 @@ export default function PlayerList() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
               {activePlayers.map(player => (
                 <div key={`${player.id}-${sortBy}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <MyPlayerCard player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(String(player.playerId))} onSwap={handleSwap} onCancelSwap={handleCancelSwap} swapModeActive={swapMode} swapLockLabel={swapLockLabel} {...swapPropsFor(player)} />
+                  <MyPlayerCard player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} history={playerHistory[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} isPlayingToday={gameIdsToday.has(String(player.playerId))} onSwap={seasonComplete ? undefined : handleSwap} onCancelSwap={handleCancelSwap} swapModeActive={swapMode} swapLockLabel={swapLockLabel} {...swapPropsFor(player)} />
                 </div>
               ))}
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               {activePlayers.map(player => (
-                <PlayerListRow key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={handleSwap} onCancelSwap={handleCancelSwap} {...swapPropsFor(player)} />
+                <PlayerListRow key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)]} stats={playerStats[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={seasonComplete ? undefined : handleSwap} onCancelSwap={handleCancelSwap} {...swapPropsFor(player)} />
               ))}
             </div>
           )
@@ -503,7 +506,9 @@ export default function PlayerList() {
             Reserve Roster
             <span className="text-gray-500 text-lg font-normal">({reservePlayers.length})</span>
           </h3>
-          <p className="text-xs text-slate-400">Swaps apply {swapLockLabel} · click a player to start one</p>
+          <p className="text-xs text-slate-400">
+            {seasonComplete ? 'Season complete — rosters are final' : `Swaps apply ${swapLockLabel} · click a player to start one`}
+          </p>
         </div>
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
@@ -516,25 +521,27 @@ export default function PlayerList() {
         ) : (
           <div className="flex flex-col gap-2">
             {reservePlayers.map(player => (
-              <PlayerListRow key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)] || 0} stats={playerStats[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={handleSwap} onCancelSwap={handleCancelSwap} {...swapPropsFor(player)} />
+              <PlayerListRow key={player.id} player={player} fantasyPoints={playerPoints[Number(player.playerId)] || 0} stats={playerStats[Number(player.playerId)]} injury={isPlayerInjuredByName(player.name, injuries) || undefined} onSwap={seasonComplete ? undefined : handleSwap} onCancelSwap={handleCancelSwap} {...swapPropsFor(player)} />
             ))}
           </div>
         )}
       </GlassCard>
 
       {/* Roster Lock Info */}
-      <div className="mt-4 max-w-4xl mx-auto">
-        <div className="bg-blue-900/20 border border-blue-500/20 p-3 rounded-xl backdrop-blur-sm">
-          <p className="text-blue-300/80 text-xs text-center flex items-center justify-center gap-2">
-            <span>📅 Next Roster Lock: {nextSaturday.toLocaleString()}</span>
-            <span className="w-1 h-1 rounded-full bg-blue-500/50" />
-            <span>Pending swaps will apply then</span>
-          </p>
+      {!seasonComplete && (
+        <div className="mt-4 max-w-4xl mx-auto">
+          <div className="bg-blue-900/20 border border-blue-500/20 p-3 rounded-xl backdrop-blur-sm">
+            <p className="text-blue-300/80 text-xs text-center flex items-center justify-center gap-2">
+              <span>📅 Next Roster Lock: {nextSaturday.toLocaleString()}</span>
+              <span className="w-1 h-1 rounded-full bg-blue-500/50" />
+              <span>Pending swaps will apply then</span>
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Swap-mode command bar */}
-      {swapMode && selectedPlayer && (
+      {swapMode && selectedPlayer && !seasonComplete && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300 motion-reduce:animate-none">
           <div className="flex items-center gap-4 pl-5 pr-3 py-3 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-blue-400/40 shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_24px_rgba(59,130,246,0.25)]">
             <Icon as={ArrowLeftRight} size="sm" className="text-blue-400" glow />

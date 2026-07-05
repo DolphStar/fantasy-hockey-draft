@@ -18,7 +18,7 @@ import { PageHeader } from './ui/PageHeader';
 import { SegmentedTabs } from './ui/SegmentedTabs';
 import { Icon } from './ui/Icon';
 import { Skeleton } from './ui/Skeleton';
-import { Gamepad2, TriangleAlert } from 'lucide-react';
+import { Gamepad2, TriangleAlert, Trophy } from 'lucide-react';
 import { getAllPlayers, getTeamRoster, NHL_TEAMS, type RosterPerson, type TeamAbbrev, getPlayerFullName } from '../utils/nhlApi';
 import { toast } from 'sonner';
 import { validateTeamName } from '../../packages/core/membership/validateTeamName';
@@ -30,6 +30,7 @@ import {
   subscribeToJoinRequests,
   type JoinRequest,
 } from '../services/joinRequestService';
+import { endSeason as endSeasonApi, reopenSeason as reopenSeasonApi, startNewSeason as startNewSeasonApi } from '../services/seasonService';
 
 type RosterPersonWithTeamAbbrev = RosterPerson & { teamAbbrev: TeamAbbrev };
 
@@ -58,6 +59,52 @@ export default function LeagueSettings() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [tab, setTab] = useState<LeagueTab>('settings');
+
+  // Season lifecycle controls
+  const [confirmingEndSeason, setConfirmingEndSeason] = useState(false);
+  const [confirmingNewSeason, setConfirmingNewSeason] = useState(false);
+  const [seasonBusy, setSeasonBusy] = useState(false);
+
+  const handleEndSeason = async () => {
+    if (!league) return;
+    setSeasonBusy(true);
+    try {
+      const { champion } = await endSeasonApi(league.id);
+      toast.success(`Season ended — ${champion} are the champions!`);
+      setConfirmingEndSeason(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not end the season');
+    } finally {
+      setSeasonBusy(false);
+    }
+  };
+
+  const handleReopenSeason = async () => {
+    if (!league) return;
+    setSeasonBusy(true);
+    try {
+      await reopenSeasonApi(league.id);
+      toast.success('Season reopened — the league is live again');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not reopen the season');
+    } finally {
+      setSeasonBusy(false);
+    }
+  };
+
+  const handleStartNewSeason = async () => {
+    if (!league) return;
+    setSeasonBusy(true);
+    try {
+      const { newSeasonId } = await startNewSeasonApi(league.id);
+      toast.success(`New season started (${newSeasonId}) — head to the draft lobby`);
+      setConfirmingNewSeason(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not start a new season');
+    } finally {
+      setSeasonBusy(false);
+    }
+  };
 
   const leagueTabs: { id: LeagueTab; label: string }[] = [
     { id: 'settings', label: 'Settings' },
@@ -403,9 +450,15 @@ export default function LeagueSettings() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             {league && (
-              <Badge variant={league.status === 'live' ? 'success' : 'warning'} className="px-3 py-1.5">
-                {league.status === 'live' ? 'Draft Live' : 'Draft Pending'}
-              </Badge>
+              league.status === 'complete' ? (
+                <Badge variant="warning" className="px-3 py-1.5 inline-flex items-center gap-1.5">
+                  <Icon as={Trophy} size="sm" className="text-rank" /> Season Complete
+                </Badge>
+              ) : (
+                <Badge variant={league.status === 'live' ? 'success' : 'warning'} className="px-3 py-1.5">
+                  {league.status === 'live' ? 'Draft Live' : 'Draft Pending'}
+                </Badge>
+              )
             )}
             <SegmentedTabs tabs={leagueTabs} active={tab} onChange={setTab} />
           </div>
@@ -666,6 +719,96 @@ export default function LeagueSettings() {
                   </>
                 )}
               </GlassCard>
+
+              {/* Season Controls — hidden while pending (no season to end yet) */}
+              {league.status !== 'pending' && (
+                <GlassCard className="p-5 space-y-4 border-t-4 border-t-rank/70">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Icon as={Trophy} size="sm" className="text-rank" /> Season
+                  </h3>
+
+                  {league.status === 'live' && (
+                    !confirmingEndSeason ? (
+                      <>
+                        <p className="text-sm text-slate-400">
+                          End the season to crown a champion and archive the final standings. You can reopen it afterward.
+                        </p>
+                        <button
+                          onClick={() => setConfirmingEndSeason(true)}
+                          className="w-full bg-amber-900/20 hover:bg-amber-600/30 text-amber-300 hover:text-amber-200 border border-amber-700/50 hover:border-amber-500/60 font-bold py-3 px-4 rounded-lg transition-all active:scale-95"
+                        >
+                          End season
+                        </button>
+                      </>
+                    ) : (
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 space-y-3">
+                        <p className="text-sm text-amber-200 font-semibold">
+                          Season ends and standings are archived. Confirm?
+                        </p>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={handleEndSeason}
+                            disabled={seasonBusy}
+                            className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-4 rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            {seasonBusy ? 'Ending…' : 'Confirm — end season'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmingEndSeason(false)}
+                            disabled={seasonBusy}
+                            className="flex-1 border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400 font-semibold py-2.5 px-4 rounded-lg transition-all"
+                          >
+                            Keep playing
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+
+                  {league.status === 'complete' && (
+                    <>
+                      <button
+                        onClick={handleReopenSeason}
+                        disabled={seasonBusy}
+                        className="w-full border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400 font-semibold py-2.5 px-4 rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        Reopen season
+                      </button>
+
+                      {!confirmingNewSeason ? (
+                        <button
+                          onClick={() => setConfirmingNewSeason(true)}
+                          className="w-full bg-red-900/20 hover:bg-red-900/40 text-red-300 border border-red-800/50 hover:border-red-600/60 font-bold py-3 px-4 rounded-lg transition-all active:scale-95"
+                        >
+                          Start new season
+                        </button>
+                      ) : (
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 space-y-3">
+                          <p className="text-sm text-red-200">
+                            Deletes all rosters, draft picks, and scores for {league.currentSeasonId ?? 'this season'}. Standings history is kept. This cannot be undone.
+                          </p>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={handleStartNewSeason}
+                              disabled={seasonBusy}
+                              className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-4 rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              {seasonBusy ? 'Starting…' : 'Confirm — wipe & draft again'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmingNewSeason(false)}
+                              disabled={seasonBusy}
+                              className="flex-1 border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400 font-semibold py-2.5 px-4 rounded-lg transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </GlassCard>
+              )}
 
               {/* Danger Zone */}
               <GlassCard className="p-5 space-y-4 border-red-900/30 bg-red-950/10">

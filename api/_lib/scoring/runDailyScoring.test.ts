@@ -16,6 +16,7 @@ function makeDeps(overrides: Partial<DailyScoringDeps> = {}): DailyScoringDeps {
     scoreLeagueForDate: vi.fn(
       async (leagueId): Promise<ScoreLeagueResult> => ({ leagueId, status: 'scored' }),
     ),
+    maybeAutoEndSeason: vi.fn(async () => false),
     ...overrides,
   };
 }
@@ -86,6 +87,15 @@ describe('runDailyScoring', () => {
     const summary = await runDailyScoring(deps, {});
     expect(summary.leaguesScored).toBe(2);
     expect(summary.leaguesSkipped).toBe(1);
+  });
+
+  it('auto-ends idle leagues and counts them in the summary', async () => {
+    const deps = makeDeps({
+      maybeAutoEndSeason: vi.fn(async (leagueId: string) => leagueId === 'B'),
+    });
+    const summary = await runDailyScoring(deps, {});
+    expect(summary.leaguesAutoEnded).toBe(1);
+    expect(deps.maybeAutoEndSeason).toHaveBeenCalledTimes(3);
   });
 
   it('single-league mode scores only that league and never lists live leagues', async () => {

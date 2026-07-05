@@ -7,8 +7,19 @@ const FRIDAY = new Date('2026-06-12T12:00:00Z');
 
 describe('applyRosterSwaps', () => {
   it('does nothing and never reads players when it is not Saturday', async () => {
-    const deps: RosterSwapDeps = { getLeaguePlayers: vi.fn() };
+    const deps: RosterSwapDeps = { getLeagueStatus: vi.fn(async () => 'live'), getLeaguePlayers: vi.fn() };
     const result = await applyRosterSwaps('L1', FRIDAY, deps);
+    expect(result.swapsApplied).toBe(0);
+    expect(deps.getLeaguePlayers).not.toHaveBeenCalled();
+  });
+
+  it('skips swaps entirely when the league is not live', async () => {
+    const update = vi.fn(async () => {});
+    const deps: RosterSwapDeps = {
+      getLeagueStatus: vi.fn(async () => 'complete'),
+      getLeaguePlayers: vi.fn(async () => [{ name: 'A', pendingSlot: 'active', update }]),
+    };
+    const result = await applyRosterSwaps('L1', SATURDAY, deps);
     expect(result.swapsApplied).toBe(0);
     expect(deps.getLeaguePlayers).not.toHaveBeenCalled();
   });
@@ -17,6 +28,7 @@ describe('applyRosterSwaps', () => {
     const update = vi.fn(async () => {});
     const noop = vi.fn(async () => {});
     const deps: RosterSwapDeps = {
+      getLeagueStatus: vi.fn(async () => 'live'),
       getLeaguePlayers: vi.fn(async () => [
         { name: 'A', pendingSlot: 'active', update },
         { name: 'B', pendingSlot: null, update: noop },

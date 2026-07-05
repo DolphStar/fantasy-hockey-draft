@@ -31,12 +31,14 @@ export function storeCurrentLeagueId(leagueId: string | null) {
 export interface LeagueSummary {
   id: string;
   leagueName: string;
+  status: 'pending' | 'live' | 'complete';
 }
 
 /** Pure: map a raw league doc into the lightweight summary used by the switcher. */
 export function toLeagueSummary(id: string, data: Record<string, unknown>): LeagueSummary {
   const leagueName = typeof data.leagueName === 'string' && data.leagueName ? data.leagueName : 'Untitled League';
-  return { id, leagueName };
+  const status = data.status === 'live' || data.status === 'complete' ? data.status : 'pending';
+  return { id, leagueName, status };
 }
 
 /** All leagues the user is a member of (admin + team owners live in memberUids). */

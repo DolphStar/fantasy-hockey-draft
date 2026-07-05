@@ -10,9 +10,12 @@ export default function LeagueSwitcher() {
 
   const active = memberships.find((m) => m.id === leagueId);
 
+  const label = (m: { leagueName: string; status: string }) =>
+    m.status === 'complete' ? `${m.leagueName} 🏆` : m.leagueName;
+
   const control =
     memberships.length <= 1 ? (
-      <span className="text-sm font-semibold text-slate-300">{active?.leagueName ?? ''}</span>
+      <span className="text-sm font-semibold text-slate-300">{active ? label(active) : ''}</span>
     ) : (
       <select
         aria-label="Switch league"
@@ -22,7 +25,7 @@ export default function LeagueSwitcher() {
       >
         {memberships.map((m) => (
           <option key={m.id} value={m.id}>
-            {m.leagueName}
+            {label(m)}
           </option>
         ))}
       </select>
