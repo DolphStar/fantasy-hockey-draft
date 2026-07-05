@@ -25,9 +25,11 @@ describe('buildSeasonAwards', () => {
     expect(buildSeasonAwards(players, standings, 3).awards.topGoalie?.name).toBe('Wall Guy');
   });
 
-  it('best steal maximizes points-per-draft-slot', () => {
-    // Late Gem: 60/40 = 1.5 ; Ace: 95/1 = 95 -> Ace wins the ratio
-    expect(buildSeasonAwards(players, standings, 3).awards.bestSteal?.name).toBe('Ace Scorer');
+  it('best steal rewards finishing above draft slot (late gem, not the elite early pick)', () => {
+    // Steal score = draftRank - pointsRank (both among drafted). Late Gem: drafted
+    // last (4th) but 2nd in points -> +2. Ace: 1st drafted, 1st in points -> 0.
+    // Late Gem out-steals the #1 overall pick.
+    expect(buildSeasonAwards(players, standings, 3).awards.bestSteal?.name).toBe('Late Gem');
   });
 
   it('biggest bust is the lowest-scoring early pick', () => {
