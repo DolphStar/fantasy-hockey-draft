@@ -29,6 +29,10 @@ import type { SeasonArchive } from '../../packages/core/season/types';
 import { ChampionBanner } from './season/ChampionBanner';
 import { ConfettiBurst } from './season/ConfettiBurst';
 import { SeasonHistoryCard } from './season/SeasonHistoryCard';
+import { SeasonAwards } from './season/SeasonAwards';
+import { TopScorersCard } from './season/TopScorersCard';
+import { SeasonNumbersStrip } from './season/SeasonNumbersStrip';
+import { YourSeasonCard } from './season/YourSeasonCard';
 import type { TeamScore } from '../types/scores';
 
 const MAX_TREND_DAYS = 7;
@@ -234,6 +238,14 @@ export default function Dashboard() {
                 <ConfettiBurst storageKey={`${league.id}-${currentArchive?.seasonId ?? 'final'}`} />
                 {currentArchive && <ChampionBanner archive={currentArchive} myTeamName={myTeam?.teamName ?? null} />}
 
+                <SeasonAwards awards={currentArchive?.awards} />
+                <TopScorersCard players={currentArchive?.topPlayers ?? []} />
+                <SeasonNumbersStrip stats={currentArchive?.stats} teamCount={currentArchive?.teamCount ?? teamScores.length} />
+                {(() => {
+                    const mine = currentArchive?.teamSummaries?.find((t) => t.ownerUid === user?.uid);
+                    return mine ? <YourSeasonCard summary={mine} medalClass={mine.rank <= 3 ? rankMedalClass(mine.rank) : 'bg-slate-700 text-slate-300'} /> : null;
+                })()}
+
                 <GlassCard>
                     <CardHeader
                         icon={<Icon as={Trophy} size="sm" className="text-rank" />}
@@ -247,6 +259,9 @@ export default function Dashboard() {
                                     {team.rank}
                                 </span>
                                 <span className="text-sm font-semibold text-white">{team.teamName}</span>
+                                {team.rank === finalStandings.length && finalStandings.length > 2 && (
+                                    <span className="text-[10px] text-slate-500" title="Wooden spoon">🥄</span>
+                                )}
                             </span>
                             <span className="text-sm font-extrabold text-points tabular-nums">{team.totalPoints.toFixed(1)}</span>
                         </div>
