@@ -47,10 +47,18 @@ export default function MyPlayerCard({
         return 'text-slate-400';
     };
 
-    // Fantasy points are always points-green (locked color role); glow scales with score
+    // Color coding based on season fantasy points (tiered exception to the points-green color role)
+    // Skaters: 100+ = gold, 60-99 = green, 30-59 = blue, <30 = gray
+    // Goalies: 70+ = gold (lower thresholds since their scoring caps lower)
+    const isGoalie = player.position === 'G';
     const getFpColor = (fp: number) => {
-        if (fp >= 10) return { text: 'text-points', glow: 'shadow-[0_0_20px_rgba(74,222,128,0.6)]' };
-        if (fp > 0) return { text: 'text-points', glow: 'shadow-[0_0_12px_rgba(74,222,128,0.35)]' };
+        const exceptionalThreshold = isGoalie ? 70 : 100;
+        const goodThreshold = isGoalie ? 50 : 60;
+        const normalThreshold = isGoalie ? 25 : 30;
+
+        if (fp >= exceptionalThreshold) return { text: 'text-amber-400', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.6)]' };
+        if (fp >= goodThreshold) return { text: 'text-emerald-400', glow: 'shadow-[0_0_20px_rgba(74,222,128,0.6)]' };
+        if (fp >= normalThreshold) return { text: 'text-blue-400', glow: 'shadow-[0_0_20px_rgba(96,165,250,0.6)]' };
         return { text: 'text-gray-400', glow: 'shadow-[0_0_10px_rgba(156,163,175,0.4)]' };
     };
 

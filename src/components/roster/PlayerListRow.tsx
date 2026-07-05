@@ -32,6 +32,21 @@ export default function PlayerListRow({
         return 'text-slate-400';
     };
 
+    // Color coding based on season fantasy points (tiered exception to the points-green color role)
+    // Skaters: 100+ = gold, 60-99 = green, 30-59 = blue, <30 = white
+    // Goalies: 70+ = gold (lower thresholds since their scoring caps lower)
+    const isGoalie = player.position === 'G';
+    const getFpColor = (fp: number) => {
+        const exceptionalThreshold = isGoalie ? 70 : 100;
+        const goodThreshold = isGoalie ? 50 : 60;
+        const normalThreshold = isGoalie ? 25 : 30;
+
+        if (fp >= exceptionalThreshold) return 'text-amber-400';
+        if (fp >= goodThreshold) return 'text-emerald-400';
+        if (fp >= normalThreshold) return 'text-blue-400';
+        return 'text-white';
+    };
+
     return (
         <div
             className={cn(
@@ -109,7 +124,7 @@ export default function PlayerListRow({
                 </div>
                 <div className="flex flex-col items-end w-16">
                     <span className="text-[10px] text-gray-500 font-bold uppercase">Total</span>
-                    <span className="text-2xl font-black text-white leading-none">
+                    <span className={cn("text-2xl font-black leading-none", getFpColor(fantasyPoints))}>
                         {fantasyPoints.toFixed(0)}
                     </span>
                 </div>
