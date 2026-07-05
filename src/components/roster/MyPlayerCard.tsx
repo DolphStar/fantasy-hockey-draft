@@ -2,10 +2,12 @@ import { cn } from '../../lib/utils';
 import { useCountUp } from '../../hooks/useCountUp';
 
 import PlayerGameLogPopup from './PlayerGameLogPopup';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PlayerPositionBadge } from './PlayerPositionBadge';
 import { PlayerStatsPill } from './PlayerStatsPill';
 import type { DraftedPlayer } from '../../types/draftedPlayer';
+
+const POPUP_HOVER_DELAY_MS = 400;
 
 interface MyPlayerCardProps {
     player: DraftedPlayer;
@@ -19,6 +21,16 @@ interface MyPlayerCardProps {
     onCancelSwap?: (player: any) => void;
     isSelected?: boolean;
     isOverlay?: boolean;
+    /** Swap mode is armed somewhere on the page (suppresses the hover popup). */
+    swapModeActive?: boolean;
+    /** This card is a legal target for the armed swap. */
+    swapEligible?: boolean;
+    /** This card cannot take part in the armed swap. */
+    swapDimmed?: boolean;
+    /** Name of the pending-swap counterpart, for the pending strip. */
+    pendingSwapWithName?: string;
+    /** Short label for when pending swaps apply, e.g. "Sat 5 AM". */
+    swapLockLabel?: string;
 }
 
 export default function MyPlayerCard({
@@ -32,8 +44,38 @@ export default function MyPlayerCard({
     onCancelSwap,
     isSelected,
     isOverlay = false,
+    swapModeActive = false,
+    swapEligible = false,
+    swapDimmed = false,
+    pendingSwapWithName,
+    swapLockLabel,
 }: MyPlayerCardProps) {
     const [showPopup, setShowPopup] = useState(false);
+    const popupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const schedulePopup = () => {
+        if (isOverlay || swapModeActive) return;
+        if (popupTimer.current) clearTimeout(popupTimer.current);
+        popupTimer.current = setTimeout(() => setShowPopup(true), POPUP_HOVER_DELAY_MS);
+    };
+
+    const dismissPopup = (afterMs = 0) => {
+        if (popupTimer.current) clearTimeout(popupTimer.current);
+        if (afterMs > 0) {
+            popupTimer.current = setTimeout(() => setShowPopup(false), afterMs);
+        } else {
+            setShowPopup(false);
+        }
+    };
+
+    useEffect(() => () => {
+        if (popupTimer.current) clearTimeout(popupTimer.current);
+    }, []);
+
+    // Swap mode arming anywhere on the page hides an already-open popup
+    useEffect(() => {
+        if (swapModeActive) setShowPopup(false);
+    }, [swapModeActive]);
     const teamAbbrev = player.nhlTeam || 'UNK';
     const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.playerId}.png`;
     const fallbackHeadshot = 'https://assets.nhle.com/mugs/nhl/default-skater.png';
@@ -108,7 +150,7 @@ export default function MyPlayerCard({
     const handleMouseLeave = () => {
         setRotateX(0);
         setRotateY(0);
-        setShowPopup(false);
+        dismissPopup();
     };
 
     // Holographic Foil for Top Players (e.g., > 15 FP or specific rank)
@@ -119,21 +161,18 @@ export default function MyPlayerCard({
             className={cn(
                 'relative group transition-all duration-300 h-[420px] w-full perspective-1000',
                 isSelected ? 'z-10' : 'hover:z-20',
-                (onSwap || isSelected) && 'cursor-pointer'
+                (onSwap || isSelected) && 'cursor-pointer',
+                swapDimmed && 'opacity-40 saturate-50'
             )}
             onClick={(e) => {
                 e.stopPropagation();
-                if (isSelected && onCancelSwap) {
-                    onCancelSwap(player);
-                } else if (onSwap) {
-                    onSwap(player);
-                }
+                onSwap?.(player);
             }}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
-            onMouseEnter={() => !isOverlay && setShowPopup(true)}
-            onTouchStart={() => !isOverlay && setShowPopup(true)}
-            onTouchEnd={() => setTimeout(() => setShowPopup(false), 3000)}
+            onMouseEnter={schedulePopup}
+            onTouchStart={schedulePopup}
+            onTouchEnd={() => dismissPopup(3000)}
             style={{
                 transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`,
                 transition: 'transform 0.1s ease-out'
@@ -159,7 +198,9 @@ export default function MyPlayerCard({
                     'hover:-translate-y-1',
                     isSelected
                         ? 'border-amber-300 shadow-[0_0_30px_rgba(251,191,36,0.6),0_0_60px_rgba(251,191,36,0.3)]'
-                        : cn(positionEdge, 'hover:shadow-glass-hover')
+                        : swapEligible
+                            ? 'border-blue-400/90 shadow-[0_0_22px_rgba(96,165,250,0.4)] hover:shadow-[0_0_32px_rgba(96,165,250,0.6)]'
+                            : cn(positionEdge, 'hover:shadow-glass-hover')
                 )}
             >
                 {/* Holographic Foil Overlay */}
@@ -264,35 +305,38 @@ export default function MyPlayerCard({
                         </div>
                     </div>
 
-                    {/* Action Buttons - Blue Glowing */}
-                    {player.pendingSlot && (
-                        <div className="absolute bottom-[-24px] left-1/2 -translate-x-1/2 w-[85%] z-30">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onCancelSwap?.(player);
-                                }}
-                                className={cn(
-                                    'w-full py-3 rounded-full',
-                                    'font-black uppercase tracking-[0.2em] text-sm text-white',
-                                    'flex items-center justify-center gap-2',
-                                    'bg-gradient-to-b from-amber-400 to-amber-600',
-                                    'shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_4px_10px_rgba(0,0,0,0.5)]',
-                                    'border border-amber-300/30',
-                                    'transition-all duration-300',
-                                    'hover:scale-[1.02] hover:brightness-110 hover:shadow-[0_0_20px_rgba(251,191,36,0.6)]',
-                                    'active:scale-95'
-                                )}
-                            >
-                                {/* Clock Icon */}
-                                <svg className="w-4 h-4 text-amber-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span className="drop-shadow-md">Pending Swap</span>
-                            </button>
-                        </div>
-                    )}
                 </div>
+
+                {/* Pending swap strip — sits inside the card so it never collides with the grid */}
+                {player.pendingSlot && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onCancelSwap?.(player);
+                        }}
+                        title="Cancel this swap"
+                        className={cn(
+                            'absolute bottom-0 inset-x-0 z-40 rounded-b-[14px]',
+                            'flex items-center justify-between gap-2 px-4 py-2',
+                            'bg-gradient-to-b from-amber-400 to-amber-600 text-slate-900',
+                            'shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]',
+                            'transition-all duration-200 hover:brightness-110 group/pending'
+                        )}
+                    >
+                        <span className="flex flex-col items-start leading-tight text-left">
+                            <span className="text-[11px] font-black uppercase tracking-[0.15em]">
+                                {player.pendingSlot === 'reserve' ? '↓ Moving to Reserve' : '↑ Moving to Active'}
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-900/80">
+                                {pendingSwapWithName ? `with ${pendingSwapWithName}` : 'pending swap'}
+                                {swapLockLabel ? ` · ${swapLockLabel}` : ''}
+                            </span>
+                        </span>
+                        <span className="text-[10px] font-black uppercase tracking-wider opacity-0 group-hover/pending:opacity-100 transition-opacity whitespace-nowrap">
+                            ✕ Cancel
+                        </span>
+                    </button>
+                )}
             </div>
         </div>
     );

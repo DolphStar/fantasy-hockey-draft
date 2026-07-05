@@ -13,5 +13,7 @@ export interface DraftedPlayer {
   draftedAt: string;
   rosterSlot: 'active' | 'reserve';
   pendingSlot?: 'active' | 'reserve' | null;
+  /** Doc id of the player on the other side of a pending swap. */
+  pendingSwapWith?: string | null;
   draftedBy?: string;
 }

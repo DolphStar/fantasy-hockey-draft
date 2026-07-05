@@ -16,7 +16,7 @@ export interface RosterSwapResult {
 export interface LeagueSwapPlayer {
   name?: string;
   pendingSlot?: string | null;
-  update: (patch: { rosterSlot: string; pendingSlot: null; lastSwapDate: string }) => Promise<void>;
+  update: (patch: { rosterSlot: string; pendingSlot: null; pendingSwapWith: null; lastSwapDate: string }) => Promise<void>;
 }
 
 export interface RosterSwapDeps {
@@ -41,6 +41,7 @@ export async function applyRosterSwaps(
         await player.update({
           rosterSlot: player.pendingSlot,
           pendingSlot: null,
+          pendingSwapWith: null,
           lastSwapDate: now.toISOString(),
         });
         swapsApplied++;

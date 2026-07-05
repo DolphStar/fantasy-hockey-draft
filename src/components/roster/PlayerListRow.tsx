@@ -9,6 +9,12 @@ interface PlayerListRowProps {
     onSwap?: (player: any) => void;
     onCancelSwap?: (player: any) => void;
     isSelected?: boolean;
+    /** This row is a legal target for the armed swap. */
+    swapEligible?: boolean;
+    /** This row cannot take part in the armed swap. */
+    swapDimmed?: boolean;
+    /** Name of the pending-swap counterpart, for the pending chip. */
+    pendingSwapWithName?: string;
 }
 
 export default function PlayerListRow({
@@ -18,7 +24,10 @@ export default function PlayerListRow({
     injury,
     onSwap,
     onCancelSwap,
-    isSelected
+    isSelected,
+    swapEligible = false,
+    swapDimmed = false,
+    pendingSwapWithName
 }: PlayerListRowProps) {
     const teamAbbrev = player.nhlTeam || 'UNK';
     const headshotUrl = `https://assets.nhle.com/mugs/nhl/20242025/${teamAbbrev}/${player.playerId}.png`;
@@ -53,16 +62,15 @@ export default function PlayerListRow({
                 "group relative flex items-center gap-4 p-3 rounded-xl transition-all duration-200 border",
                 isSelected
                     ? "bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                    : "bg-slate-800/40 border-white/5 hover:bg-slate-800/60 hover:border-white/10",
-                (onSwap || isSelected) && "cursor-pointer"
+                    : swapEligible
+                        ? "bg-slate-800/40 border-blue-400/60 shadow-[0_0_12px_rgba(96,165,250,0.25)] hover:bg-slate-800/60"
+                        : "bg-slate-800/40 border-white/5 hover:bg-slate-800/60 hover:border-white/10",
+                (onSwap || isSelected) && "cursor-pointer",
+                swapDimmed && "opacity-40 saturate-50"
             )}
             onClick={(e) => {
                 e.stopPropagation();
-                if (isSelected && onCancelSwap) {
-                    onCancelSwap(player);
-                } else if (onSwap) {
-                    onSwap(player);
-                }
+                onSwap?.(player);
             }}
         >
             {/* Rank/Photo */}
@@ -90,9 +98,18 @@ export default function PlayerListRow({
                 <div className="flex items-center gap-2">
                     <h4 className="text-white font-bold truncate">{player.name}</h4>
                     {player.pendingSlot && (
-                        <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/30 font-bold uppercase">
-                            Pending Swap
-                        </span>
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onCancelSwap?.(player);
+                            }}
+                            title="Cancel this swap"
+                            className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/30 font-bold uppercase hover:bg-amber-500/35 transition-colors"
+                        >
+                            {player.pendingSlot === 'reserve' ? '↓ Reserve' : '↑ Active'}
+                            {pendingSwapWithName ? ` · w/ ${pendingSwapWithName}` : ''}
+                        </button>
                     )}
                 </div>
                 <div className="text-xs text-gray-500 flex items-center gap-1.5">

@@ -142,7 +142,7 @@ service cloud.firestore {
                       isInLeague(resource.data.leagueId) &&
                       (resource.data.ownerUid == request.auth.uid ||
                        isLeagueAdmin(resource.data.leagueId)) &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rosterSlot', 'pendingSlot', 'lastSwapDate']);
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rosterSlot', 'pendingSlot', 'pendingSwapWith', 'lastSwapDate']);
     }
 
     // Draft state - per league
