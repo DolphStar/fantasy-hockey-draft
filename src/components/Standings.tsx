@@ -99,6 +99,13 @@ export default function Standings() {
     <div className="max-w-6xl mx-auto p-6 space-y-8">
       <PageHeader title="Scores" />
 
+      {league?.status === 'complete' && (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-rank/30 bg-rank/10 px-4 py-2.5 text-sm font-bold text-rank">
+          <Icon as={Trophy} size="sm" className="text-rank" />
+          Final standings — season complete
+        </div>
+      )}
+
       {/* Standings Table */}
       <GlassCard className="overflow-hidden">
         <div className="p-6 border-b border-slate-700/50 bg-slate-900/30 flex items-center justify-between">
@@ -162,8 +169,9 @@ export default function Standings() {
                             }`}>
                             {team.teamName.substring(0, 2).toUpperCase()}
                           </div>
-                          <span className={`font-bold text-lg ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
+                          <span className={`font-bold text-lg flex items-center gap-1.5 ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
                             {team.teamName}
+                            {league?.status === 'complete' && isFirst && <Icon as={Trophy} size="sm" className="text-rank" />}
                           </span>
                         </div>
                       </td>
