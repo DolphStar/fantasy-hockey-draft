@@ -44,8 +44,13 @@ export default {
         'float': 'float 6s ease-in-out infinite',
         'shimmer': 'shimmer 1.4s linear infinite',
         'live-pulse': 'live-pulse 1.6s ease-in-out infinite',
+        'confetti-fall': 'confetti-fall 3s ease-in forwards',
       },
       keyframes: {
+        'confetti-fall': {
+          '0%': { transform: 'translateY(0) translateX(0) rotate(0deg)', opacity: '1' },
+          '100%': { transform: 'translateY(105vh) translateX(var(--confetti-drift, 0px)) rotate(540deg)', opacity: '0.7' },
+        },
         lockIn: {
           '0%': {
             transform: 'scale(0.8)',

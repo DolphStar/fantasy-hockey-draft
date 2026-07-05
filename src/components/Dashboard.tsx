@@ -24,6 +24,11 @@ import type { LivePlayerStats } from '../utils/liveStats';
 import { getInjuryColor, type InjuryReport } from '../services/injuryService';
 import { subscribeLiveStatsByDate } from '../services/liveStatsService';
 import { subscribeLeagueTeamScores } from '../services/teamScoreService';
+import { fetchSeasonArchives } from '../services/seasonService';
+import type { SeasonArchive } from '../../packages/core/season/types';
+import { ChampionBanner } from './season/ChampionBanner';
+import { ConfettiBurst } from './season/ConfettiBurst';
+import { SeasonHistoryCard } from './season/SeasonHistoryCard';
 import type { TeamScore } from '../types/scores';
 
 const MAX_TREND_DAYS = 7;
@@ -53,6 +58,9 @@ export default function Dashboard() {
 
     const [liveStats, setLiveStats] = useState<LivePlayerStats[]>([]);
     const [teamScores, setTeamScores] = useState<TeamScore[]>([]);
+    const [archives, setArchives] = useState<SeasonArchive[]>([]);
+
+    const seasonComplete = league?.status === 'complete';
 
     const myTeam = useMemo(() => {
         if (!league || !user) return null;
@@ -121,6 +129,16 @@ export default function Dashboard() {
             setScoresLoaded(true);
         });
     }, [league?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (!league || league.status !== 'complete') {
+            setArchives([]);
+            return;
+        }
+        fetchSeasonArchives(league.id).then(setArchives).catch(() => setArchives([]));
+    }, [league?.id, league?.status]);
+
+    const currentArchive = archives[0] ?? null;
 
     const teamPoints = useMemo(
         () => teamScores.find(score => score.teamName === myTeam?.teamName)?.totalPoints ?? 0,
@@ -198,6 +216,44 @@ export default function Dashboard() {
         return (
             <div className="max-w-6xl mx-auto px-6">
                 <Skeleton className="h-40 w-full rounded-xl" />
+            </div>
+        );
+    }
+
+    if (seasonComplete) {
+        const finalStandings = currentArchive?.standings
+            ?? teamScores.map((score, index) => ({
+                rank: index + 1,
+                teamName: score.teamName,
+                ownerUid: '',
+                totalPoints: score.totalPoints,
+            }));
+
+        return (
+            <div className="max-w-6xl mx-auto px-6 space-y-6">
+                <ConfettiBurst storageKey={`${league.id}-${currentArchive?.seasonId ?? 'final'}`} />
+                {currentArchive && <ChampionBanner archive={currentArchive} myTeamName={myTeam?.teamName ?? null} />}
+
+                <GlassCard>
+                    <CardHeader
+                        icon={<Icon as={Trophy} size="sm" className="text-rank" />}
+                        title="Final Standings"
+                        action={<Link to={leaguePath('scores')} className="text-xs font-semibold text-blue-400 hover:text-blue-300">Full table →</Link>}
+                    />
+                    {finalStandings.map((team) => (
+                        <div key={team.teamName} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800/60 last:border-b-0">
+                            <span className="flex items-center gap-2.5">
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${team.rank <= 3 ? rankMedalClass(team.rank) : 'bg-slate-700 text-slate-300'}`}>
+                                    {team.rank}
+                                </span>
+                                <span className="text-sm font-semibold text-white">{team.teamName}</span>
+                            </span>
+                            <span className="text-sm font-extrabold text-points tabular-nums">{team.totalPoints.toFixed(1)}</span>
+                        </div>
+                    ))}
+                </GlassCard>
+
+                <SeasonHistoryCard archives={archives} />
             </div>
         );
     }
