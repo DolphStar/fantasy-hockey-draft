@@ -9,14 +9,20 @@ import { toLeagueSummary } from './leagueService';
 vi.mock('../firebase', () => ({ db: {} }));
 
 describe('toLeagueSummary', () => {
-  it('maps a league doc to id + leagueName', () => {
-    expect(toLeagueSummary('abc', { leagueName: 'My League', memberUids: ['u1'] })).toEqual({
+  it('maps a league doc to id + leagueName + status', () => {
+    expect(toLeagueSummary('abc', { leagueName: 'My League', memberUids: ['u1'], status: 'live' })).toEqual({
       id: 'abc',
       leagueName: 'My League',
+      status: 'live',
     });
   });
 
   it('falls back to a placeholder name when leagueName is missing', () => {
-    expect(toLeagueSummary('abc', {})).toEqual({ id: 'abc', leagueName: 'Untitled League' });
+    expect(toLeagueSummary('abc', {})).toEqual({ id: 'abc', leagueName: 'Untitled League', status: 'pending' });
+  });
+
+  it('carries the league status through (defaulting to pending)', () => {
+    expect(toLeagueSummary('L1', { leagueName: 'X', status: 'complete' }).status).toBe('complete');
+    expect(toLeagueSummary('L1', { leagueName: 'X' }).status).toBe('pending');
   });
 });

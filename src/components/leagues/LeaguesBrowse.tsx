@@ -42,7 +42,8 @@ export default function LeaguesBrowse() {
       const mine = new Set(memberships.map((m) => m.id));
       const rows = await Promise.all(
         snap.docs
-          .filter((d) => !mine.has(d.id))
+          // Complete leagues are off-season; they can only be rejoined via invite link.
+          .filter((d) => !mine.has(d.id) && d.data().status !== 'complete')
           .map(async (d) => {
             const data = d.data() as Omit<PublicLeague, 'id' | 'requested'>;
             const req = await getMyJoinRequest(d.id, user.uid);
