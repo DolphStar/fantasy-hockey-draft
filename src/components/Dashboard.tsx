@@ -242,13 +242,13 @@ export default function Dashboard() {
             </GlassCard>
 
             {/* Tonight's Games / Standings / Hot Pickups */}
-            <div className="grid gap-4 md:grid-cols-3 items-start">
-                <GlassCard>
+            <div className="grid gap-4 md:grid-cols-3">
+                <GlassCard className="flex flex-col">
                     <CardHeader icon={<Icon as={Radio} size="sm" className="text-live" />} title="Tonight's Games" />
                     {scheduleLoading ? (
                         <><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
                     ) : (schedule ?? []).length === 0 ? (
-                        <p className="px-4 py-6 text-sm text-slate-500 text-center">No games today — off day.</p>
+                        <p className="px-4 py-6 my-auto text-sm text-slate-500 text-center">No games today — off day.</p>
                     ) : (
                         (schedule ?? []).map((game) => {
                             const isLive = game.gameState === 'LIVE' || game.gameState === 'CRIT';
@@ -277,7 +277,7 @@ export default function Dashboard() {
                     )}
                 </GlassCard>
 
-                <GlassCard>
+                <GlassCard className="flex flex-col">
                     <CardHeader
                         icon={<Icon as={Trophy} size="sm" className="text-rank" />}
                         title="Standings"
@@ -286,7 +286,7 @@ export default function Dashboard() {
                     {!scoresLoaded ? (
                         <><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
                     ) : topThree.length === 0 ? (
-                        <p className="px-4 py-6 text-sm text-slate-500 text-center">No scores yet.</p>
+                        <p className="px-4 py-6 my-auto text-sm text-slate-500 text-center">No scores yet.</p>
                     ) : (
                         <>
                             {topThree.map((team, index) => (
@@ -314,7 +314,7 @@ export default function Dashboard() {
                     )}
                 </GlassCard>
 
-                <GlassCard>
+                <GlassCard className="flex flex-col">
                     <CardHeader
                         icon={<Icon as={Flame} size="sm" className="text-orange-400" />}
                         title="Hot Pickups"
@@ -323,7 +323,7 @@ export default function Dashboard() {
                     {pickupsLoading ? (
                         <><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
                     ) : hotPickups.length === 0 ? (
-                        <p className="px-4 py-6 text-sm text-slate-500 text-center">No trending free agents right now.</p>
+                        <p className="px-4 py-6 my-auto text-sm text-slate-500 text-center">No trending free agents right now.</p>
                     ) : (
                         <>
                             <p className="px-4 pt-2 text-[10px] uppercase tracking-wider text-slate-500">{hotPickupsLabel}</p>
