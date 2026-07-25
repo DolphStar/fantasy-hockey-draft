@@ -28,7 +28,9 @@ export function PlayerStatsPill({
   return (
     <div
       className={cn(
-        'flex items-center justify-center gap-3 text-xs font-bold tracking-wider text-gray-300 bg-slate-900/70 backdrop-blur-xl py-2 px-5 rounded-full mx-auto w-fit border border-white/10 shadow-lg mb-auto relative overflow-hidden transition-colors group-hover:bg-slate-800/80',
+        // No backdrop-blur: the pill sits on an opaque card face, so the blur was
+        // invisible while costing a backdrop pass per card during scroll.
+        'flex items-center justify-center gap-3 text-xs font-bold tracking-wider text-gray-300 bg-slate-900/80 py-2 px-5 rounded-full mx-auto w-fit border border-white/10 shadow-lg mb-auto relative overflow-hidden transition-colors group-hover:bg-slate-800/90',
         className,
       )}
     >

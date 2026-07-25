@@ -91,7 +91,11 @@ export default function PlayerCard({
                 ? 'Not your turn'
                 : null;
 
-    // 3D Tilt Effect State
+    // 3D Tilt Effect State. Tracked separately from the rotation so the card can
+    // drop back to no transform at all when idle — a permanent scale3d promotes
+    // every card in the grid to its own composited layer and re-rasters it at a
+    // fractional scale, which is what starves fast scrolling.
+    const [isTilting, setIsTilting] = useState(false);
     const [rotateX, setRotateX] = useState(0);
     const [rotateY, setRotateY] = useState(0);
 
@@ -105,22 +109,26 @@ export default function PlayerCard({
         const rotateXVal = (y - centerY) / 25;
         const rotateYVal = (centerX - x) / 25;
 
+        setIsTilting(true);
         setRotateX(rotateXVal);
         setRotateY(rotateYVal);
     };
 
     const handleMouseLeave = () => {
+        setIsTilting(false);
         setRotateX(0);
         setRotateY(0);
     };
 
     return (
         <div
-            className="relative group transition-all duration-300 h-[468px] w-full perspective-1000 cursor-pointer"
+            className="relative group transition-all duration-300 h-[468px] w-full cursor-pointer"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             style={{
-                transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`,
+                transform: isTilting
+                    ? `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`
+                    : undefined,
                 transition: 'transform 0.1s ease-out'
             }}
         >
@@ -136,14 +144,16 @@ export default function PlayerCard({
                             : cn(positionEdge, 'hover:shadow-glass-hover')
                 )}
             >
-                {/* Noise texture overlay */}
-                <div className="absolute inset-0 opacity-[0.05] pointer-events-none z-0 mix-blend-overlay rounded-xl"
+                {/* Noise texture + team watermark. Both were mix-blend-overlay,
+                    which makes the compositor read back the page behind every
+                    card and kills the fast-scroll path; at these opacities plain
+                    alpha over the opaque card face looks the same. */}
+                <div className="absolute inset-0 opacity-[0.04] pointer-events-none z-0 rounded-xl"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
                 />
 
-                {/* Team Logo Blend */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none z-0 mix-blend-overlay overflow-hidden rounded-xl">
-                    <img src={teamLogoUrl} alt="Team Logo" className="w-full h-full object-contain scale-[1.85]" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-[0.09] pointer-events-none z-0 overflow-hidden rounded-xl">
+                    <img src={teamLogoUrl} alt="" className="w-full h-full object-contain scale-[1.85]" />
                 </div>
 
                 <div className="relative h-64 w-full overflow-visible shrink-0">
