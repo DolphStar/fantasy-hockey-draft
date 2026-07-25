@@ -25,14 +25,14 @@ describe('evaluateCronAccess', () => {
     });
   });
 
-  it('allows a documented query bypass when configured', () => {
-    expect(
-      evaluateCronAccess(
-        { headers: {}, query: { returnOnly: 'true' } },
-        { cronSecret: 'top-secret', nodeEnv: 'production' },
-        { allowQueryBypass: { param: 'returnOnly', value: 'true' } },
-      ),
-    ).toEqual({ allowed: true, mode: 'manual-query' });
+  it('refuses an unauthenticated caller in production, whatever the query says', () => {
+    // Regression guard: `?returnOnly=true` once let anyone unauthenticated
+    // trigger the full NHL fetch + compute on fetch-daily-stats.
+    for (const query of [{}, { returnOnly: 'true' }, { leagueId: 'league-1' }]) {
+      expect(
+        evaluateCronAccess({ headers: {}, query }, { cronSecret: 'top-secret', nodeEnv: 'production' }),
+      ).toEqual({ allowed: false, statusCode: 401, body: { error: 'Unauthorized' } });
+    }
   });
 
   it('allows development bypass only when explicitly enabled', () => {
@@ -45,12 +45,12 @@ describe('evaluateCronAccess', () => {
     ).toEqual({ allowed: true, mode: 'manual-dev' });
   });
 
-  it('still fails closed when a bypass is requested but CRON_SECRET is missing', () => {
+  it('still fails closed when a dev bypass is requested but CRON_SECRET is missing', () => {
     expect(
       evaluateCronAccess(
-        { headers: {}, query: { returnOnly: 'true' } },
-        { cronSecret: '', nodeEnv: 'production' },
-        { allowQueryBypass: { param: 'returnOnly', value: 'true' } },
+        { headers: {}, query: {} },
+        { cronSecret: '', nodeEnv: 'development' },
+        { allowDevBypass: true },
       ),
     ).toEqual({
       allowed: false,

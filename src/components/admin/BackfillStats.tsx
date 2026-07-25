@@ -1,22 +1,25 @@
 import { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
+import { authedGet } from '../../services/apiClient';
 import { GlassCard } from '../ui/GlassCard';
 
 export default function BackfillStats() {
-  const { isAdmin } = useLeague();
+  const { league, isAdmin } = useLeague();
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState<string>('');
 
-  // Backfill a single date — server writes to Firestore via Admin SDK
+  // Backfill a single date — server writes to Firestore via Admin SDK.
+  // The route needs an admin ID token plus a leagueId to check it against;
+  // without both it answers 401 in production (it otherwise only accepts the
+  // cron secret, which the browser must never hold).
   const backfillDate = async (dateStr: string): Promise<{ success: boolean; players: number }> => {
-    const response = await fetch(`/api/fetch-daily-stats?date=${dateStr}`);
+    if (!league) throw new Error('No league selected');
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
-    }
+    const json = await authedGet(
+      `/api/fetch-daily-stats?date=${encodeURIComponent(dateStr)}&leagueId=${encodeURIComponent(league.id)}`,
+    );
 
-    const json = await response.json();
     if (!json.success) {
       if (json.message?.includes('No completed games')) {
         return { success: true, players: 0 };

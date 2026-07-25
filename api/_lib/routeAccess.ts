@@ -12,34 +12,24 @@ type EnvironmentLike = {
   nodeEnv?: string;
 };
 
-type QueryBypassOptions = {
-  param: string;
-  value?: string;
-};
-
+/**
+ * NOTE: there is deliberately no query-string bypass here. `fetch-daily-stats`
+ * used to accept `?returnOnly=true` from anyone unauthenticated, which let
+ * strangers trigger the full NHL fetch + compute. Routes that need a non-cron
+ * caller should verify a league admin's ID token (see `adminAuth.ts`) instead.
+ */
 export type CronAccessOptions = {
   allowDevBypass?: boolean;
-  allowQueryBypass?: QueryBypassOptions;
 };
 
 export type CronAccessDecision =
-  | { allowed: true; mode: 'cron' | 'manual-dev' | 'manual-query' }
+  | { allowed: true; mode: 'cron' | 'manual-dev' }
   | { allowed: false; statusCode: number; body: { error: string } };
 
 export const PUBLIC_ALLOWED_ORIGINS = [
   'https://fantasy-hockey-draft.vercel.app',
   'http://localhost:5173',
 ] as const;
-
-function getQueryValue(query: Record<string, QueryValue> | undefined, key: string): string | undefined {
-  const value = query?.[key];
-
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
 
 export function evaluateCronAccess(
   request: RequestLike,
@@ -59,15 +49,6 @@ export function evaluateCronAccess(
   const authHeader = request.headers?.authorization;
   if (authHeader === `Bearer ${cronSecret}`) {
     return { allowed: true, mode: 'cron' };
-  }
-
-  if (options.allowQueryBypass) {
-    const value = getQueryValue(request.query, options.allowQueryBypass.param);
-    const expectedValue = options.allowQueryBypass.value ?? 'true';
-
-    if (value === expectedValue) {
-      return { allowed: true, mode: 'manual-query' };
-    }
   }
 
   const isDevelopment = environment.nodeEnv !== 'production';
