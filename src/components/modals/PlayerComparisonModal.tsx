@@ -12,41 +12,57 @@ interface StatLine {
     value: number | undefined;
     /** Rendered form — keeps % and decimals out of the winner math. */
     display: string;
+    /** GAA is the only stat here where a smaller number is the better one. */
+    lowerIsBetter?: boolean;
 }
 
 const isGoalie = (player: ComparisonPlayer) => player.positionCode === 'G';
 
-/**
- * Only the fields `getLastSeasonStats` actually returns (points/goals/assists,
- * wins/savePct) — anything else renders as a permanent dash.
- */
+/** True when `value` beats `other` in the direction this stat is scored. */
+function wins(value: number | undefined, other: number | undefined, lowerIsBetter = false) {
+    if (value === undefined || other === undefined) return false;
+    return lowerIsBetter ? value < other : value > other;
+}
+
+/** Only the fields `getLastSeasonStats` maps — see nhlApi.test.ts. */
 function statLines(player: ComparisonPlayer): StatLine[] {
     const stats = player.stats;
     const num = (value: unknown): number | undefined =>
         typeof value === 'number' && !Number.isNaN(value) ? value : undefined;
 
     if (isGoalie(player)) {
-        const wins = num(stats?.wins);
+        const goalieWins = num(stats?.wins);
         const savePct = num(stats?.savePct);
+        const gaa = num(stats?.goalsAgainstAverage);
+        const shutouts = num(stats?.shutouts);
         return [
-            { label: 'Fantasy Pts', value: (wins ?? 0) * 2, display: `${(wins ?? 0) * 2}` },
-            { label: 'Wins', value: wins, display: wins?.toString() ?? '—' },
+            { label: 'Fantasy Pts', value: (goalieWins ?? 0) * 2, display: `${(goalieWins ?? 0) * 2}` },
+            { label: 'Wins', value: goalieWins, display: goalieWins?.toString() ?? '—' },
             {
                 label: 'Save %',
                 value: savePct,
                 display: savePct !== undefined ? `${(savePct * 100).toFixed(1)}%` : '—',
             },
+            {
+                label: 'GAA',
+                value: gaa,
+                display: gaa !== undefined ? gaa.toFixed(2) : '—',
+                lowerIsBetter: true,
+            },
+            { label: 'Shutouts', value: shutouts, display: shutouts?.toString() ?? '—' },
         ];
     }
 
     const goals = num(stats?.goals);
     const assists = num(stats?.assists);
     const points = num(stats?.points);
+    const perGame = num(stats?.pointsPerGame);
     return [
         { label: 'Fantasy Pts', value: (goals ?? 0) + (assists ?? 0), display: `${(goals ?? 0) + (assists ?? 0)}` },
         { label: 'Goals', value: goals, display: goals?.toString() ?? '—' },
         { label: 'Assists', value: assists, display: assists?.toString() ?? '—' },
         { label: 'Points', value: points, display: points?.toString() ?? '—' },
+        { label: 'Pts/Game', value: perGame, display: perGame !== undefined ? perGame.toFixed(2) : '—' },
     ];
 }
 
@@ -117,8 +133,8 @@ export default function PlayerComparisonModal() {
                                 {comparable
                                     ? rows.map((row, i) => {
                                         const other = rightRows[i];
-                                        const leftWins = row.value !== undefined && other?.value !== undefined && row.value > other.value;
-                                        const rightWins = row.value !== undefined && other?.value !== undefined && other.value > row.value;
+                                        const leftWins = wins(row.value, other?.value, row.lowerIsBetter);
+                                        const rightWins = wins(other?.value, row.value, row.lowerIsBetter);
                                         return (
                                             <div
                                                 key={row.label}

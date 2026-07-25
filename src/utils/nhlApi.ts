@@ -171,8 +171,12 @@ export interface LastSeasonStats {
   points: number;  // For skaters
   goals: number;   // For skaters
   assists: number; // For skaters
-  wins?: number;    // For goalies
-  savePct?: number; // For goalies
+  gamesPlayed?: number;
+  pointsPerGame?: number;      // For skaters
+  wins?: number;               // For goalies
+  savePct?: number;            // For goalies — a rate, e.g. 0.912
+  goalsAgainstAverage?: number; // For goalies
+  shutouts?: number;            // For goalies
 }
 
 // A lookup map: PlayerID -> Stats
@@ -204,7 +208,9 @@ export const getLastSeasonStats = async (): Promise<StatsMap> => {
           playerId: player.playerId,
           points: player.points,
           goals: player.goals,
-          assists: player.assists
+          assists: player.assists,
+          gamesPlayed: player.gamesPlayed,
+          pointsPerGame: player.pointsPerGame
         };
       });
     }
@@ -217,8 +223,11 @@ export const getLastSeasonStats = async (): Promise<StatsMap> => {
           points: 0, // Goalies technically have 0 points usually
           goals: 0,
           assists: 0,
+          gamesPlayed: player.gamesPlayed,
           wins: player.wins,
-          savePct: player.savePct
+          savePct: player.savePct,
+          goalsAgainstAverage: player.goalsAgainstAverage,
+          shutouts: player.shutouts
         };
       });
     }
