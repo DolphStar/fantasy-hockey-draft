@@ -515,7 +515,7 @@ export default function PlayerList() {
             {[1, 2].map(i => (<SkeletonCard key={i} />))}
           </div>
         ) : players.length === 0 ? (
-          <p className="text-gray-400">No players drafted yet. Go to the \"NHL Rosters\" tab and click \"Draft Player\" on any player!</p>
+          <p className="text-gray-400">No players drafted yet. Open the “Browse NHL” tab and hit “Draft Player” on anyone you like.</p>
         ) : reservePlayers.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed border-gray-700/50 rounded-xl"><p className="text-gray-400">No reserve players. All players are on active roster.</p></div>
         ) : (

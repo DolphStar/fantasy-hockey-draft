@@ -199,7 +199,7 @@ export default function AdminPlayerManagement() {
       {/* Note about adding players */}
       <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg text-sm">
         <p className="text-blue-200">
-          💡 <strong>To add players:</strong> Players can use the "NHL Rosters" tab during their draft turn.
+          💡 <strong>To add players:</strong> Players can use the “Browse NHL” tab during their draft turn.
         </p>
       </div>
     </GlassCard>
