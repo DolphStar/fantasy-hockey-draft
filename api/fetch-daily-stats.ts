@@ -3,11 +3,44 @@ import { getAdminDb } from './_lib/firebaseAdmin.js';
 import { evaluateCronAccess } from './_lib/routeAccess.js';
 import { getPreviousNewYorkDateString } from '../packages/core/dates/dateUtils.js';
 import { DEFAULT_SCORING_RULES } from '../packages/core/scoring/defaults.js';
+import { deriveGoalieShutout, deriveGoalieWin } from '../packages/core/nhl/deriveGoalieStats.js';
 
 // This cache is global (not per-league), so per-league `allowedGameTypes` can't
 // apply here. Regular season (2) + playoffs (3) are the only types any league
 // can ever count; preseason (1) and All-Star (4) never score fantasy points.
 const SCORABLE_GAME_TYPES = [2, 3];
+
+/**
+ * Pure: fantasy points for one goalie boxscore entry.
+ *
+ * Wins and shutouts are derived, not read: the boxscore carries neither field,
+ * only `decision` and `goalsAgainst`. The derivation is shared with the real
+ * scoring engine so this cache cannot drift from it.
+ *
+ * Beware `saveShotsAgainst` — it is a STRING like "17/22", not a number.
+ * Multiplying it by the save rate yields NaN, which poisons the whole
+ * accumulator; `fp` then reaches the waiver-wire reader as NaN, and `?? 0`
+ * does not catch NaN, so every goalie silently vanishes from Hot Pickups.
+ * Use `saves`.
+ */
+export function scoreGoalieEntry(goalie: {
+  decision?: string;
+  saves?: unknown;
+  goalsAgainst?: unknown;
+}): { points: number; saves: number; wins: number; shutouts: number } {
+  const saves = Number(goalie.saves ?? 0) || 0;
+  const goalsAgainst = Number(goalie.goalsAgainst ?? 0) || 0;
+
+  const wins = deriveGoalieWin(goalie.decision);
+  const shutouts = deriveGoalieShutout({ decision: goalie.decision, goalsAgainst, saves });
+
+  const points =
+    wins * DEFAULT_SCORING_RULES.win +
+    shutouts * DEFAULT_SCORING_RULES.shutout +
+    saves * DEFAULT_SCORING_RULES.save;
+
+  return { points, saves, wins, shutouts };
+}
 
 /** Pure: ids of completed games whose gameType can ever count for fantasy. */
 export function selectCompletedGameIds(
@@ -128,24 +161,15 @@ export default async function handler(
 
           // Process Goalies
           (teamStats.goalies || []).forEach((g: any) => {
-            let points = 0;
-            if (g.decision === 'W') points += DEFAULT_SCORING_RULES.win;
-            points += (g.saveShotsAgainst || 0) * DEFAULT_SCORING_RULES.save; // Verify field name
-            // Note: boxscore field is usually 'saves' or computed from shots-goals
-            // Let's check standard boxscore structure... usually it's `saves`
-            const saves = Number(g.saves || 0); 
-            points += saves * DEFAULT_SCORING_RULES.save;
-            if (Number(g.goalsAgainst || 0) === 0 && saves > 0 && g.toi !== '00:00') {
-               points += DEFAULT_SCORING_RULES.shutout;
-            }
+            const { points, saves, wins, shutouts } = scoreGoalieEntry(g);
 
             dailyStats[g.playerId] = {
               id: g.playerId,
               name: g.name?.default,
               team: teamAbbrev,
               pos: 'G',
-              stats: { w: g.decision === 'W' ? 1 : 0, sv: saves, so: (g.goalsAgainst === 0 && saves > 0) ? 1 : 0 },
-              fp: Number(points.toFixed(1))
+              stats: { w: wins, sv: saves, so: shutouts },
+              fp: Number(points.toFixed(2))
             };
           });
         });
