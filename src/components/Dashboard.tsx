@@ -148,7 +148,7 @@ export default function Dashboard() {
         () => teamScores.find(score => score.teamName === myTeam?.teamName)?.totalPoints ?? 0,
         [teamScores, myTeam],
     );
-    const animatedPoints = useCountUp(teamPoints, 1);
+    const animatedPoints = useCountUp(teamPoints, 1, 'dashboard-season-points');
     const leagueAveragePoints = useMemo(() => {
         if (teamScores.length === 0) return 0;
         const total = teamScores.reduce((sum, score) => sum + score.totalPoints, 0);

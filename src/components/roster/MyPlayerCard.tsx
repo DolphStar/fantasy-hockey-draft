@@ -105,7 +105,7 @@ export default function MyPlayerCard({
     };
 
     const fpColor = getFpColor(fantasyPoints);
-    const animatedFp = useCountUp(fantasyPoints, 0);
+    const animatedFp = useCountUp(fantasyPoints, 0, 'my-roster-points');
 
     // Edge light tinted by position (G gold, D emerald, forwards blue)
     const positionEdge = player.position === 'G'

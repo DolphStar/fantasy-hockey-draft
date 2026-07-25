@@ -29,7 +29,7 @@ interface PlayerPerformance {
 
 /** Counting team total — separate component so the hook runs per row. */
 function TeamPointsCell({ points }: { points: number }) {
-  const display = useCountUp(points, 2);
+  const display = useCountUp(points, 2, 'standings-points');
   return <span className="text-2xl font-black text-points drop-shadow-sm tabular-nums">{display}</span>;
 }
 

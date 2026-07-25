@@ -27,7 +27,8 @@ export default function PlayerCard({
     injury,
     draftState
 }: PlayerCardProps) {
-    const { addPlayerToCompare } = useComparison();
+    const { togglePlayerToCompare, isComparing } = useComparison();
+    const selectedForCompare = isComparing(player.person.id);
     const teamAbbrev = player.teamAbbrev || 'UNK';
     const position = player.position.code;
     const isForward = ['C', 'L', 'R'].includes(position);
@@ -67,7 +68,7 @@ export default function PlayerCard({
     };
 
     const fpColor = getFantasyPointsColor(lastSeasonFantasyPoints);
-    const animatedFp = useCountUp(lastSeasonFantasyPoints, 0);
+    const animatedFp = useCountUp(lastSeasonFantasyPoints, 0, 'nhl-players-last-season');
 
     // Edge light tinted by position (G gold, D emerald, forwards blue)
     const positionEdge = position === 'G'
@@ -261,7 +262,7 @@ export default function PlayerCard({
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                addPlayerToCompare({
+                                togglePlayerToCompare({
                                     id: player.person.id,
                                     name: getPlayerFullName(player),
                                     headshot: headshotUrl,
@@ -270,9 +271,15 @@ export default function PlayerCard({
                                     stats: playerStats
                                 });
                             }}
-                            className="shrink-0 px-4 py-2 rounded-full border border-slate-700/60 bg-slate-900/40 text-xs font-semibold text-gray-400 hover:text-white hover:border-slate-400 hover:bg-slate-800/60 transition-colors"
+                            aria-pressed={selectedForCompare}
+                            className={cn(
+                                'shrink-0 px-4 py-2 rounded-full border text-xs font-semibold transition-colors',
+                                selectedForCompare
+                                    ? 'border-violet-400/60 bg-violet-500/20 text-violet-200 hover:border-violet-300'
+                                    : 'border-slate-700/60 bg-slate-900/40 text-gray-400 hover:text-white hover:border-slate-400 hover:bg-slate-800/60'
+                            )}
                         >
-                            ⚖️ Compare
+                            {selectedForCompare ? '✓ Picked' : '⚖️ Compare'}
                         </button>
                     </div>
                 </div>
