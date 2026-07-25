@@ -27,6 +27,27 @@ import RosterFilters from './roster/RosterFilters';
 import DraftStatus from './draft/DraftStatus';
 import BestAvailable from './draft/BestAvailable';
 
+/**
+ * Stand-in card shown while the grid is being flung past.
+ *
+ * Dragging the scrollbar thumb scrolls on the compositor thread, so the
+ * viewport moves faster than React can mount fresh PlayerCards and the rows
+ * coming into view render blank until the drag stops. This keeps something on
+ * screen at speed; it must match the card's height so nothing shifts when the
+ * real cards swap back in.
+ */
+function ScrollSeekCard() {
+  return (
+    <div className="p-2 h-full">
+      <div className="h-[468px] w-full rounded-2xl border-2 border-slate-800/60 bg-gradient-to-br from-[#1e293b] to-[#0d1322] shadow-glass flex flex-col items-center justify-center gap-3">
+        <div className="w-24 h-24 rounded-full bg-slate-800/60" />
+        <div className="h-4 w-32 rounded bg-slate-800/60" />
+        <div className="h-3 w-20 rounded bg-slate-800/40" />
+      </div>
+    </div>
+  );
+}
+
 export default function NHLRoster() {
   const [draftedPlayerIds, setDraftedPlayerIds] = useState<Set<number>>(new Set());
   const [draftingPlayerId, setDraftingPlayerId] = useState<number | null>(null);
@@ -429,8 +450,16 @@ export default function NHLRoster() {
         useVirtualization ? (
           <VirtuosoGrid
             style={{ height: '800px' }}
-            totalCount={filteredRoster.length}
             data={filteredRoster}
+            // Keep a screen of cards mounted past each edge so a normal flick
+            // never outruns the render.
+            increaseViewportBy={{ top: 900, bottom: 900 }}
+            // Past that speed, swap in placeholders rather than blank rows.
+            scrollSeekConfiguration={{
+              enter: (velocity) => Math.abs(velocity) > 1200,
+              exit: (velocity) => Math.abs(velocity) < 250,
+            }}
+            components={{ ScrollSeekPlaceholder: ScrollSeekCard }}
             itemContent={(_index, player) => (
               <div className="p-2 h-full">
                 <PlayerCard
