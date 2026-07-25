@@ -4,6 +4,25 @@ import { evaluateCronAccess } from './_lib/routeAccess.js';
 import { getPreviousNewYorkDateString } from '../packages/core/dates/dateUtils.js';
 import { DEFAULT_SCORING_RULES } from '../packages/core/scoring/defaults.js';
 
+// This cache is global (not per-league), so per-league `allowedGameTypes` can't
+// apply here. Regular season (2) + playoffs (3) are the only types any league
+// can ever count; preseason (1) and All-Star (4) never score fantasy points.
+const SCORABLE_GAME_TYPES = [2, 3];
+
+/** Pure: ids of completed games whose gameType can ever count for fantasy. */
+export function selectCompletedGameIds(
+  games: Array<{ id: number; gameType?: number; gameState?: string }>,
+): number[] {
+  return games
+    .filter(
+      (g) =>
+        (g.gameState === 'OFF' || g.gameState === 'FINAL') &&
+        g.gameType !== undefined &&
+        SCORABLE_GAME_TYPES.includes(g.gameType),
+    )
+    .map((g) => g.id);
+}
+
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
@@ -34,21 +53,15 @@ export default async function handler(
     if (!scheduleRes.ok) throw new Error(`Schedule API error: ${scheduleRes.status}`);
     const scheduleData = (await scheduleRes.json()) as { games?: any[] };
 
-    const gameIds: number[] = [];
     // /score endpoint returns { games: [...] } directly
     const games = scheduleData.games || [];
 
     console.log(`API returned ${games.length} games for ${dateStr}`);
 
-    for (const game of games) {
-        // gameState can be 'OFF', 'FINAL', 'LIVE', 'CRIT' (critical?), 'FUT' (future)
-        // We only want completed games for stats
-        if (game.gameState === 'OFF' || game.gameState === 'FINAL') {
-          gameIds.push(game.id);
-        }
-    }
+    // gameState can be 'OFF', 'FINAL', 'LIVE', 'CRIT' (critical?), 'FUT' (future)
+    const gameIds = selectCompletedGameIds(games);
 
-    console.log(`Found ${gameIds.length} completed games for ${dateStr}`);
+    console.log(`Found ${gameIds.length} completed scorable games for ${dateStr}`);
 
     if (gameIds.length === 0) {
       return res.status(200).json({ message: 'No completed games found for date', date: dateStr, rawGamesFound: games.length });

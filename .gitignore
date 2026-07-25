@@ -32,3 +32,8 @@ backup-firestore.mjs
 firestore-backup-*/
 migrate-memberuids.mjs
 docs/superpowers/
+.superpowers/
+
+# Local Claude Code state. worktrees/ holds full duplicate checkouts.
+.claude/settings.local.json
+.claude/worktrees/
