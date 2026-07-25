@@ -1,9 +1,24 @@
 // Snake Draft Logic Utilities
 
+/** Structurally compatible with `LeagueTeam`; kept local so this stays dependency-free. */
+export interface DraftTeam {
+  teamName: string;
+  /** Empty string for a team slot nobody has claimed yet. */
+  ownerUid: string;
+}
+
 export interface DraftPick {
   pick: number;
   round: number;
   team: string;
+  /**
+   * Owner of `team`, denormalized onto every pick so Firestore rules can check
+   * whose turn it is without searching the league's team list (rules cannot
+   * search a list). This is what stops a member advancing past someone else's
+   * pick — see the `drafts/{leagueId}` rules. Empty for unclaimed team slots,
+   * which only the admin can draft for.
+   */
+  ownerUid: string;
 }
 
 export interface LastPickInfo {
@@ -27,7 +42,7 @@ export interface DraftState {
  * @param rounds - Number of rounds
  * @returns Array of draft picks in snake order
  */
-export function generateSnakeDraftOrder(teams: string[], rounds: number): DraftPick[] {
+export function generateSnakeDraftOrder(teams: DraftTeam[], rounds: number): DraftPick[] {
   const draftOrder: DraftPick[] = [];
   let pickNumber = 1;
 
@@ -39,7 +54,8 @@ export function generateSnakeDraftOrder(teams: string[], rounds: number): DraftP
       draftOrder.push({
         pick: pickNumber,
         round,
-        team
+        team: team.teamName,
+        ownerUid: team.ownerUid ?? ''
       });
       pickNumber++;
     }
@@ -79,7 +95,7 @@ export function getNextPick(draftState: DraftState): DraftPick | null {
 /**
  * Create initial draft state
  */
-export function createInitialDraftState(teams: string[], rounds: number): DraftState {
+export function createInitialDraftState(teams: DraftTeam[], rounds: number): DraftState {
   const draftOrder = generateSnakeDraftOrder(teams, rounds);
 
   return {

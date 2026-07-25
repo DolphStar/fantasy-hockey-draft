@@ -152,11 +152,66 @@ service cloud.firestore {
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rosterSlot', 'pendingSlot', 'pendingSwapWith', 'lastSwapDate']);
     }
 
-    // Draft state - per league
-    // Members need write access to advance picks during drafting (transaction in NHLRoster)
+    // Draft state - per league.
+    //
+    // The draft is client-driven, so these rules are the ONLY thing enforcing turn
+    // order. Without them any member could advance currentPickNumber past their
+    // rivals, rewrite draftOrder, or flip isComplete. Three invariants close that:
+    //
+    //   1. An update may only ever advance the clock by exactly one pick, and
+    //      isComplete must follow from it. draftOrder and totalPicks are frozen.
+    //   2. The caller must own the team on the clock. Each draftOrder entry carries
+    //      the owner's uid (see DraftPick.ownerUid) because rules cannot search the
+    //      league's team list for a matching owner.
+    //   3. The admin can additionally reset the doc, but only back to a pristine
+    //      draft — never to an arbitrary mid-draft state.
+    //
+    // Unclaimed team slots carry ownerUid '', which matches no caller, so only the
+    // admin can draft for them (that is what auto-complete does).
     match /drafts/{leagueId} {
+      // Guard index access: rules fail closed if currentPickNumber is out of range.
+      function hasPickOnTheClock() {
+        return resource.data.currentPickNumber is int
+               && resource.data.draftOrder is list
+               && resource.data.currentPickNumber >= 1
+               && resource.data.currentPickNumber <= resource.data.draftOrder.size();
+      }
+
+      function pickOnTheClock() {
+        return resource.data.draftOrder[resource.data.currentPickNumber - 1];
+      }
+
+      function advancesClockByOne() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['currentPickNumber', 'isComplete'])
+               && request.resource.data.currentPickNumber == resource.data.currentPickNumber + 1
+               && request.resource.data.isComplete ==
+                    (request.resource.data.currentPickNumber > resource.data.totalPicks);
+      }
+
+      // A brand new (or freshly reset) draft: pick 1, not complete, and a draft
+      // order whose length agrees with totalPicks.
+      function isPristineDraft() {
+        return request.resource.data.currentPickNumber == 1
+               && request.resource.data.isComplete == false
+               && request.resource.data.draftOrder is list
+               && request.resource.data.draftOrder.size() > 0
+               && request.resource.data.totalPicks == request.resource.data.draftOrder.size();
+      }
+
       allow read: if isInLeague(leagueId);
-      allow create, update: if isInLeague(leagueId);
+
+      // Any member may bootstrap the draft doc (the draft page does this on first
+      // load), but only into a pristine state.
+      allow create: if isInLeague(leagueId) && isPristineDraft();
+
+      allow update: if (isInLeague(leagueId)
+                        && hasPickOnTheClock()
+                        && advancesClockByOne()
+                        && (pickOnTheClock().ownerUid == request.auth.uid
+                            || isLeagueAdmin(leagueId)))
+                    || (isLeagueAdmin(leagueId) && isPristineDraft());
+
       allow delete: if isLeagueAdmin(leagueId);
     }
 
