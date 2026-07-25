@@ -263,7 +263,7 @@ export default function Dashboard() {
                                     <span className="text-[10px] text-slate-500" title="Wooden spoon">🥄</span>
                                 )}
                             </span>
-                            <span className="text-sm font-extrabold text-points tabular-nums">{team.totalPoints.toFixed(1)}</span>
+                            <span className="text-sm font-extrabold text-white tabular-nums">{team.totalPoints.toFixed(1)}</span>
                         </div>
                     ))}
                 </GlassCard>
@@ -368,7 +368,7 @@ export default function Dashboard() {
                                         </span>
                                         <span className="text-sm font-semibold text-white">{team.teamName}</span>
                                     </span>
-                                    <span className="text-sm font-extrabold text-points">{team.totalPoints.toFixed(1)}</span>
+                                    <span className="text-sm font-extrabold text-white">{team.totalPoints.toFixed(1)}</span>
                                 </div>
                             ))}
                             <div className="flex items-center justify-between px-4 py-2.5 text-[11px]">

@@ -20,12 +20,12 @@ export function YourSeasonCard({ summary, medalClass }: { summary: TeamSummary; 
         </div>
         <div>
           <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-slate-500">Points</div>
-          <div className="text-points font-extrabold text-xl tabular-nums mt-1">{summary.totalPoints.toFixed(1)}</div>
+          <div className="text-white font-extrabold text-xl tabular-nums mt-1">{summary.totalPoints.toFixed(1)}</div>
         </div>
         <div>
           <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-slate-500">Top Player</div>
           <div className="text-white font-semibold mt-1 truncate">{summary.topPlayer?.name ?? '—'}</div>
-          {summary.topPlayer && <div className="text-[11px] text-points">{summary.topPlayer.points.toFixed(1)} pts</div>}
+          {summary.topPlayer && <div className="text-[11px] text-slate-400">{summary.topPlayer.points.toFixed(1)} pts</div>}
         </div>
         <div>
           <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-slate-500">Best Pick</div>

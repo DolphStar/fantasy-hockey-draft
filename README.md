@@ -134,23 +134,23 @@ A **real-time fantasy hockey draft application** built with React, TypeScript, F
 ## 📸 Screenshots
 
 ### Dashboard
-![Dashboard](screenshots/dashboard.png)
-*Season overview with live game status, matchups, league feed, team health, and waiver wire pickups*
+![Dashboard](screenshots/dashboard.jpg)
+*Game-day overview — tonight's slate, live standings, waiver-wire pickups, injuries and a 7-day scoring trend*
 
 ### NHL Rosters
-![NHL Rosters](screenshots/nhl-rosters.png)
-*Browse and search NHL players by team and position with real-time availability*
+![NHL Rosters](screenshots/nhl-rosters.jpg)
+*Browse and search NHL players by team and position, draft on the clock, or stack two up head to head*
 
 ### Draft Board
-![Draft Board](screenshots/draft-board.png)
+![Draft Board](screenshots/draft-board.jpg)
 *Visual snake draft grid showing all picks across teams and rounds*
 
 ### Standings
-![Standings](screenshots/standings.png)
-*League standings with real-time point totals and rankings*
+![Standings](screenshots/standings.jpg)
+*League standings with real-time point totals, rankings and per-player season splits*
 
 ### Live Stats
-![Live Stats](screenshots/live-stats.png)
+![Live Stats](screenshots/live-stats.jpg)
 *Real-time game stats tracking for all your players during NHL games*
 
 ---

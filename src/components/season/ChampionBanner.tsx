@@ -39,7 +39,7 @@ export function ChampionBanner({ archive, myTeamName }: { archive: SeasonArchive
                                 {team.rank}
                             </span>
                             <span className="text-sm font-semibold text-white flex-1">{team.teamName}</span>
-                            <span className="text-sm font-extrabold text-points tabular-nums">{team.totalPoints.toFixed(1)}</span>
+                            <span className="text-sm font-extrabold text-white tabular-nums">{team.totalPoints.toFixed(1)}</span>
                         </div>
                     ))}
                 </div>

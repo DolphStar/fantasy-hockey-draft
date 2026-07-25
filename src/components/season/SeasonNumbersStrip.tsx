@@ -5,7 +5,7 @@ import { StatNumber } from '../ui/StatNumber';
 export function SeasonNumbersStrip({ stats, teamCount }: { stats?: SeasonStats; teamCount: number }) {
   if (!stats) return null;
   const tiles: Array<{ label: string; value: string | number; tone: 'points' | 'white' | 'rank' }> = [
-    { label: 'Total Points', value: stats.totalPoints.toLocaleString(), tone: 'points' },
+    { label: 'Total Points', value: stats.totalPoints.toLocaleString(), tone: 'white' },
     { label: 'Teams', value: teamCount, tone: 'white' },
     { label: 'Avg / Team', value: stats.avgTeamPoints.toLocaleString(), tone: 'white' },
     { label: 'Closest Race', value: stats.runnerUpGap.toFixed(1), tone: 'rank' },

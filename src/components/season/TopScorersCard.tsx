@@ -19,7 +19,7 @@ export function TopScorersCard({ players }: { players: SeasonArchive['topPlayers
               <span className="block text-[11px] text-slate-500">{p.position} · {p.nhlTeam} · {p.draftedByTeam}</span>
             </span>
           </span>
-          <span className="text-sm font-extrabold text-points tabular-nums">{p.points.toFixed(1)}</span>
+          <span className="text-sm font-extrabold text-white tabular-nums">{p.points.toFixed(1)}</span>
         </div>
       ))}
     </GlassCard>

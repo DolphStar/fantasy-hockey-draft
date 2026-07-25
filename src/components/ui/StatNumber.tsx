@@ -5,7 +5,7 @@ interface StatNumberProps {
   /** Micro-label rendered above the number, uppercase */
   label?: string;
   size?: 'md' | 'lg' | 'xl';
-  /** Color role; points is the default for fantasy-point values */
+  /** Color role. Big totals read white; `points` green is for positive deltas. */
   tone?: 'points' | 'white' | 'rank';
   className?: string;
 }
@@ -14,7 +14,7 @@ const sizes = { md: 'text-xl', lg: 'text-3xl', xl: 'text-4xl' };
 const tones = { points: 'text-points', white: 'text-white', rank: 'text-rank' };
 
 /** Big stat number with optional micro-label. Use for every fantasy-point display. */
-export function StatNumber({ value, label, size = 'lg', tone = 'points', className }: StatNumberProps) {
+export function StatNumber({ value, label, size = 'lg', tone = 'white', className }: StatNumberProps) {
   return (
     <div className={cn('leading-tight', className)}>
       {label && (
