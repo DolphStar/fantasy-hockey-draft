@@ -30,11 +30,12 @@ export default function DraftStatus({
         ? Math.min(100, Math.max(0, ((currentPick.pick - 1) / totalPicks) * 100))
         : 0;
 
+    // Position colors match the My Roster filter chips (blue F / emerald D / amber G)
     const rosterNeeds = myTeam && league?.rosterSettings
         ? [
-            { label: 'F', have: myTeamPositions.active.F, need: league.rosterSettings.forwards },
-            { label: 'D', have: myTeamPositions.active.D, need: league.rosterSettings.defensemen },
-            { label: 'G', have: myTeamPositions.active.G, need: league.rosterSettings.goalies },
+            { label: 'F', have: myTeamPositions.active.F, need: league.rosterSettings.forwards, tone: 'border-blue-500/40 bg-blue-500/10 text-blue-300' },
+            { label: 'D', have: myTeamPositions.active.D, need: league.rosterSettings.defensemen, tone: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' },
+            { label: 'G', have: myTeamPositions.active.G, need: league.rosterSettings.goalies, tone: 'border-amber-400/40 bg-amber-400/10 text-amber-300' },
         ]
         : [];
 
@@ -105,23 +106,20 @@ export default function DraftStatus({
                     {/* Roster needs */}
                     {rosterNeeds.length > 0 && (
                         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                            {rosterNeeds.map(({ label, have, need }) => {
-                                const filled = have >= need;
-                                return (
-                                    <span
-                                        key={label}
-                                        className={cn(
-                                            'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold tabular-nums',
-                                            filled
-                                                ? 'border-emerald-400/25 bg-emerald-500/10 text-points'
-                                                : 'border-amber-400/25 bg-amber-500/10 text-amber-300'
-                                        )}
-                                    >
-                                        {label}
-                                        <span className="opacity-80">{have}/{need}</span>
-                                    </span>
-                                );
-                            })}
+                            {rosterNeeds.map(({ label, have, need, tone }) => (
+                                <span
+                                    key={label}
+                                    className={cn(
+                                        'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold tabular-nums',
+                                        tone,
+                                        // Slots already filled recede; open slots stay at full strength
+                                        have >= need && 'opacity-60'
+                                    )}
+                                >
+                                    {label}
+                                    <span className="opacity-80">{have}/{need}</span>
+                                </span>
+                            ))}
                             <span className="inline-flex items-center gap-1 rounded-md border border-white/5 bg-slate-800/60 px-2 py-0.5 text-[11px] font-bold tabular-nums text-slate-400">
                                 RES
                                 <span className="opacity-80">{myTeamPositions.reserve}/5</span>
