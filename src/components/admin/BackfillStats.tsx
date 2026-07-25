@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { authedGet } from '../../services/apiClient';
+import { getRecentNewYorkDateStrings } from '../../utils/dateUtils';
 import { GlassCard } from '../ui/GlassCard';
+
+const BACKFILL_WEEK_DAYS = 7;
 
 export default function BackfillStats() {
   const { league, isAdmin } = useLeague();
@@ -55,14 +58,15 @@ export default function BackfillStats() {
     try {
       setProcessing(true);
       const results: string[] = [];
-      
-      for (let i = 1; i <= 7; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        setResult(`⏳ Processing ${dateStr} (${i}/7)...`);
-        
+
+      // NHL stats are keyed by the New York date. Building this list from the
+      // browser's clock (or toISOString(), which is UTC) requests the wrong day
+      // for anyone outside US Eastern.
+      const dates = getRecentNewYorkDateStrings(BACKFILL_WEEK_DAYS);
+
+      for (const [index, dateStr] of dates.entries()) {
+        setResult(`⏳ Processing ${dateStr} (${index + 1}/${dates.length})...`);
+
         try {
           const result = await backfillDate(dateStr);
           results.push(`${dateStr}: ${result.players} players`);
@@ -70,7 +74,7 @@ export default function BackfillStats() {
           results.push(`${dateStr}: ❌ ${err instanceof Error ? err.message : 'Error'}`);
         }
       }
-      
+
       setResult(`✅ Backfill complete!\n${results.join('\n')}`);
     } catch (error) {
       console.error('Error backfilling week:', error);
