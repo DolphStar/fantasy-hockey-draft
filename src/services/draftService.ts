@@ -18,10 +18,7 @@ export async function ensureDraftState(league: League): Promise<DraftState> {
     return draftDoc.data() as DraftState;
   }
 
-  const initialState = createInitialDraftState(
-    league.teams.map(team => team.teamName),
-    league.draftRounds,
-  );
+  const initialState = createInitialDraftState(league.teams, league.draftRounds);
   await setDoc(draftDocRef, initialState);
   return initialState;
 }
@@ -52,9 +49,6 @@ export async function resetDraftForLeague(league: League) {
   await deleteCollectionDocs(`leagues/${league.id}/teamScores`);
   await deleteCollectionDocs(`leagues/${league.id}/liveStats`);
 
-  const initialState = createInitialDraftState(
-    league.teams.map(team => team.teamName),
-    league.draftRounds,
-  );
+  const initialState = createInitialDraftState(league.teams, league.draftRounds);
   await setDoc(doc(db, 'drafts', league.id), initialState);
 }
