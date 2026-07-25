@@ -15,7 +15,7 @@ import {
 } from '../utils/nhlApi';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, runTransaction, doc } from 'firebase/firestore';
-import { SkeletonCard } from './ui/Skeleton';
+import { Skeleton, SkeletonCard } from './ui/Skeleton';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
 import { useSound } from '../context/SoundContext';
@@ -30,19 +30,35 @@ import BestAvailable from './draft/BestAvailable';
 /**
  * Stand-in card shown while the grid is being flung past.
  *
- * Dragging the scrollbar thumb scrolls on the compositor thread, so the
- * viewport moves faster than React can mount fresh PlayerCards and the rows
- * coming into view render blank until the drag stops. This keeps something on
- * screen at speed; it must match the card's height so nothing shifts when the
- * real cards swap back in.
+ * Dragging the scrollbar thumb scrolls on the compositor thread, so the viewport
+ * moves faster than React can mount fresh PlayerCards and the rows coming into
+ * view would otherwise be blank until the drag stops. Nothing can render 700
+ * real cards at that speed, so the job here is to look unmistakably like a card
+ * in motion rather than like a hole: same 468px height and edge treatment as the
+ * real thing, laid out in its anatomy (badge, headshot, name, stats, actions),
+ * with the app's shimmer so it reads as loading rather than broken.
  */
 function ScrollSeekCard() {
   return (
     <div className="p-2 h-full">
-      <div className="h-[468px] w-full rounded-2xl border-2 border-slate-800/60 bg-gradient-to-br from-[#1e293b] to-[#0d1322] shadow-glass flex flex-col items-center justify-center gap-3">
-        <div className="w-24 h-24 rounded-full bg-slate-800/60" />
-        <div className="h-4 w-32 rounded bg-slate-800/60" />
-        <div className="h-3 w-20 rounded bg-slate-800/40" />
+      <div className="relative h-[468px] w-full overflow-hidden rounded-2xl border-2 border-blue-400/25 bg-gradient-to-br from-[#1e293b] to-[#0d1322] shadow-glass">
+        <Skeleton className="absolute right-3 top-3 h-14 w-12 rounded-md" />
+        <div className="flex h-64 items-end justify-center">
+          <Skeleton className="h-48 w-48 rounded-full" />
+        </div>
+        <div className="mt-[-20px] flex flex-col px-4 pb-4">
+          <Skeleton className="mx-auto h-3 w-24" />
+          <Skeleton className="mx-auto mt-2 h-8 w-40" />
+          <Skeleton className="mx-auto mt-3 h-8 w-52 rounded-full" />
+          <div className="mt-6 flex items-end justify-between">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <Skeleton className="h-8 w-14" />
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <Skeleton className="h-9 flex-1 rounded-full" />
+            <Skeleton className="h-9 w-24 rounded-full" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -451,13 +467,14 @@ export default function NHLRoster() {
           <VirtuosoGrid
             style={{ height: '800px' }}
             data={filteredRoster}
-            // Keep a screen of cards mounted past each edge so a normal flick
-            // never outruns the render.
-            increaseViewportBy={{ top: 900, bottom: 900 }}
-            // Past that speed, swap in placeholders rather than blank rows.
+            // Keep a screen of cards mounted past each edge so ordinary wheel
+            // scrolling and short drags never hit the placeholder path at all.
+            increaseViewportBy={{ top: 1400, bottom: 1400 }}
+            // Only a genuine fling falls back to placeholders, and it drops back
+            // to real cards as soon as the drag eases off.
             scrollSeekConfiguration={{
-              enter: (velocity) => Math.abs(velocity) > 1200,
-              exit: (velocity) => Math.abs(velocity) < 250,
+              enter: (velocity) => Math.abs(velocity) > 2500,
+              exit: (velocity) => Math.abs(velocity) < 400,
             }}
             components={{ ScrollSeekPlaceholder: ScrollSeekCard }}
             itemContent={(_index, player) => (
