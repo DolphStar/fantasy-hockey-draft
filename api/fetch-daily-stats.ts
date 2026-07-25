@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { defaultAdminAccessDeps, evaluateAdminAccess } from './_lib/adminAuth.js';
 import { getAdminDb } from './_lib/firebaseAdmin.js';
 import { evaluateCronAccess } from './_lib/routeAccess.js';
 import { getPreviousNewYorkDateString } from '../packages/core/dates/dateUtils.js';
@@ -60,14 +61,26 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  const access = evaluateCronAccess(
-    req,
-    { cronSecret: process.env.CRON_SECRET, nodeEnv: process.env.NODE_ENV },
-    { allowQueryBypass: { param: 'returnOnly', value: 'true' } },
-  );
+  // Auth: the nightly cron uses CRON_SECRET. The in-app Backfill Stats tool
+  // instead sends a league admin's Firebase ID token plus that league's id --
+  // the same pattern calculate-scores uses. `nhl_daily_stats` is a global cache
+  // rather than league-scoped, so the leagueId only establishes that the caller
+  // administers *some* league; it does not scope what gets written.
+  const leagueId = typeof req.query.leagueId === 'string' ? req.query.leagueId : undefined;
 
-  if (!access.allowed) {
-    return res.status(access.statusCode).json(access.body);
+  const cronAccess = evaluateCronAccess(req, {
+    cronSecret: process.env.CRON_SECRET,
+    nodeEnv: process.env.NODE_ENV,
+  });
+
+  if (!cronAccess.allowed) {
+    if (!leagueId) {
+      return res.status(cronAccess.statusCode).json(cronAccess.body);
+    }
+    const adminAccess = await evaluateAdminAccess(req, leagueId, defaultAdminAccessDeps());
+    if (!adminAccess.allowed) {
+      return res.status(adminAccess.statusCode).json(adminAccess.body);
+    }
   }
 
   try {
@@ -177,20 +190,6 @@ export default async function handler(
     }
 
     // Check if we should just return the data (for client-side saving)
-    const returnOnly = req.query.returnOnly === 'true';
-
-    if (returnOnly) {
-      return res.status(200).json({
-        success: true,
-        date: dateStr,
-        data: {
-          date: dateStr,
-          players: dailyStats,
-          updatedAt: new Date().toISOString()
-        }
-      });
-    }
-
     // Save to Firestore using the shared server-only Firebase Admin helper.
     const db = await getAdminDb();
     
