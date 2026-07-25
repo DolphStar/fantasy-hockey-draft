@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useDraft } from '../../context/DraftContext';
 import { useTurnNotification } from '../../hooks/useTurnNotification';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
+import ComparisonTray from './ComparisonTray';
 
 const PlayerComparisonModal = lazyWithRetry(() => import('../modals/PlayerComparisonModal'));
 const DraftCelebration = lazyWithRetry(() => import('../draft/DraftCelebration'));
@@ -112,6 +113,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         {/* Lazy modals get their own boundary so loading their chunks never
             blanks the whole shell behind App's "Loading view…" fallback. */}
+        <ComparisonTray />
         <Suspense fallback={null}>
           <PlayerComparisonModal />
         </Suspense>

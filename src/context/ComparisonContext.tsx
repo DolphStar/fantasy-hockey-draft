@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import { isComparisonReady, nextComparisonSelection } from '../utils/comparison';
 
 export interface ComparisonPlayer {
     id: number;
@@ -14,9 +15,11 @@ interface ComparisonContextType {
     openComparison: () => void;
     closeComparison: () => void;
     selectedPlayers: ComparisonPlayer[];
-    addPlayerToCompare: (player: ComparisonPlayer) => void;
+    /** Adds the player, or removes them if they were already picked. */
+    togglePlayerToCompare: (player: ComparisonPlayer) => void;
     removePlayerFromCompare: (playerId: number) => void;
     clearComparison: () => void;
+    isComparing: (playerId: number) => boolean;
 }
 
 const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined);
@@ -28,23 +31,18 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
     const openComparison = () => setIsOpen(true);
     const closeComparison = () => setIsOpen(false);
 
-    const addPlayerToCompare = (player: ComparisonPlayer) => {
-        // Check if player is already selected
-        if (selectedPlayers.some(p => p.id === player.id)) return;
-
-        if (selectedPlayers.length >= 2) {
-            // If already 2, replace the second one
-            setSelectedPlayers([selectedPlayers[0], player]);
-        } else {
-            setSelectedPlayers([...selectedPlayers, player]);
-        }
-
-        // Auto-open if we have 2 players (or even 1 to show the "select another" state)
-        setIsOpen(true);
+    const togglePlayerToCompare = (player: ComparisonPlayer) => {
+        const next = nextComparisonSelection(selectedPlayers, player);
+        setSelectedPlayers(next);
+        // A comparison of one is not a comparison — the tray carries the
+        // "pick another player" state until there are two.
+        setIsOpen(isComparisonReady(next));
     };
 
     const removePlayerFromCompare = (playerId: number) => {
-        setSelectedPlayers(selectedPlayers.filter(p => p.id !== playerId));
+        const next = selectedPlayers.filter(p => p.id !== playerId);
+        setSelectedPlayers(next);
+        if (!isComparisonReady(next)) setIsOpen(false);
     };
 
     const clearComparison = () => {
@@ -52,15 +50,18 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
         setIsOpen(false);
     };
 
+    const isComparing = (playerId: number) => selectedPlayers.some(p => p.id === playerId);
+
     return (
         <ComparisonContext.Provider value={{
             isOpen,
             openComparison,
             closeComparison,
             selectedPlayers,
-            addPlayerToCompare,
+            togglePlayerToCompare,
             removePlayerFromCompare,
-            clearComparison
+            clearComparison,
+            isComparing
         }}>
             {children}
         </ComparisonContext.Provider>
