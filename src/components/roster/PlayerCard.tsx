@@ -115,7 +115,7 @@ export default function PlayerCard({
 
     return (
         <div
-            className="relative group transition-all duration-300 h-[420px] w-full perspective-1000 cursor-pointer"
+            className="relative group transition-all duration-300 h-[468px] w-full perspective-1000 cursor-pointer"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             style={{
@@ -185,17 +185,8 @@ export default function PlayerCard({
                     </div>
                 </div>
 
-                {/* Team Logo bottom-left */}
-                <div className="absolute bottom-4 left-4 z-30">
-                    <img
-                        src={teamLogoUrl}
-                        alt="Team Logo"
-                        className="w-14 h-14 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
-                    />
-                </div>
-
                 {/* Content */}
-                <div className="flex-1 flex flex-col px-4 pb-3 relative z-20 mt-[-20px]">
+                <div className="flex-1 flex flex-col px-4 pb-4 relative z-20 mt-[-20px]">
                     <div className="text-center w-full mb-3">
                         <h3 className="text-white/70 font-heading font-medium text-sm uppercase tracking-[0.3em] leading-none mb-1 drop-shadow-md">
                             {player.person.firstName.default}
@@ -226,60 +217,65 @@ export default function PlayerCard({
                         avgLabel={isForward || position === 'D' ? 'AVG' : 'GAA'}
                     />
 
+                    {/* Meta row - team mark left, last season fantasy points right */}
+                    <div className="mt-3 flex items-end justify-between gap-3">
+                        <img
+                            src={teamLogoUrl}
+                            alt={`${teamAbbrev} logo`}
+                            className="w-12 h-12 shrink-0 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                        />
+                        <div className="text-right">
+                            <div className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">
+                                Last Season
+                            </div>
+                            {playerStats && lastSeasonFantasyPoints > 0 ? (
+                                <div className={cn(
+                                    "text-[32px] font-black leading-none tabular-nums",
+                                    fpColor.text,
+                                    isExceptional && "drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]"
+                                )}>
+                                    {animatedFp}
+                                </div>
+                            ) : (
+                                <div className="text-[32px] font-black leading-none text-slate-600">—</div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Actions */}
-                    <div className="mt-4 space-y-2">
-                        {draftStatusLabel && (
-                            <div className="text-center text-xs text-slate-400 font-semibold py-1.5 border border-slate-700/60 rounded-full">
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                        {draftStatusLabel ? (
+                            <div className="flex-1 text-center text-xs text-slate-400 font-semibold py-2 border border-slate-700/60 rounded-full">
                                 {draftStatusLabel}
                             </div>
-                        )}
-
-                        {!draftStatusLabel && draftState && !draftState.isComplete && (
+                        ) : draftState && !draftState.isComplete ? (
                             <button
                                 onClick={() => onDraft(player)}
                                 disabled={isDrafting}
-                                className="w-full py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-bold tracking-wide shadow-[0_5px_15px_rgba(37,99,235,0.35)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.5)] transition-all disabled:cursor-not-allowed"
+                                className="flex-1 min-w-0 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-bold tracking-wide shadow-[0_5px_15px_rgba(37,99,235,0.35)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.5)] transition-all disabled:cursor-not-allowed"
                             >
                                 {isDrafting ? 'Drafting…' : 'Draft Player'}
                             </button>
-                        )}
+                        ) : null}
 
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                addPlayerToCompare({
+                                    id: player.person.id,
+                                    name: getPlayerFullName(player),
+                                    headshot: headshotUrl,
+                                    positionCode: player.position.code,
+                                    teamAbbrev,
+                                    stats: playerStats
+                                });
+                            }}
+                            className="shrink-0 px-4 py-2 rounded-full border border-slate-700/60 bg-slate-900/40 text-xs font-semibold text-gray-400 hover:text-white hover:border-slate-400 hover:bg-slate-800/60 transition-colors"
+                        >
+                            ⚖️ Compare
+                        </button>
                     </div>
                 </div>
-
-                {/* Fantasy Points - Bottom Right */}
-                {playerStats && lastSeasonFantasyPoints > 0 && (
-                    <div className="absolute bottom-3 right-3 z-30 text-right">
-                        <div className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">
-                            Last Season:
-                        </div>
-                        <div className={cn(
-                            "text-4xl font-black leading-none tabular-nums",
-                            fpColor.text,
-                            isExceptional && "drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]"
-                        )}>
-                            {animatedFp}
-                        </div>
-                    </div>
-                )}
-
-                {/* Compare button - absolute bottom center */}
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        addPlayerToCompare({
-                            id: player.person.id,
-                            name: getPlayerFullName(player),
-                            headshot: headshotUrl,
-                            positionCode: player.position.code,
-                            teamAbbrev,
-                            stats: playerStats
-                        });
-                    }}
-                    className="absolute bottom-3 left-1/2 -translate-x-1/2 px-5 py-1.5 rounded-full border border-slate-700/60 text-xs font-semibold text-gray-400 hover:text-white hover:border-slate-400 transition-colors z-30"
-                >
-                    ⚖️ Compare
-                </button>
             </div>
         </div>
     );
