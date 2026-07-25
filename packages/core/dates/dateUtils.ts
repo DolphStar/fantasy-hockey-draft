@@ -27,6 +27,28 @@ export function getPreviousNewYorkDateString(date = new Date()): string {
   return shiftDateString(getNewYorkDateString(date), -1);
 }
 
+/**
+ * The `count` New York calendar days immediately before `date`, most recent
+ * first — i.e. the days that are already over and therefore safe to fetch
+ * completed stats for.
+ *
+ * Anchored to New York rather than the caller's clock on purpose: NHL stats are
+ * keyed by the New York date, so building a date list from a browser's local
+ * time (or from `toISOString()`, which is UTC) can request the wrong day for
+ * anyone not in US Eastern.
+ */
+export function getRecentNewYorkDateStrings(count: number, date = new Date()): string[] {
+  const dates: string[] = [];
+  let cursor = getNewYorkDateString(date);
+
+  for (let index = 0; index < count; index++) {
+    cursor = shiftDateString(cursor, -1);
+    dates.push(cursor);
+  }
+
+  return dates;
+}
+
 /** Parses 24h hour from `newYorkHourFormatter`; throws if not 0–23. */
 export function parseNewYorkHourString(formattedHour: string): number {
   const trimmed = formattedHour.trim();

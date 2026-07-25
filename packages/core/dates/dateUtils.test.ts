@@ -4,6 +4,7 @@ import {
   getHockeyDay,
   getNewYorkDateString,
   getPreviousNewYorkDateString,
+  getRecentNewYorkDateStrings,
   parseNewYorkHourString,
 } from './dateUtils';
 
@@ -48,5 +49,46 @@ describe('dateUtils (core)', () => {
 
   it('gets the previous New York date correctly across DST boundaries', () => {
     expect(getPreviousNewYorkDateString(new Date('2026-11-02T05:30:00Z'))).toBe('2026-11-01');
+  });
+});
+
+describe('getRecentNewYorkDateStrings', () => {
+  it('returns the days before today in New York, most recent first', () => {
+    expect(getRecentNewYorkDateStrings(3, new Date('2026-01-15T18:00:00Z'))).toEqual([
+      '2026-01-14',
+      '2026-01-13',
+      '2026-01-12',
+    ]);
+  });
+
+  it('anchors to New York, not UTC', () => {
+    // 03:30 UTC on the 15th is still 22:30 ET on the 14th, so the most recent
+    // completed day is the 13th. A UTC-based list would start at the 14th.
+    expect(getRecentNewYorkDateStrings(2, new Date('2026-01-15T03:30:00Z'))).toEqual([
+      '2026-01-13',
+      '2026-01-12',
+    ]);
+  });
+
+  it('crosses a month boundary', () => {
+    expect(getRecentNewYorkDateStrings(3, new Date('2026-03-02T18:00:00Z'))).toEqual([
+      '2026-03-01',
+      '2026-02-28',
+      '2026-02-27',
+    ]);
+  });
+
+  it('does not skip or repeat a day across the spring DST change', () => {
+    // US DST starts 2026-03-08.
+    expect(getRecentNewYorkDateStrings(4, new Date('2026-03-10T18:00:00Z'))).toEqual([
+      '2026-03-09',
+      '2026-03-08',
+      '2026-03-07',
+      '2026-03-06',
+    ]);
+  });
+
+  it('returns an empty list for a count of zero', () => {
+    expect(getRecentNewYorkDateStrings(0, new Date('2026-01-15T18:00:00Z'))).toEqual([]);
   });
 });
