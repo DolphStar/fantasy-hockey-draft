@@ -68,7 +68,7 @@ export default function PlayerCard({
     };
 
     const fpColor = getFantasyPointsColor(lastSeasonFantasyPoints);
-    const animatedFp = useCountUp(lastSeasonFantasyPoints, 0);
+    const animatedFp = useCountUp(lastSeasonFantasyPoints, 0, 'nhl-players-last-season');
 
     // Edge light tinted by position (G gold, D emerald, forwards blue)
     const positionEdge = position === 'G'

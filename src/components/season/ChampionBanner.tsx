@@ -12,7 +12,7 @@ const medalCls = (rank: number) =>
             : 'bg-amber-600 text-slate-950';
 
 export function ChampionBanner({ archive, myTeamName }: { archive: SeasonArchive; myTeamName: string | null }) {
-    const animatedPoints = useCountUp(archive.champion.totalPoints, 1);
+    const animatedPoints = useCountUp(archive.champion.totalPoints, 1, 'champion-points');
     const isMe = myTeamName === archive.champion.teamName;
 
     return (
