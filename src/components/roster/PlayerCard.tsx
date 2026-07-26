@@ -5,6 +5,7 @@ import { useCountUp } from '../../hooks/useCountUp';
 import { useComparison } from '../../context/ComparisonContext';
 import { PlayerPositionBadge } from './PlayerPositionBadge';
 import { PlayerStatsPill } from './PlayerStatsPill';
+import { PlayerCardName } from './PlayerCardName';
 
 interface PlayerCardProps {
     player: RosterPerson;
@@ -198,14 +199,11 @@ export default function PlayerCard({
 
                 {/* Content */}
                 <div className="flex-1 flex flex-col px-4 pb-4 relative z-20 mt-[-20px]">
-                    <div className="text-center w-full mb-3">
-                        <h3 className="text-white/70 font-heading font-medium text-sm uppercase tracking-[0.3em] leading-none mb-1 drop-shadow-md">
-                            {player.person.firstName.default}
-                        </h3>
-                        <h2 className="text-white font-heading font-black text-4xl uppercase tracking-wider leading-none drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
-                            {player.person.lastName.default}
-                        </h2>
-                    </div>
+                    <PlayerCardName
+                        firstName={player.person.firstName.default}
+                        lastName={player.person.lastName.default}
+                        className="mb-3"
+                    />
 
                     <PlayerStatsPill
                         goals={statDisplay(isForward || position === 'D' ? goals : playerStats?.wins, (val) => `${val}`)}

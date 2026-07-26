@@ -5,6 +5,7 @@ import PlayerGameLogPopup from './PlayerGameLogPopup';
 import { useEffect, useRef, useState } from 'react';
 import { PlayerPositionBadge } from './PlayerPositionBadge';
 import { PlayerStatsPill } from './PlayerStatsPill';
+import { PlayerCardName } from './PlayerCardName';
 import type { DraftedPlayer } from '../../types/draftedPlayer';
 
 const POPUP_HOVER_DELAY_MS = 400;
@@ -276,14 +277,12 @@ export default function MyPlayerCard({
                 {/* Content Section */}
                 <div className="flex-1 flex flex-col px-4 pb-3 relative z-20 mt-[-20px]">
                     {/* Name - HUGE Typography */}
-                    <div className="text-center w-full mb-3" style={{ transform: 'translateZ(20px)' }}>
-                        <h3 className="text-white/70 font-heading font-medium text-sm uppercase tracking-[0.3em] leading-none mb-1 drop-shadow-md">
-                            {player.name.split(' ')[0]}
-                        </h3>
-                        <h2 className="text-white font-heading font-black text-4xl uppercase tracking-wider leading-none drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
-                            {player.name.split(' ').slice(1).join(' ')}
-                        </h2>
-                    </div>
+                    <PlayerCardName
+                        firstName={player.name.split(' ')[0]}
+                        lastName={player.name.split(' ').slice(1).join(' ')}
+                        className="mb-3"
+                        style={{ transform: 'translateZ(20px)' }}
+                    />
 
                     <PlayerStatsPill
                         goals={stats?.goals ?? 0}
