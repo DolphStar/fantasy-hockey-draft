@@ -2,6 +2,11 @@
 // Single endpoint returns ALL NHL injuries in one request
 
 export interface InjuryReport {
+  /**
+   * ESPN athlete id. The feed does NOT send `athlete.id` — it only appears
+   * embedded in the headshot URL — so this is parsed from there. 0 when the
+   * athlete has no headshot and the id can't be recovered.
+   */
   playerId: number;
   playerName: string;
   team: string;
@@ -12,6 +17,8 @@ export interface InjuryReport {
   description: string;
   returnDate?: string;
   lastUpdated: string;
+  /** ESPN headshot. Present for nearly every athlete; absent for some call-ups. */
+  headshotUrl?: string;
 }
 
 // ESPN's injury API endpoint - returns all NHL injuries in ONE request!
@@ -30,54 +37,80 @@ const ESPN_INJURIES_API = 'https://site.web.api.espn.com/apis/site/v2/sports/hoc
  * - Description and return date
  */
 export async function fetchAllInjuries(): Promise<InjuryReport[]> {
-  const allInjuries: InjuryReport[] = [];
-  
   try {
     console.log('🏒 Fetching NHL injury data from ESPN...');
-    
+
     const response = await fetch(ESPN_INJURIES_API);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
-    const data: any = await response.json();
-    
-    // ESPN returns injuries grouped by team
-    if (data.injuries && Array.isArray(data.injuries)) {
-      for (const teamData of data.injuries) {
-        const teamAbbrev = teamData.id || 'UNK'; // Team ID (e.g., "25" for ANA)
-        const teamName = teamData.displayName || 'Unknown';
-        
-        // Each team has an injuries array
-        if (teamData.injuries && Array.isArray(teamData.injuries)) {
-          for (const injury of teamData.injuries) {
-            const athlete = injury.athlete || {};
-            const details = injury.details || {};
-            
-            allInjuries.push({
-              playerId: parseInt(athlete.id) || 0,
-              playerName: athlete.displayName || 'Unknown Player',
-              team: teamName,
-              teamAbbrev: athlete.team?.abbreviation || teamAbbrev,
-              position: athlete.position?.abbreviation || 'N/A',
-              status: injury.status || 'Out',
-              injuryType: details.type || 'Undisclosed',
-              description: injury.longComment || injury.shortComment || details.type || 'No details available',
-              returnDate: details.returnDate,
-              lastUpdated: new Date().toISOString()
-            });
-          }
-        }
-      }
-    }
-    
+
+    const allInjuries = parseInjuriesResponse(await response.json());
+
     console.log(`✅ Fetched ${allInjuries.length} injuries from ESPN API`);
     return allInjuries;
   } catch (error) {
     console.error('Error fetching injuries from ESPN:', error);
     return [];
   }
+}
+
+/** ESPN headshots are `.../headshots/nhl/players/full/{athleteId}.png`. */
+const HEADSHOT_ID = /\/(\d+)\.png(?:[?#]|$)/;
+
+/**
+ * The athlete id, which the injuries feed doesn't include as a field.
+ *
+ * `athlete.id` is absent from every entry, so the id has to come out of the
+ * headshot URL. Reading `athlete.id` first keeps this correct if ESPN ever adds
+ * the field back.
+ */
+function espnAthleteId(athlete: any, headshotUrl?: string): number {
+  const direct = parseInt(athlete?.id);
+  if (direct) return direct;
+
+  const match = headshotUrl?.match(HEADSHOT_ID);
+  return match ? Number(match[1]) : 0;
+}
+
+/** Flatten ESPN's team-grouped injuries payload into flat reports. */
+export function parseInjuriesResponse(data: any): InjuryReport[] {
+  const allInjuries: InjuryReport[] = [];
+  const lastUpdated = new Date().toISOString();
+
+  // ESPN returns injuries grouped by team
+  if (data?.injuries && Array.isArray(data.injuries)) {
+    for (const teamData of data.injuries) {
+      const teamAbbrev = teamData.id || 'UNK'; // Team ID (e.g., "25" for ANA)
+      const teamName = teamData.displayName || 'Unknown';
+
+      // Each team has an injuries array
+      if (teamData.injuries && Array.isArray(teamData.injuries)) {
+        for (const injury of teamData.injuries) {
+          const athlete = injury.athlete || {};
+          const details = injury.details || {};
+          const headshotUrl = athlete.headshot?.href || undefined;
+
+          allInjuries.push({
+            playerId: espnAthleteId(athlete, headshotUrl),
+            playerName: athlete.displayName || 'Unknown Player',
+            team: teamName,
+            teamAbbrev: athlete.team?.abbreviation || teamAbbrev,
+            position: athlete.position?.abbreviation || 'N/A',
+            status: injury.status || 'Out',
+            injuryType: details.type || 'Undisclosed',
+            description: injury.longComment || injury.shortComment || details.type || 'No details available',
+            returnDate: details.returnDate,
+            lastUpdated,
+            headshotUrl
+          });
+        }
+      }
+    }
+  }
+
+  return allInjuries;
 }
 
 /**

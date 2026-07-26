@@ -91,7 +91,8 @@ export default function Injuries() {
     return map;
   }, [myPlayers]);
 
-  // My injuries, paired with an NHL headshot resolved from the matched drafted player.
+  // My injuries, paired with an NHL headshot resolved from the matched drafted
+  // player. Falls back to ESPN's headshot, which is what the league-wide cards use.
   const myInjuryCards = useMemo(() => {
     if (!myPlayerByName.size) return [];
     return injuries
@@ -100,7 +101,7 @@ export default function Injuries() {
         const player = myPlayerByName.get(normalizeName(injury.playerName));
         const headshotUrl = player?.playerId && player.nhlTeam
           ? `https://assets.nhle.com/mugs/nhl/${MUG_SEASON}/${player.nhlTeam}/${player.playerId}.png`
-          : undefined;
+          : injury.headshotUrl;
         return { injury, headshotUrl };
       });
   }, [injuries, myPlayerByName]);
@@ -286,7 +287,11 @@ export default function Injuries() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-3">
                   {teamInjuries.map((injury) => (
-                    <InjuryCard key={injury.playerId} injury={injury} />
+                    <InjuryCard
+                      key={injury.playerId || injury.playerName}
+                      injury={injury}
+                      headshotUrl={injury.headshotUrl}
+                    />
                   ))}
                 </div>
               </GlassCard>
