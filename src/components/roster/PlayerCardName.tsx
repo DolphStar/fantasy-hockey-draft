@@ -1,9 +1,9 @@
-import type { CSSProperties } from 'react';
+import { useSyncExternalStore, type CSSProperties } from 'react';
 import { cn } from '../../lib/utils';
-import { fitFontSizeCss } from '../../lib/fitText';
+import { fitFontSizeCss, getFontEpoch, subscribeFontEpoch } from '../../lib/fitText';
 
 /** Matches `font-heading` in tailwind.config.js. */
-const HEADING_FAMILY = 'Outfit, sans-serif';
+const HEADING_FAMILY = "'Outfit Variable', sans-serif";
 
 /** The design sizes — what a name that already fits still renders at. */
 const FIRST_NAME_MAX = '0.875rem'; // text-sm
@@ -30,6 +30,11 @@ interface PlayerCardNameProps {
  * already fits still renders at the design size and nothing measures the DOM.
  */
 export function PlayerCardName({ firstName, lastName, className, style }: PlayerCardNameProps) {
+    // Outfit loads with `font-display: swap`. A card that mounted before the face
+    // arrived was sized against the fallback, so re-render once fonts settle —
+    // otherwise the swap silently reintroduces the overflow this component fixes.
+    useSyncExternalStore(subscribeFontEpoch, getFontEpoch, getFontEpoch);
+
     // The lines render uppercase via CSS, so that is the shape to measure.
     const firstSize = fitFontSizeCss(firstName.toUpperCase(), {
         weight: 500,

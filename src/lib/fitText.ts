@@ -73,6 +73,54 @@ const widthCache = new Map<string, number>();
 const CACHE_LIMIT = 2000;
 
 /**
+ * Web fonts load with `font-display: swap`, so the first measurement of a string
+ * can happen against the fallback face and then be invalidated when the real one
+ * arrives — which would leave long names overflowing again, silently.
+ *
+ * Two defences: a provisional measurement is never cached, and everything
+ * re-measures once the fonts settle. `fontEpoch` is what components subscribe to.
+ */
+let fontEpoch = 0;
+const epochListeners = new Set<() => void>();
+let watchingFonts = false;
+
+function armFontWatcher(): void {
+    if (watchingFonts || typeof document === 'undefined' || !document.fonts) return;
+    watchingFonts = true;
+    document.fonts.ready.then(() => {
+        widthCache.clear();
+        fontEpoch++;
+        for (const listener of epochListeners) listener();
+    });
+}
+
+/** Whether the real face is available, or we'd be measuring a fallback. */
+function isFontReady(weight: number | string, family: string): boolean {
+    if (typeof document === 'undefined' || typeof document.fonts?.check !== 'function') {
+        return true;
+    }
+    // Check the primary family only — a stack ending in `sans-serif` always
+    // reports as available, which would defeat the point.
+    const primary = family.split(',')[0].trim();
+    try {
+        return document.fonts.check(`${weight} ${MEASURE_PX}px ${primary}`);
+    } catch {
+        return true;
+    }
+}
+
+/** Subscribe to font-load invalidation. Pairs with `getFontEpoch` for `useSyncExternalStore`. */
+export function subscribeFontEpoch(onChange: () => void): () => void {
+    armFontWatcher();
+    epochListeners.add(onChange);
+    return () => { epochListeners.delete(onChange); };
+}
+
+export function getFontEpoch(): number {
+    return fontEpoch;
+}
+
+/**
  * Width of `text` in em at the given font, measured off-DOM and memoised.
  *
  * Letter spacing is added arithmetically rather than through the canvas
@@ -97,6 +145,13 @@ export function textWidthEm(text: string, options: MeasureOptions = {}): number 
         if (!(em > 0)) em = estimateWidthEm(text, letterSpacingEm);
     } else {
         em = estimateWidthEm(text, letterSpacingEm);
+    }
+
+    if (!isFontReady(weight, family)) {
+        // Measured against a fallback face. Usable for this paint, but caching it
+        // would outlive the swap, so hand it back without storing it.
+        armFontWatcher();
+        return em;
     }
 
     if (widthCache.size >= CACHE_LIMIT) widthCache.clear();

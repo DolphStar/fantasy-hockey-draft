@@ -1,5 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+// Self-hosted so headings don't depend on a third-party request. The variable
+// face covers 100-900, which is what `font-heading` spans (medium through black).
+import '@fontsource-variable/outfit'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './context/AuthContext'

@@ -23,7 +23,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
-        heading: ['Outfit', 'sans-serif'],
+        heading: ['Outfit Variable', 'sans-serif'],
       },
       borderRadius: {
         card: '14px',
