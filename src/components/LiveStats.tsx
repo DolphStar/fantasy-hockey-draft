@@ -5,7 +5,7 @@ import { useDraft } from '../context/DraftContext';
 import { getHockeyDay } from '../utils/dateUtils';
 import { GlassCard } from './ui/GlassCard';
 import { Icon } from './ui/Icon';
-import { Lightbulb, RefreshCw } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 import { SkeletonRow } from './ui/Skeleton';
 import { LiveStatsHeader } from './live-stats/LiveStatsHeader';
 import { TeamStatsTables } from './live-stats/TeamStatsTables';
@@ -102,11 +102,9 @@ export default function LiveStats({ showAllTeams = false }: LiveStatsProps = {})
       <div className="bg-blue-900/20 border-t border-blue-500/20 p-4 flex items-start gap-3">
         <Icon as={Lightbulb} size="md" className="text-blue-300 shrink-0 mt-0.5" />
         <p className="text-blue-200 text-sm leading-relaxed">
-          <strong className="font-semibold text-white">Auto-refresh:</strong> Stats update automatically every 5 minutes — use the{' '}
-          <span className="inline-flex items-center gap-1 align-middle font-semibold text-blue-100">
-            <Icon as={RefreshCw} size="sm" /> Refresh
-          </span>{' '}
-          control to update immediately. Fantasy points are calculated at end of day via daily scoring.
+          <strong className="font-semibold text-white">Auto-refresh:</strong> Stats update automatically
+          every 5 minutes — the countdown above shows the next update. Fantasy points are calculated at
+          end of day via daily scoring.
         </p>
       </div>
     </GlassCard>
