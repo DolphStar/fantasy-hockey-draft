@@ -14,7 +14,7 @@ export function SeasonNumbersStrip({ stats, teamCount }: { stats?: SeasonStats; 
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {tiles.map((t) => (
         <GlassCard key={t.label} className="p-4">
-          <StatNumber label={t.label} value={t.value} tone={t.tone} size="lg" className="tabular-nums" />
+          <StatNumber label={t.label} value={t.value} tone={t.tone} size="lg" />
         </GlassCard>
       ))}
     </div>

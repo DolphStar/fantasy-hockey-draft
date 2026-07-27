@@ -30,7 +30,7 @@ interface PlayerPerformance {
 /** Counting team total — separate component so the hook runs per row. */
 function TeamPointsCell({ points }: { points: number }) {
   const display = useCountUp(points, 2, 'standings-points');
-  return <span className="text-2xl font-black text-white drop-shadow-sm tabular-nums">{display}</span>;
+  return <span className="font-data text-2xl font-bold text-white drop-shadow-sm">{display}</span>;
 }
 
 export default function Standings() {
@@ -179,7 +179,7 @@ export default function Standings() {
                         <TeamPointsCell points={team.totalPoints} />
                       </td>
 
-                      <td className="hidden sm:table-cell p-4 text-right text-slate-500 text-sm font-mono">
+                      <td className="hidden sm:table-cell p-4 text-right text-slate-500 text-sm font-data">
                         {team.lastUpdated
                           ? new Date(team.lastUpdated).toLocaleDateString()
                           : '-'}

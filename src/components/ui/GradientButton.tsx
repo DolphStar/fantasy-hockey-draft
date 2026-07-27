@@ -18,12 +18,15 @@ export function GradientButton({
     ...props
 }: GradientButtonProps) {
 
+    // Flat weighted surfaces, not gradients. Each variant is one solid colour
+    // plus a hairline top highlight, so buttons read as pressable objects
+    // rather than decorated rectangles.
     const variants = {
-        primary: "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-900/20 border-transparent",
-        secondary: "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-lg shadow-purple-900/20 border-transparent",
-        success: "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white shadow-lg shadow-green-900/20 border-transparent",
-        danger: "bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-lg shadow-red-900/20 border-transparent",
-        outline: "bg-transparent border-slate-600 hover:bg-slate-800 text-slate-200 hover:text-white hover:border-slate-500",
+        primary: "bg-blue-600 hover:bg-blue-500 text-white border-blue-400/30 shadow-[0_1px_0_rgba(255,255,255,.18)_inset,0_6px_16px_-6px_rgba(59,130,246,.7)]",
+        secondary: "bg-ice-raise hover:bg-ice-seam text-slate-100 border-paint/25 shadow-[0_1px_0_rgba(148,180,255,.12)_inset]",
+        success: "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400/30 shadow-[0_1px_0_rgba(255,255,255,.18)_inset,0_6px_16px_-6px_rgba(16,185,129,.6)]",
+        danger: "bg-red-600 hover:bg-red-500 text-white border-red-400/30 shadow-[0_1px_0_rgba(255,255,255,.18)_inset,0_6px_16px_-6px_rgba(239,68,68,.6)]",
+        outline: "bg-transparent border-ice-seam hover:bg-ice-raise text-slate-200 hover:text-white hover:border-paint/40",
     };
 
     const sizes = {
@@ -37,7 +40,8 @@ export function GradientButton({
             whileHover={{ scale: disabled || isLoading ? 1 : 1.02 }}
             whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
             className={cn(
-                "relative inline-flex items-center justify-center font-bold rounded-lg transition-all duration-200 border",
+                "relative inline-flex items-center justify-center font-bold rounded-lg transition-colors duration-200 border",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paint focus-visible:ring-offset-2 focus-visible:ring-offset-ice-boards",
                 "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
                 variants[variant],
                 sizes[size],
@@ -47,7 +51,7 @@ export function GradientButton({
             {...props as any}
         >
             {isLoading && (
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin motion-reduce:animate-none -ml-1 mr-2 h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>

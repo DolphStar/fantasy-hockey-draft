@@ -123,19 +123,19 @@ export default function PlayerListRow({
             <div className="flex items-center gap-6 text-sm">
                 <div className="flex flex-col items-end w-12 hidden sm:flex">
                     <span className="text-[10px] text-gray-500 font-bold uppercase">GP</span>
-                    <span className="text-gray-300 font-mono">{stats.gamesPlayed}</span>
+                    <span className="text-gray-300 font-data">{stats.gamesPlayed}</span>
                 </div>
                 <div className="flex flex-col items-end w-12 hidden sm:flex">
                     <span className="text-[10px] text-gray-500 font-bold uppercase">G</span>
-                    <span className="text-white font-mono font-bold">{stats.goals}</span>
+                    <span className="text-white font-data font-bold">{stats.goals}</span>
                 </div>
                 <div className="flex flex-col items-end w-12 hidden sm:flex">
                     <span className="text-[10px] text-gray-500 font-bold uppercase">A</span>
-                    <span className="text-white font-mono font-bold">{stats.assists}</span>
+                    <span className="text-white font-data font-bold">{stats.assists}</span>
                 </div>
                 <div className="flex flex-col items-end w-16">
                     <span className="text-[10px] text-gray-500 font-bold uppercase">Avg</span>
-                    <span className={cn("font-mono font-bold", getAvgColor(stats.avgPoints))}>
+                    <span className={cn("font-data font-bold", getAvgColor(stats.avgPoints))}>
                         {stats.avgPoints.toFixed(1)}
                     </span>
                 </div>

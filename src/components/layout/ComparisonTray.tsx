@@ -84,7 +84,7 @@ export default function ComparisonTray() {
                                 <button
                                     type="button"
                                     onClick={openComparison}
-                                    className="rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-purple-900/30 transition-colors hover:from-violet-500 hover:to-purple-500"
+                                    className="rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white border border-blue-400/30 shadow-[0_1px_0_rgba(255,255,255,.18)_inset] transition-colors hover:bg-blue-500"
                                 >
                                     Compare
                                 </button>

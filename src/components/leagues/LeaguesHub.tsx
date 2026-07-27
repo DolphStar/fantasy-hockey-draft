@@ -89,7 +89,7 @@ export default function LeaguesHub() {
             memberships.map((m) => (
               <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors">
                 <Link to={buildLeaguePath(m.id)} className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-400/20 flex items-center justify-center font-bold text-blue-200 shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-ice-raise border border-paint/25 flex items-center justify-center font-heading font-bold text-slate-200 shrink-0">
                     {m.leagueName.slice(0, 2).toUpperCase()}
                   </div>
                   <span className="font-semibold text-white truncate group-hover:text-blue-300">{m.leagueName}</span>

@@ -104,7 +104,7 @@ export default function PlayerGameLogPopup({
                                 key={idx}
                                 className="flex items-center justify-between text-xs bg-white/5 hover:bg-white/10 rounded border border-white/5 px-2 py-1.5 backdrop-blur-sm transition-all"
                             >
-                                <span className="text-gray-400 font-mono text-[10px]">
+                                <span className="text-gray-400 font-data text-[10px]">
                                     {new Date(game.date).toLocaleDateString('en-US', {
                                         month: 'short',
                                         day: 'numeric'

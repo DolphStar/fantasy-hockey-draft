@@ -24,6 +24,7 @@ import { Archive, ArrowLeftRight, Users } from 'lucide-react';
 import { SkeletonCard } from './ui/Skeleton';
 import MyPlayerCard from './roster/MyPlayerCard';
 import PlayerListRow from './roster/PlayerListRow';
+import { Select } from './ui/Select';
 
 const FORWARD_POSITIONS = ['C', 'L', 'R'];
 /** Positions swap within their group: any forward with any forward, D with D, G with G. */
@@ -457,12 +458,18 @@ export default function PlayerList() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-gray-300 text-sm">
               <span className="text-gray-400 text-xs font-medium">Sort by:</span>
-              <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className="bg-slate-800/80 border border-slate-600/50 rounded-lg px-3 py-1.5 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:bg-slate-700/80 transition-colors cursor-pointer">
+              <Select
+                tone="flat"
+                aria-label="Sort roster by"
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as typeof sortBy)}
+                className="py-1.5"
+              >
                 <option value="position">Position</option>
                 <option value="points">Points</option>
                 <option value="name">Name</option>
                 <option value="games">Playing Today</option>
-              </select>
+              </Select>
             </div>
             <div className="flex items-center gap-2 text-gray-300 text-sm">
               <span className="text-gray-400 text-xs font-medium">View:</span>

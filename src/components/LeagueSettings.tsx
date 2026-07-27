@@ -639,7 +639,7 @@ export default function LeagueSettings() {
                   <GradientButton
                     type="submit"
                     disabled={creating}
-                    className="w-full py-4 text-lg"
+                    size="lg"
                   >
                     {creating ? 'Saving Changes...' : league ? 'Save League Settings' : 'Create League'}
                   </GradientButton>

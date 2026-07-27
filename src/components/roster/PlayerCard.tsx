@@ -239,7 +239,7 @@ export default function PlayerCard({
                             </div>
                             {playerStats && lastSeasonFantasyPoints > 0 ? (
                                 <div className={cn(
-                                    "text-[32px] font-black leading-none tabular-nums",
+                                    "font-data text-[32px] font-bold leading-none",
                                     fpColor.text,
                                     isExceptional && "drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]"
                                 )}>
@@ -261,7 +261,7 @@ export default function PlayerCard({
                             <button
                                 onClick={() => onDraft(player)}
                                 disabled={isDrafting}
-                                className="flex-1 min-w-0 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-bold tracking-wide shadow-[0_5px_15px_rgba(37,99,235,0.35)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.5)] transition-all disabled:cursor-not-allowed"
+                                className="flex-1 min-w-0 py-2 rounded-full bg-blue-600 text-sm font-bold tracking-wide border border-blue-400/30 shadow-[0_1px_0_rgba(255,255,255,.18)_inset,0_5px_15px_rgba(37,99,235,0.3)] hover:bg-blue-500 transition-colors disabled:cursor-not-allowed"
                             >
                                 {isDrafting ? 'Drafting…' : 'Draft Player'}
                             </button>

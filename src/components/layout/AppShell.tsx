@@ -76,7 +76,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             {user?.photoURL ? (
               <img src={user.photoURL} alt="Profile" className="w-9 h-9 xl:w-10 xl:h-10 rounded-full border-2 border-white/20" />
             ) : (
-              <div className="w-9 h-9 xl:w-10 xl:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+              <div className="w-9 h-9 xl:w-10 xl:h-10 rounded-full bg-ice-raise border border-paint/30 flex items-center justify-center text-slate-100 font-heading font-bold">
                 {(user?.displayName || user?.email || 'U')[0].toUpperCase()}
               </div>
             )}

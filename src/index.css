@@ -4,16 +4,32 @@
 
 @layer base {
   body {
-    background-color: #020617;
-    /* slate-950 */
-    color: #f8fafc;
-    /* slate-50 */
-    font-family: "Inter", sans-serif;
+    background-color: #06090f;
+    /* boards */
+    color: #eaf1fb;
+    font-family: "Archivo Variable", system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-image: radial-gradient(ellipse at 20% -10%, #131b33 0%, #0a0e1a 55%);
-    background-attachment: fixed;
     min-height: 100vh;
+    background-image: radial-gradient(ellipse at 20% -10%, #131e33 0%, #06090f 55%);
+    background-attachment: fixed;
+  }
+
+  /* The app sits on the ice. The rink rides its own fixed layer so its strength
+     is a single number here rather than something baked into the asset — at
+     full opacity the faceoff circles compete with content, so keep it low
+     enough to read as texture. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: url("/rink.svg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.05;
   }
 
   h1,
@@ -22,7 +38,24 @@
   h4,
   h5,
   h6 {
-    font-family: "Outfit Variable", sans-serif;
+    font-family: "Archivo Variable", system-ui, sans-serif;
+    font-stretch: 125%;
     font-weight: 700;
+  }
+}
+
+@layer utilities {
+  /* Display face — Archivo at its widest. Sweater lettering and broadcast
+     lower-thirds live here: page titles, nameplates, champion banners. */
+  .font-heading {
+    font-family: "Archivo Variable", system-ui, sans-serif;
+    font-stretch: 125%;
+  }
+
+  /* Data face — Archivo Narrow, always tabular so columns of points line up.
+     Every number the app renders should carry this. */
+  .font-data {
+    font-family: "Archivo Narrow Variable", ui-monospace, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
   }
 }

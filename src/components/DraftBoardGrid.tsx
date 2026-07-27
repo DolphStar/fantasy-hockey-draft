@@ -311,7 +311,7 @@ export default function DraftBoardGrid() {
                   <td className="sticky left-0 bg-slate-900 border-b border-r border-slate-700 p-3 text-center font-bold text-white z-20 shadow-lg">
                     <div className="flex flex-col items-center justify-center gap-1">
                       <span className="text-lg text-slate-300">{round}</span>
-                      {isSnakeRound && <span className="text-xs text-amber-400 font-mono">SNAKE</span>}
+                      {isSnakeRound && <span className="text-xs text-amber-400 font-data tracking-widest">SNAKE</span>}
                     </div>
                   </td>
 

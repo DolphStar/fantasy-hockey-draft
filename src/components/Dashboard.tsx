@@ -263,7 +263,7 @@ export default function Dashboard() {
                                     <span className="text-[10px] text-slate-500" title="Wooden spoon">🥄</span>
                                 )}
                             </span>
-                            <span className="text-sm font-extrabold text-white tabular-nums">{team.totalPoints.toFixed(1)}</span>
+                            <span className="font-data text-base font-bold text-white">{team.totalPoints.toFixed(1)}</span>
                         </div>
                     ))}
                 </GlassCard>
@@ -295,7 +295,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className="bg-slate-900/70 rounded-card p-5 min-w-[240px] text-right">
-                        <StatNumber label="Season Points" value={animatedPoints} size="xl" className="tabular-nums" />
+                        <StatNumber label="Season Points" value={animatedPoints} size="xl" />
                         <p className="text-xs text-slate-500 mt-1">League Avg {leagueAveragePoints.toFixed(1)}</p>
                         {myRank && (
                             <span className="inline-flex items-center gap-1 mt-2 bg-rank/15 text-rank text-xs font-bold px-2.5 py-1 rounded-full shadow-glow-gold">

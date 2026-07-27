@@ -16,7 +16,7 @@ export function ChampionBanner({ archive, myTeamName }: { archive: SeasonArchive
     const isMe = myTeamName === archive.champion.teamName;
 
     return (
-        <GlassCard className="relative overflow-hidden p-8 border-rank/40 shadow-glow-gold">
+        <GlassCard elevation="hero" className="relative overflow-hidden p-8 border-rank/40 shadow-hero-gold">
             <div className="absolute inset-0 bg-gradient-to-br from-rank/10 via-transparent to-transparent pointer-events-none" />
             <div className="relative flex flex-col md:flex-row md:items-center gap-8">
                 <div className="flex-1">
@@ -30,16 +30,18 @@ export function ChampionBanner({ archive, myTeamName }: { archive: SeasonArchive
                     <p className="text-slate-300 mt-2">
                         {isMe ? 'That’s you. Take a bow, GM.' : 'A season for the history books.'}
                     </p>
-                    <p className="text-rank text-3xl font-black mt-3 tabular-nums">{animatedPoints} pts</p>
+                    <p className="font-data text-rank text-3xl font-bold mt-3">{animatedPoints} pts</p>
                 </div>
-                <div className="flex md:flex-col gap-2">
+                {/* Wraps below md: three fixed-content chips in a row overflowed
+                    the card on phones rather than moving to a second line. */}
+                <div className="flex flex-wrap md:flex-col md:flex-nowrap gap-2">
                     {archive.standings.slice(0, 3).map((team) => (
                         <div key={team.teamName} className="flex items-center gap-2.5 bg-slate-900/70 rounded-card px-4 py-2.5">
                             <span className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold', medalCls(team.rank))}>
                                 {team.rank}
                             </span>
                             <span className="text-sm font-semibold text-white flex-1">{team.teamName}</span>
-                            <span className="text-sm font-extrabold text-white tabular-nums">{team.totalPoints.toFixed(1)}</span>
+                            <span className="font-data text-base font-bold text-white">{team.totalPoints.toFixed(1)}</span>
                         </div>
                     ))}
                 </div>

@@ -170,7 +170,7 @@ export default function PlayerComparisonModal() {
                                 </button>
                                 <button
                                     onClick={closeComparison}
-                                    className="rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-purple-900/30 transition-colors hover:from-violet-500 hover:to-purple-500"
+                                    className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white border border-blue-400/30 shadow-[0_1px_0_rgba(255,255,255,.18)_inset] transition-colors hover:bg-blue-500"
                                 >
                                     Done
                                 </button>
@@ -213,7 +213,7 @@ function StatValue({ display, isWinner, align }: { display: string; isWinner: bo
     return (
         <span
             className={cn(
-                'font-mono text-base font-bold tabular-nums sm:text-lg',
+                'font-data text-base font-bold sm:text-lg',
                 align === 'right' ? 'text-right' : 'text-left',
                 isWinner ? 'text-points drop-shadow-[0_0_10px_rgba(74,222,128,0.35)]' : 'text-slate-300'
             )}
@@ -232,7 +232,7 @@ function SoloStats({ lines }: { lines: StatLine[] }) {
                     className="flex items-center justify-between rounded-lg border border-slate-700/30 bg-slate-800/40 px-3 py-2"
                 >
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{line.label}</span>
-                    <span className="font-mono text-sm font-bold tabular-nums text-white">{line.display}</span>
+                    <span className="font-data text-sm font-bold text-white">{line.display}</span>
                 </div>
             ))}
         </div>

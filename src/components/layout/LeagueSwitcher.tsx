@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { useMemberships } from '../../context/MembershipContext';
 import { buildLeaguePath } from '../../lib/leaguePaths';
+import { Select } from '../ui/Select';
 
 export default function LeagueSwitcher() {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -17,18 +18,19 @@ export default function LeagueSwitcher() {
     memberships.length <= 1 ? (
       <span className="text-sm font-semibold text-slate-300">{active ? label(active) : ''}</span>
     ) : (
-      <select
+      <Select
+        tone="flat"
         aria-label="Switch league"
         value={leagueId ?? ''}
         onChange={(e) => navigate(buildLeaguePath(e.target.value))}
-        className="bg-slate-900/80 border border-white/15 text-sm font-semibold text-slate-200 rounded-lg px-3 py-2 hover:border-white/30 focus:outline-none focus:border-blue-500/50"
+        className="w-auto py-2"
       >
         {memberships.map((m) => (
           <option key={m.id} value={m.id}>
             {label(m)}
           </option>
         ))}
-      </select>
+      </Select>
     );
 
   return (

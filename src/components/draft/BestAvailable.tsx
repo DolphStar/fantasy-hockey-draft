@@ -88,7 +88,7 @@ export default function BestAvailable({ allPlayers, draftedPlayerIds, lastSeason
                                 className="flex items-center justify-between bg-slate-800/40 hover:bg-slate-700/60 px-3 py-2 rounded-lg border border-slate-700/30 hover:border-slate-600/50 transition-all group"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="text-slate-600 font-mono text-[10px] w-3 text-right">{i + 1}</div>
+                                    <div className="text-slate-600 font-data text-[10px] w-3 text-right">{i + 1}</div>
                                     <img 
                                         src={headshotUrl} 
                                         alt="" 
@@ -119,7 +119,7 @@ export default function BestAvailable({ allPlayers, draftedPlayerIds, lastSeason
 
                                 <div className="flex items-center gap-3">
                                     <div className="text-right min-w-[40px]">
-                                        <div className="text-amber-400 font-bold font-mono text-sm">
+                                        <div className="text-amber-400 font-bold font-data text-sm">
                                             {isGoalie ? (stats?.wins || 0) : (stats?.points || 0)}
                                         </div>
                                         <div className="text-[8px] text-slate-500 uppercase tracking-wide">

@@ -4,6 +4,7 @@ import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/f
 import { useLeague } from '../../context/LeagueContext';
 import { GlassCard } from '../ui/GlassCard';
 import { Badge } from '../ui/Badge';
+import { Select } from '../ui/Select';
 
 interface DraftedPlayer {
   id: string;
@@ -121,24 +122,21 @@ export default function AdminPlayerManagement() {
       </div>
 
       {/* Team Filter */}
-      <div className="space-y-2">
-        <label className="block text-slate-300 font-semibold text-sm">Filter by Team:</label>
-        <select
-          value={selectedTeam}
-          onChange={(e) => setSelectedTeam(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-        >
-          <option value="ALL">All Teams ({players.length} players)</option>
-          {league?.teams.map(team => {
-            const teamPlayers = players.filter(p => p.draftedByTeam === team.teamName);
-            return (
-              <option key={team.teamName} value={team.teamName}>
-                {team.teamName} ({teamPlayers.length} players)
-              </option>
-            );
-          })}
-        </select>
-      </div>
+      <Select
+        label="Team"
+        value={selectedTeam}
+        onChange={(e) => setSelectedTeam(e.target.value)}
+      >
+        <option value="ALL">All Teams ({players.length} players)</option>
+        {league?.teams.map(team => {
+          const teamPlayers = players.filter(p => p.draftedByTeam === team.teamName);
+          return (
+            <option key={team.teamName} value={team.teamName}>
+              {team.teamName} ({teamPlayers.length} players)
+            </option>
+          );
+        })}
+      </Select>
 
       {loading ? (
         <div className="bg-slate-900/30 p-6 rounded-lg text-center">
