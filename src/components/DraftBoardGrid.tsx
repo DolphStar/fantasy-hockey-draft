@@ -175,6 +175,24 @@ export default function DraftBoardGrid() {
     };
   });
 
+  // Group the flat pick order into rounds. `draftOrder` already encodes the
+  // snake, so grouping preserves each round's direction without recomputing it.
+  const mobileRounds = Array.from(
+    mobilePicks.reduce((rounds, pick) => {
+      const bucket = rounds.get(pick.round);
+      if (bucket) bucket.push(pick);
+      else rounds.set(pick.round, [pick]);
+      return rounds;
+    }, new Map<number, typeof mobilePicks>()),
+  )
+    .sort(([a], [b]) => a - b)
+    .map(([round, picks]) => ({
+      round,
+      picks,
+      made: picks.filter((p) => p.player).length,
+      isSnakeRound: round % 2 === 0,
+    }));
+
   return (
     <GlassCard className="p-0 overflow-hidden border-slate-700/50">
       {/* Header */}
@@ -194,54 +212,77 @@ export default function DraftBoardGrid() {
         )}
       </div>
 
-      {/* Mobile: vertical list of picks (flows with the page — no nested scroll) */}
-      <div className="md:hidden p-3 space-y-2">
-        {mobilePicks.map(({ pickNumber, round, team, accent, player, isCurrentPick, isPastPick }) => {
-          return (
-            <motion.div
-              key={pickNumber}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                "flex items-center gap-3 p-2.5 rounded-xl border transition-all",
-                isCurrentPick
-                  ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
-                  : isPastPick
-                    ? 'bg-slate-800/50 border-slate-700/50'
-                    : 'bg-slate-900/30 border-slate-800/50'
+      {/* Mobile: one horizontally scrollable strip per round.
+          A flat list of every pick loses the thing the board is *for* — you
+          can't see who picks next, or that even rounds run backwards. Keeping
+          the round as the unit preserves the snake on the device most people
+          actually draft from. */}
+      <div className="md:hidden p-3 space-y-5">
+        {mobileRounds.map(({ round, picks, made, isSnakeRound }) => (
+          <section key={round}>
+            <div className="flex items-baseline gap-2 mb-2">
+              <h3 className="font-heading text-sm font-bold uppercase tracking-[0.08em] text-white">
+                Round {round}
+              </h3>
+              {isSnakeRound && (
+                <span className="font-data text-[10px] font-bold uppercase tracking-[0.18em] text-rank">
+                  ← Snake
+                </span>
               )}
-              style={{ borderLeft: `3px solid ${accent}` }}
-            >
-              {player ? (
-                <img
-                  src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
-                  alt={player.name}
-                  loading="lazy"
-                  onError={(e) => { e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png'; }}
-                  className="w-11 h-11 rounded-full border-2 border-slate-600 bg-slate-800 object-cover shrink-0"
-                />
-              ) : (
-                <div className="w-11 h-11 rounded-full border-2 border-dashed border-slate-600 flex items-center justify-center shrink-0 text-[11px] text-slate-500 font-bold">
-                  #{pickNumber}
+              <span className="ml-auto font-data text-[11px] text-slate-500">
+                {made}/{picks.length}
+              </span>
+            </div>
+
+            {/* Bleed to the card edge so the strip reads as scrollable */}
+            <div className="-mx-3 px-3 flex gap-2 overflow-x-auto snap-x pb-1">
+              {picks.map(({ pickNumber, team, accent, player, isCurrentPick, isPastPick }) => (
+                <div
+                  key={pickNumber}
+                  className={cn(
+                    'w-[8.5rem] shrink-0 snap-start rounded-xl border p-2.5 flex flex-col items-center text-center',
+                    isCurrentPick
+                      ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                      : isPastPick
+                        ? 'bg-slate-800/50 border-slate-700/50'
+                        : 'bg-slate-900/30 border-slate-800/50',
+                  )}
+                  style={{ borderTop: `3px solid ${accent}` }}
+                >
+                  <span
+                    className="font-heading text-[10px] font-bold uppercase tracking-[0.1em] truncate max-w-full"
+                    style={{ color: accent }}
+                  >
+                    {team.teamName}
+                  </span>
+
+                  {player ? (
+                    <img
+                      src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
+                      alt={player.name}
+                      loading="lazy"
+                      onError={(e) => { e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png'; }}
+                      className="w-12 h-12 my-1.5 rounded-full border-2 border-slate-600 bg-slate-800 object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 my-1.5 rounded-full border-2 border-dashed border-slate-600 flex items-center justify-center text-slate-500">
+                      {isCurrentPick
+                        ? <span className="animate-live-pulse motion-reduce:animate-none text-amber-400 text-lg">●</span>
+                        : <span className="font-data text-[11px] font-bold">#{pickNumber}</span>}
+                    </div>
+                  )}
+
+                  <p className="text-white text-xs font-bold leading-tight line-clamp-2 min-h-[2rem]">
+                    {player ? player.name : isCurrentPick ? 'On the clock' : 'Pending'}
+                  </p>
+                  <p className="font-data text-[10px] text-slate-500 mt-0.5">
+                    {player ? `${player.position} · ${player.nhlTeam}` : `#${pickNumber}`}
+                  </p>
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <Badge variant="outline" className="text-[10px]">R{round}</Badge>
-                  <span className="text-xs text-slate-400">Pick #{pickNumber}</span>
-                  <span className="text-xs text-slate-500 truncate">· {team.teamName}</span>
-                </div>
-                <p className="text-white font-bold truncate">
-                  {player ? player.name : isCurrentPick ? 'On The Clock…' : 'Pending'}
-                </p>
-                {player && (
-                  <p className="text-slate-400 text-xs truncate">{player.position} • {player.nhlTeam}</p>
-                )}
-              </div>
-              {isCurrentPick && <div className="animate-pulse text-amber-400 text-xl shrink-0">⏳</div>}
-            </motion.div>
-          );
-        })}
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
 
       {/* Scrollable Grid Container */}

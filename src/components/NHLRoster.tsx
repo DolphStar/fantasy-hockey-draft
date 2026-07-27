@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { VirtuosoGrid } from 'react-virtuoso';
@@ -18,6 +18,7 @@ import { collection, onSnapshot, query, where, runTransaction, doc } from 'fireb
 import { Skeleton, SkeletonCard } from './ui/Skeleton';
 import { useDraft } from '../context/DraftContext';
 import { useLeague } from '../context/LeagueContext';
+import { sortByLastSeason } from '../lib/playerRanking';
 import { useSound } from '../context/SoundContext';
 import { isPlayerInjuredByName } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
@@ -77,6 +78,7 @@ export default function NHLRoster() {
   const [positionFilter, setPositionFilter] = useState<string>('ALL');
   const [teamFilter, setTeamFilter] = useState<string>('ALL'); // Default to all teams
   const [lastSeasonStats, setLastSeasonStats] = useState<StatsMap>({}); // Last season stats
+  const [sortBy, setSortBy] = useState<'points' | 'team'>('points');
 
   // League context for showing user's team
   const { myTeam, league } = useLeague();
@@ -407,8 +409,16 @@ export default function NHLRoster() {
     return matchesSearch && matchesPosition && matchesTeam;
   });
 
+  // A scouting grid should open on the best player available, not on whoever
+  // comes first alphabetically by franchise — the old default put all 701
+  // players in Anaheim order with the top of the board buried.
+  const sortedRoster = useMemo(
+    () => (sortBy === 'points' ? sortByLastSeason(filteredRoster, lastSeasonStats) : filteredRoster),
+    [sortBy, lastSeasonStats, filteredRoster],
+  );
+
   // Use virtualization for large lists (>100 players)
-  const useVirtualization = filteredRoster.length > 100;
+  const useVirtualization = sortedRoster.length > 100;
 
   return (
     <div>
@@ -443,7 +453,9 @@ export default function NHLRoster() {
         setTeamFilter={setTeamFilter}
         loading={loading}
         totalCount={roster.length}
-        filteredCount={filteredRoster.length}
+        filteredCount={sortedRoster.length}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
       />
 
       {/* Loading State */}
@@ -466,7 +478,7 @@ export default function NHLRoster() {
         useVirtualization ? (
           <VirtuosoGrid
             style={{ height: '800px' }}
-            data={filteredRoster}
+            data={sortedRoster}
             // Keep a screen of cards mounted past each edge so ordinary wheel
             // scrolling and short drags never hit the placeholder path at all.
             increaseViewportBy={{ top: 1400, bottom: 1400 }}
@@ -495,7 +507,7 @@ export default function NHLRoster() {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredRoster.map((player) => (
+            {sortedRoster.map((player) => (
               <PlayerCard
                 key={player.person.id}
                 player={player}
@@ -513,7 +525,7 @@ export default function NHLRoster() {
       )}
 
       {/* No Results */}
-      {!loading && !error && filteredRoster.length === 0 && (
+      {!loading && !error && sortedRoster.length === 0 && (
         <div className="text-center py-12 bg-gray-800 rounded-lg">
           <p className="text-xl text-gray-400 font-semibold">No players found</p>
           <p className="text-gray-500 mt-2">Try adjusting your search or filters</p>

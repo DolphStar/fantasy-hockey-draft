@@ -154,7 +154,10 @@ export default function Standings() {
             <table className="w-full">
               <thead className="bg-slate-900/50 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="text-left py-3 pl-4 pr-2 text-slate-400 font-semibold sticky left-0 bg-[#0d1322] z-10">Rank</th>
+                  {/* `w-px` shrinks the column to its content in an auto-layout
+                      table — without it the rank column soaks up all the slack
+                      and leaves a gap before the team name. */}
+                  <th className="w-px whitespace-nowrap text-left py-3 pl-4 pr-2 text-slate-400 font-semibold sticky left-0 bg-[#0d1322] z-10">Rank</th>
                   <th className="text-left py-3 px-4 text-slate-400 font-semibold">Team</th>
                   <th className="text-right py-3 pr-4 pl-2 text-slate-400 font-semibold">Points</th>
                 </tr>
@@ -177,7 +180,7 @@ export default function Standings() {
                       variants={staggerItem}
                       className="hover:bg-slate-800/30 transition-colors"
                     >
-                      <td className="py-3 pl-4 pr-2 sticky left-0 bg-[#0d1322] z-10">
+                      <td className="w-px whitespace-nowrap py-3 pl-4 pr-2 sticky left-0 bg-[#0d1322] z-10">
                         <div className="flex items-center gap-3">
                           <span
                             className="block h-9 w-1 shrink-0 rounded-full"

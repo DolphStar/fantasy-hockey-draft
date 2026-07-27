@@ -11,6 +11,8 @@ interface RosterFiltersProps {
     loading: boolean;
     totalCount: number;
     filteredCount: number;
+    sortBy: 'points' | 'team';
+    setSortBy: (sort: 'points' | 'team') => void;
 }
 
 export default function RosterFilters({
@@ -22,7 +24,9 @@ export default function RosterFilters({
     setTeamFilter,
     loading,
     totalCount,
-    filteredCount
+    filteredCount,
+    sortBy,
+    setSortBy
 }: RosterFiltersProps) {
     const hasActiveFilters = searchQuery || positionFilter !== 'ALL' || teamFilter !== 'ALL';
 
@@ -81,6 +85,17 @@ export default function RosterFilters({
                             <option value="R">Right Wing</option>
                             <option value="D">Defense</option>
                             <option value="G">Goalie</option>
+                        </Select>
+
+                        {/* Sort */}
+                        <Select
+                            label="Sort by"
+                            wrapperClassName="sm:w-44"
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as 'points' | 'team')}
+                        >
+                            <option value="points">Last season</option>
+                            <option value="team">Team</option>
                         </Select>
 
                         {/* Team Filter */}
