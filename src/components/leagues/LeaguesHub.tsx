@@ -1,24 +1,50 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { LogOut, Plus, Search, Ticket, Trophy } from 'lucide-react';
+import { LogOut, Plus, Search, Ticket, Trophy, Users } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
 import { useMemberships } from '../../context/MembershipContext';
 import { joinLeagueByCode, leaveLeague } from '../../services/membershipService';
+import { fetchLeagueLeaders, type LeagueLeader } from '../../services/leagueService';
 import { buildLeaguePath } from '../../lib/leaguePaths';
+import { accentAlpha, managerAccent, managerAccentAt } from '../../lib/managerColors';
+
+/** Status is the first thing you want off this screen: is anything happening? */
+const LEAGUE_STATE: Record<'pending' | 'live' | 'complete', { label: string; cls: string }> = {
+  pending: { label: 'Drafting', cls: 'border-paint/40 text-paint' },
+  live: { label: 'Live', cls: 'border-live/40 text-live' },
+  complete: { label: 'Season over', cls: 'border-rank/40 text-rank' },
+};
 import { GlassCard } from '../ui/GlassCard';
 import { GlowBackdrop } from '../ui/GlowBackdrop';
 import { Logo } from '../ui/Logo';
 import { Icon } from '../ui/Icon';
 
 export default function LeaguesHub() {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { memberships, loading, refresh } = useMemberships();
   const navigate = useNavigate();
   const [code, setCode] = useState('');
   const [teamName, setTeamName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [leaders, setLeaders] = useState<Record<string, LeagueLeader | null>>({});
+
+  // Standings live in a subcollection, so they cost one small read per league.
+  // Cards render immediately and the leader fills in when it arrives.
+  const membershipIds = memberships.map((m) => m.id).join(',');
+  useEffect(() => {
+    const ids = membershipIds ? membershipIds.split(',') : [];
+    if (!ids.length) {
+      setLeaders({});
+      return;
+    }
+    let cancelled = false;
+    fetchLeagueLeaders(ids).then((result) => {
+      if (!cancelled) setLeaders(result);
+    });
+    return () => { cancelled = true; };
+  }, [membershipIds]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,24 +112,90 @@ export default function LeaguesHub() {
               <p className="text-slate-500 text-sm mt-1">Create one or join with an invite code below.</p>
             </div>
           ) : (
-            memberships.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors">
-                <Link to={buildLeaguePath(m.id)} className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-lg bg-ice-raise border border-paint/25 flex items-center justify-center font-heading font-bold text-slate-200 shrink-0">
-                    {m.leagueName.slice(0, 2).toUpperCase()}
-                  </div>
-                  <span className="font-semibold text-white truncate group-hover:text-blue-300">{m.leagueName}</span>
-                </Link>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleLeave(m.id)}
-                  className="text-xs text-slate-500 hover:text-live px-2 py-1 transition-colors shrink-0 disabled:opacity-50"
-                >
-                  Leave
-                </button>
-              </div>
-            ))
+            memberships.map((m) => {
+              const myTeam = m.teams.find((t) => t.ownerUid === user?.uid);
+              const myAccent = managerAccent(m.teams, myTeam?.teamName);
+              const leader = leaders[m.id];
+              const state = LEAGUE_STATE[m.status];
+
+              return (
+                <div key={m.id} className="rounded-xl hover:bg-white/5 transition-colors">
+                  <Link to={buildLeaguePath(m.id)} className="block p-3.5">
+                    <div className="flex items-start gap-3.5">
+                      {/* Your colour in this league, so the card is recognisably yours */}
+                      <div
+                        className="w-11 h-11 rounded-lg border flex items-center justify-center font-heading font-bold shrink-0"
+                        style={{
+                          backgroundColor: accentAlpha(myAccent, 0.15),
+                          borderColor: accentAlpha(myAccent, 0.45),
+                          color: myAccent,
+                        }}
+                      >
+                        {(myTeam?.teamName ?? m.leagueName).slice(0, 2).toUpperCase()}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-heading font-bold text-white uppercase tracking-[0.04em] truncate">
+                            {m.leagueName}
+                          </span>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${state.cls}`}>
+                            {m.status === 'live' && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-current animate-live-pulse motion-reduce:animate-none" />
+                            )}
+                            {state.label}
+                          </span>
+                          {m.admin === user?.uid && (
+                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Commissioner</span>
+                          )}
+                        </div>
+
+                        <p className="text-sm text-slate-400 mt-1 truncate">
+                          {myTeam ? <>You manage <span className="text-slate-200 font-semibold">{myTeam.teamName}</span></> : 'No team assigned yet'}
+                        </p>
+
+                        <div className="flex items-center gap-4 mt-2.5 text-xs">
+                          <span className="inline-flex items-center gap-1.5 text-slate-500">
+                            <Icon as={Users} size="sm" />
+                            <span className="font-data">{m.teams.length}/{m.maxTeams}</span>
+                          </span>
+                          {leader && (
+                            <span className="inline-flex items-center gap-1.5 min-w-0">
+                              <Icon as={Trophy} size="sm" className="text-rank shrink-0" />
+                              <span className="text-slate-400 truncate">{leader.teamName}</span>
+                              <span className="font-data font-bold text-slate-300">{leader.totalPoints.toFixed(1)}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Who else is in, in their own colours */}
+                        {m.teams.length > 1 && (
+                          <div className="flex items-center gap-1 mt-2.5" aria-hidden>
+                            {m.teams.map((t, i) => (
+                              <span
+                                key={t.teamName}
+                                title={t.teamName}
+                                className="h-1.5 flex-1 max-w-[2.5rem] rounded-full"
+                                style={{ backgroundColor: managerAccentAt(i) }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={(e) => { e.preventDefault(); handleLeave(m.id); }}
+                        className="text-xs text-slate-600 hover:text-live px-2 py-1 transition-colors shrink-0 disabled:opacity-50"
+                      >
+                        Leave
+                      </button>
+                    </div>
+                  </Link>
+                </div>
+              );
+            })
           )}
         </GlassCard>
 

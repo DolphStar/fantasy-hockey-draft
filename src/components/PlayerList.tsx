@@ -25,6 +25,7 @@ import { SkeletonCard } from './ui/Skeleton';
 import MyPlayerCard from './roster/MyPlayerCard';
 import PlayerListRow from './roster/PlayerListRow';
 import { Select } from './ui/Select';
+import { accentAlpha, managerAccent } from '../lib/managerColors';
 
 const FORWARD_POSITIONS = ['C', 'L', 'R'];
 /** Positions swap within their group: any forward with any forward, D with D, G with G. */
@@ -73,6 +74,7 @@ export default function PlayerList() {
   };
 
   const seasonComplete = league?.status === 'complete';
+  const myAccent = managerAccent(league?.teams, myTeam?.teamName);
 
   const exitSwapMode = () => {
     setSwapMode(false);
@@ -338,12 +340,12 @@ export default function PlayerList() {
               <svg className="w-full h-full" preserveAspectRatio="none" viewBox={`0 0 1000 100`}>
                 <defs>
                   <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.5" />
-                    <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+                    <stop offset="0%" stopColor={myAccent} stopOpacity="0.5" />
+                    <stop offset="100%" stopColor={myAccent} stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 <path d={getSparklineArea(dailyTeamTotals, 1000, 100)} fill="url(#sparkGradient)" />
-                <path d={getSparklinePath(dailyTeamTotals, 1000, 100)} fill="none" stroke="#22d3ee" strokeWidth="2" />
+                <path d={getSparklinePath(dailyTeamTotals, 1000, 100)} fill="none" stroke={myAccent} strokeWidth="2" />
               </svg>
             )}
           </div>
@@ -352,14 +354,17 @@ export default function PlayerList() {
           <div className="relative z-10 px-8 py-6 flex flex-col md:flex-row items-center gap-6">
             {/* Left Side: Avatar + Team Name */}
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-3xl font-light text-white shadow-lg">
+              <div
+                className="w-20 h-20 rounded-full border flex items-center justify-center font-heading text-3xl font-bold shadow-lg"
+                style={{ backgroundColor: accentAlpha(myAccent, 0.15), borderColor: accentAlpha(myAccent, 0.5), color: myAccent }}
+              >
                 {myTeam.teamName[0].toUpperCase()}
               </div>
               <div>
                 <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight uppercase">
                   {myTeam.teamName}'s Roster
                 </h1>
-                <p className="text-blue-100/80 text-xs uppercase tracking-[0.3em] drop-shadow-[0_0_6px_rgba(59,130,246,0.4)]">Fantasy Hockey Team</p>
+                <p className="font-heading text-xs uppercase tracking-[0.3em]" style={{ color: accentAlpha(myAccent, 0.75) }}>Fantasy Hockey Team</p>
               </div>
             </div>
             

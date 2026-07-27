@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
 
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -36,8 +35,13 @@ export function GlassCard({
         hero: "shadow-hero backdrop-blur-lg border-paint/30",
     };
 
+    // Deliberately not animated. Every card fading up on mount meant a dozen
+    // independent 0.4s reveals on each navigation, which made nothing feel like
+    // an event — the page as a whole already fades in via `pageEnter` in
+    // AppShell. Motion is reserved for things that actually happened: a pick
+    // landing on the draft board, a lead changing in the standings.
     return (
-        <motion.div
+        <div
             className={cn(
                 "border rounded-xl overflow-hidden",
                 variants[variant],
@@ -45,12 +49,9 @@ export function GlassCard({
                 hoverEffect && "hover:-translate-y-[3px] hover:border-blue-400/45 hover:shadow-glass-hover transition-all duration-300",
                 className
             )}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            {...props as any}
+            {...props}
         >
             {children}
-        </motion.div>
+        </div>
     );
 }

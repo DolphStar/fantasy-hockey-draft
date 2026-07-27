@@ -10,6 +10,7 @@ import { Icon } from './ui/Icon';
 import { ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { accentAlpha, managerAccentAt } from '../lib/managerColors';
 
 interface DraftedPlayer {
   id: string;
@@ -22,15 +23,6 @@ interface DraftedPlayer {
   round: number;
   headshotUrl?: string;
 }
-
-const addAlpha = (hex: string, alpha: number) => {
-  const sanitized = hex.replace('#', '');
-  const bigint = parseInt(sanitized, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
 
 export default function DraftBoardGrid() {
   const { draftState } = useDraft();
@@ -164,22 +156,10 @@ export default function DraftBoardGrid() {
     draftGrid.push(roundPicks);
   }
 
-  // Vibrant accent palette
-  const teamAccents = [
-    '#22c55e', // emerald
-    '#3b82f6', // blue
-    '#f97316', // orange
-    '#ec4899', // pink
-    '#a855f7', // violet
-    '#0ea5e9', // sky
-    '#facc15', // amber
-    '#14b8a6', // teal
-  ];
-
   const mobilePicks = draftState.draftOrder.map((pick) => {
     const teamIdx = teams.findIndex((t) => t.teamName === pick.team);
     const team = teamIdx >= 0 ? teams[teamIdx] : teams[0];
-    const accent = teamAccents[(teamIdx >= 0 ? teamIdx : 0) % teamAccents.length];
+    const accent = managerAccentAt(teamIdx >= 0 ? teamIdx : 0);
     const player = pickMap.get(pick.pick);
     const isCurrentPick = pick.pick === draftState.currentPickNumber;
     const isPastPick = pick.pick < draftState.currentPickNumber;
@@ -274,7 +254,7 @@ export default function DraftBoardGrid() {
                 Rnd
               </th>
               {teams.map((team, idx) => {
-                const accent = teamAccents[idx % teamAccents.length];
+                const accent = managerAccentAt(idx);
                 return (
                   <th
                     key={team.teamName}
@@ -285,10 +265,10 @@ export default function DraftBoardGrid() {
                     <div
                       className="flex flex-col items-center gap-1 relative z-10"
                       style={{
-                        background: `linear-gradient(140deg, ${addAlpha(accent, 0.15)}, ${addAlpha(accent, 0.02)})`,
+                        background: `linear-gradient(140deg, ${accentAlpha(accent, 0.15)}, ${accentAlpha(accent, 0.02)})`,
                         borderRadius: '0.5rem',
                         padding: '0.5rem',
-                        border: `1px solid ${addAlpha(accent, 0.2)}`
+                        border: `1px solid ${accentAlpha(accent, 0.2)}`
                       }}
                     >
                       <span className="text-sm font-bold truncate w-full">{team.teamName}</span>
@@ -321,7 +301,7 @@ export default function DraftBoardGrid() {
                     const isCurrentPick = pickNumber === draftState.currentPickNumber;
                     const isPastPick = pickNumber < draftState.currentPickNumber;
                     const team = teams[teamIdx];
-                    const accent = teamAccents[teamIdx % teamAccents.length];
+                    const accent = managerAccentAt(teamIdx);
 
                     // Smart tooltip positioning
                     const isFirstColumn = teamIdx === 0;
@@ -334,9 +314,9 @@ export default function DraftBoardGrid() {
 
                     const cellStyle: CSSProperties = {};
                     if (!isCurrentPick) {
-                      cellStyle.boxShadow = `inset 0 0 20px ${addAlpha(accent, 0.02)}`;
+                      cellStyle.boxShadow = `inset 0 0 20px ${accentAlpha(accent, 0.02)}`;
                       const intensity = player ? 0.15 : isPastPick ? 0.08 : 0.02;
-                      cellStyle.background = `linear-gradient(135deg, ${addAlpha(accent, intensity)}, rgba(15,23,42,0.4))`;
+                      cellStyle.background = `linear-gradient(135deg, ${accentAlpha(accent, intensity)}, rgba(15,23,42,0.4))`;
                     }
 
                     return (

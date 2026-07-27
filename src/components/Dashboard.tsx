@@ -34,6 +34,7 @@ import { TopScorersCard } from './season/TopScorersCard';
 import { SeasonNumbersStrip } from './season/SeasonNumbersStrip';
 import { YourSeasonCard } from './season/YourSeasonCard';
 import type { TeamScore } from '../types/scores';
+import { managerAccent } from '../lib/managerColors';
 
 const MAX_TREND_DAYS = 7;
 
@@ -70,6 +71,8 @@ export default function Dashboard() {
         if (!league || !user) return null;
         return league.teams.find(t => t.ownerUid === user.uid) || null;
     }, [league, user]);
+
+    const myAccent = managerAccent(league?.teams, myTeam?.teamName);
 
     const goToRoster = useCallback(() => navigate(leaguePath('players/browse')), [navigate, leaguePath]);
     const goToInjuries = useCallback(() => navigate(leaguePath('players/injuries')), [navigate, leaguePath]);
@@ -255,6 +258,11 @@ export default function Dashboard() {
                     {finalStandings.map((team) => (
                         <div key={team.teamName} className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800/60 last:border-b-0">
                             <span className="flex items-center gap-2.5">
+                                <span
+                                    className="block h-5 w-1 shrink-0 rounded-full"
+                                    style={{ backgroundColor: managerAccent(league?.teams, team.teamName) }}
+                                    aria-hidden
+                                />
                                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${team.rank <= 3 ? rankMedalClass(team.rank) : 'bg-slate-700 text-slate-300'}`}>
                                     {team.rank}
                                 </span>
@@ -276,7 +284,7 @@ export default function Dashboard() {
     return (
         <div className="max-w-6xl mx-auto px-6 space-y-6">
             {/* Hero: status + season points */}
-            <GlassCard className="p-6">
+            <GlassCard className="p-6 border-l-4" style={{ borderLeftColor: myAccent }}>
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div>
                         <p className="text-xs uppercase tracking-[0.3em] text-slate-400 flex items-center gap-2">

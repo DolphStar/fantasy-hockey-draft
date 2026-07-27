@@ -11,6 +11,7 @@ import {
 import type { ChatMessage } from '../types/chat';
 import { MessageCircle } from 'lucide-react';
 import { Icon } from './ui/Icon';
+import { managerAccent } from '../lib/managerColors';
 
 interface LeagueChatProps {
   /**
@@ -178,20 +179,25 @@ export default function LeagueChat({ variant = 'full', hideHeader = false }: Lea
           <div className="space-y-3">
             {messages.map(msg => {
               const isMe = msg.userId === user?.uid;
+              // In a five-person league, who said it is the message. Colour the
+              // sender rather than the bubble — five saturated bubble fills in a
+              // scrolling column is noise, a 3px edge is identity.
+              // Colour the same identity the bubble displays, or a message with
+              // no team name would be tinted for a team it isn't from.
+              const accent = managerAccent(league?.teams, msg.teamName || msg.userName);
               return (
                 <div
                   key={msg.id}
                   className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-md ${
-                      isMe
-                        ? 'bg-blue-600 text-white rounded-br-none'
-                        : 'bg-gray-700 text-gray-100 rounded-bl-none'
+                    className={`max-w-[80%] bg-ice-raise text-slate-100 rounded-lg px-3 py-2 text-sm shadow-md ${
+                      isMe ? 'rounded-br-none border-r-[3px]' : 'rounded-bl-none border-l-[3px]'
                     }`}
+                    style={{ borderColor: accent }}
                   >
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="font-semibold text-xs">
+                      <span className="font-heading font-bold text-xs uppercase tracking-[0.08em]" style={{ color: accent }}>
                         {msg.teamName || msg.userName}
                       </span>
                       <div className="flex items-center gap-1">
