@@ -84,7 +84,7 @@ export default function LeaguesHub() {
 
       <header className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-2.5">
-          <Logo className="w-9 h-9" />
+          <Logo className="w-10 h-10" />
           <span className="font-heading font-bold text-white text-lg hidden sm:inline">Fantasy Hockey Draft</span>
         </div>
         <button

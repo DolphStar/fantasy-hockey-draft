@@ -41,7 +41,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 text-center">
-      <Logo className="w-12 h-12 mb-10" />
+      <Logo className="w-24 h-24 mb-8" />
 
       <h1 className="flex flex-col items-center leading-none">
         <span className="font-heading text-white/55 font-medium uppercase text-[clamp(0.7rem,2.2vw,1.05rem)] tracking-[0.42em] indent-[0.42em]">
