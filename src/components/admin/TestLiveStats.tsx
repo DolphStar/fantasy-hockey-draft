@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { processLiveStats } from '../../utils/liveStats';
-import { GlassCard } from '../ui/GlassCard';
+import { AdminPanel } from './AdminPanel';
 
 export default function TestLiveStats() {
   const { league } = useLeague();
@@ -33,10 +33,7 @@ export default function TestLiveStats() {
   if (!league) return null;
 
   return (
-    <GlassCard className="p-5 space-y-4">
-      <h3 className="text-lg font-bold text-white flex items-center gap-2 border-b border-slate-700/50 pb-2">
-        <span>🔴</span> Test Live Stats System
-      </h3>
+    <AdminPanel title="Live stats fetch" description="Pulls tonight’s in-progress box scores on demand.">
 
       <p className="text-slate-300 text-sm">
         Manually fetch today's live game stats to test the system. Stats will update in real-time on the Standings page.
@@ -68,6 +65,6 @@ export default function TestLiveStats() {
         <p>• Live stats appear on the Standings page</p>
         <p>• In production, this runs automatically via cron job</p>
       </div>
-    </GlassCard>
+    </AdminPanel>
   );
 }

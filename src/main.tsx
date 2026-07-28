@@ -1,8 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-// Self-hosted so headings don't depend on a third-party request. The variable
-// face covers 100-900, which is what `font-heading` spans (medium through black).
-import '@fontsource-variable/outfit'
+// Self-hosted so type never depends on a third-party request. One superfamily,
+// two files: Archivo's `wdth` axis (62-125%) gives us both the body face and the
+// expanded display face, and Archivo Narrow carries every number.
+import '@fontsource-variable/archivo/wdth.css'
+import '@fontsource-variable/archivo-narrow'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './context/AuthContext'

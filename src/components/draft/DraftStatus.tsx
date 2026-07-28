@@ -67,7 +67,7 @@ export default function DraftStatus({
                 <div className="min-w-0">
                     {/* Pick meta */}
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        <span className="tabular-nums">
+                        <span className="font-data">
                             Pick {currentPick.pick} <span className="text-slate-600">of</span> {draftState.totalPicks}
                         </span>
                         <span className="text-slate-700">•</span>
@@ -110,7 +110,7 @@ export default function DraftStatus({
                                 <span
                                     key={label}
                                     className={cn(
-                                        'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold tabular-nums',
+                                        'font-data inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold',
                                         tone,
                                         // Slots already filled recede; open slots stay at full strength
                                         have >= need && 'opacity-60'
@@ -120,11 +120,11 @@ export default function DraftStatus({
                                     <span className="opacity-80">{have}/{need}</span>
                                 </span>
                             ))}
-                            <span className="inline-flex items-center gap-1 rounded-md border border-white/5 bg-slate-800/60 px-2 py-0.5 text-[11px] font-bold tabular-nums text-slate-400">
+                            <span className="font-data inline-flex items-center gap-1 rounded-md border border-white/5 bg-slate-800/60 px-2 py-0.5 text-[11px] font-bold text-slate-400">
                                 RES
                                 <span className="opacity-80">{myTeamPositions.reserve}/5</span>
                             </span>
-                            <span className="text-[11px] font-medium tabular-nums text-slate-600">
+                            <span className="font-data text-[11px] font-medium text-slate-600">
                                 {myTeamPositions.total} total
                             </span>
                         </div>

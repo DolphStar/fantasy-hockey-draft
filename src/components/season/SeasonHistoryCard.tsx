@@ -17,7 +17,7 @@ export function SeasonHistoryCard({ archives }: { archives: SeasonArchive[] }) {
                         <Icon as={Trophy} size="sm" className="text-rank" />
                         {a.champion.teamName}
                     </span>
-                    <span className="text-sm font-extrabold text-white tabular-nums">{a.champion.totalPoints.toFixed(1)}</span>
+                    <span className="font-data text-base font-bold text-white">{a.champion.totalPoints.toFixed(1)}</span>
                 </div>
             ))}
         </GlassCard>

@@ -20,7 +20,7 @@ export function YourSeasonCard({ summary, medalClass }: { summary: TeamSummary; 
         </div>
         <div>
           <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-slate-500">Points</div>
-          <div className="text-white font-extrabold text-xl tabular-nums mt-1">{summary.totalPoints.toFixed(1)}</div>
+          <div className="font-data text-white font-bold text-xl mt-1">{summary.totalPoints.toFixed(1)}</div>
         </div>
         <div>
           <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-slate-500">Top Player</div>

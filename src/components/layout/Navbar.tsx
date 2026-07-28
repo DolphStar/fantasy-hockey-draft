@@ -16,7 +16,7 @@ const links: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = 
 export default function Navbar() {
     return (
         <div className="hidden md:block max-w-7xl mx-auto px-4 mb-8 pt-4">
-            <GlassCard className="p-2 flex gap-1">
+            <GlassCard elevation="flat" className="p-2 flex gap-1">
                 {links.map((link) => (
                     <NavLink
                         key={link.to}
@@ -32,7 +32,7 @@ export default function Navbar() {
                                 {isActive && (
                                     <motion.div
                                         layoutId="activeTab"
-                                        className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border border-blue-500/30 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.15)]"
+                                        className="absolute inset-0 bg-blue-600/20 border border-blue-500/30 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.15)]"
                                         initial={false}
                                         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                                     />

@@ -13,6 +13,8 @@ import { PageHeader } from './ui/PageHeader';
 import { Icon } from './ui/Icon';
 import { SkeletonRow } from './ui/Skeleton';
 import { staggerItem, staggerList } from '../lib/motion';
+import { managerAccent } from '../lib/managerColors';
+import { cn } from '../lib/utils';
 import { useCountUp } from '../hooks/useCountUp';
 // Import utilities for existing leagues
 import '../utils/updateLeague';
@@ -30,7 +32,16 @@ interface PlayerPerformance {
 /** Counting team total — separate component so the hook runs per row. */
 function TeamPointsCell({ points }: { points: number }) {
   const display = useCountUp(points, 2, 'standings-points');
-  return <span className="text-2xl font-black text-white drop-shadow-sm tabular-nums">{display}</span>;
+  return <span className="font-data text-2xl font-bold text-white drop-shadow-sm">{display}</span>;
+}
+
+/** Podium as a tint on the rank numeral rather than three filled medal chips —
+ *  the row already carries a manager colour, an edge and a bar. */
+function podiumTone(index: number): string {
+  if (index === 0) return 'text-rank';
+  if (index === 1) return 'text-slate-300';
+  if (index === 2) return 'text-amber-600';
+  return 'text-slate-500';
 }
 
 export default function Standings() {
@@ -43,6 +54,13 @@ export default function Standings() {
 
   // React Query hook for injuries - automatic caching!
   const { data: injuries = [] } = useInjuries();
+
+  // Standings arrive ordered by points, so the leader is the yardstick every
+  // other row is measured against.
+  const leaderPoints = standings[0]?.totalPoints ?? 0;
+  const lastScored = standings[0]?.lastUpdated
+    ? new Date(standings[0].lastUpdated).toLocaleDateString()
+    : null;
 
   // Fetch standings
   useEffect(() => {
@@ -108,15 +126,17 @@ export default function Standings() {
 
       {/* Standings Table */}
       <GlassCard className="overflow-hidden">
-        <div className="p-6 border-b border-slate-700/50 bg-slate-900/30 flex items-center justify-between">
+        <div className="p-6 border-b border-slate-700/50 bg-slate-900/30 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-2xl font-bold text-white flex items-center gap-2">
               <Icon as={Trophy} size="md" className="text-rank" /> Current Standings
             </h3>
             <p className="text-slate-400 text-sm mt-1">League rankings based on total fantasy points</p>
           </div>
-          <div className="text-right text-xs text-slate-500">
-            Updated daily
+          {/* The date used to repeat on every row, identical each time. It's a
+              property of the table, not of a team. */}
+          <div className="text-xs text-slate-500 sm:text-right">
+            {lastScored ? <>Updated <span className="font-data">{lastScored}</span></> : 'Updated daily'}
           </div>
         </div>
 
@@ -134,18 +154,25 @@ export default function Standings() {
             <table className="w-full">
               <thead className="bg-slate-900/50 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="text-left p-4 text-slate-400 font-semibold sticky left-0 bg-[#0d1322] z-10">Rank</th>
-                  <th className="text-left p-4 text-slate-400 font-semibold">Team</th>
-                  <th className="text-center p-4 text-slate-400 font-semibold">Points</th>
-
-                  <th className="hidden sm:table-cell text-right p-4 text-slate-400 font-semibold">Last Updated</th>
+                  {/* `w-px` shrinks the column to its content in an auto-layout
+                      table — without it the rank column soaks up all the slack
+                      and leaves a gap before the team name. */}
+                  <th className="w-px whitespace-nowrap text-left py-3 pl-4 pr-2 text-slate-400 font-semibold sticky left-0 bg-[#0d1322] z-10">Rank</th>
+                  <th className="text-left py-3 px-4 text-slate-400 font-semibold">Team</th>
+                  <th className="text-right py-3 pr-4 pl-2 text-slate-400 font-semibold">Points</th>
                 </tr>
               </thead>
               <motion.tbody variants={staggerList} initial="initial" animate="animate" className="divide-y divide-slate-700/50">
                 {standings.map((team, index) => {
                   const isFirst = index === 0;
-                  const isSecond = index === 1;
-                  const isThird = index === 2;
+                  const accent = managerAccent(league?.teams, team.teamName);
+                  // Bar length is share-of-leader, not share-of-total: the question
+                  // a standings table answers is "how far back am I".
+                  const share = leaderPoints > 0 ? Math.max(team.totalPoints / leaderPoints, 0) : 0;
+                  // Gap is to the team directly above, not to the leader: what a
+                  // GM in 3rd wants to know is who they can catch. A 1.9-point
+                  // fight for 2nd is invisible when everything is measured off 1st.
+                  const gap = index === 0 ? 0 : standings[index - 1].totalPoints - team.totalPoints;
 
                   return (
                     <motion.tr
@@ -153,36 +180,40 @@ export default function Standings() {
                       variants={staggerItem}
                       className="hover:bg-slate-800/30 transition-colors"
                     >
-                      <td className="p-4 sticky left-0 bg-[#0d1322] z-10">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isFirst ? 'bg-yellow-500 text-black shadow-glow-gold' :
-                          isSecond ? 'bg-slate-300 text-black shadow-lg shadow-slate-300/20' :
-                            isThird ? 'bg-amber-700 text-white shadow-lg shadow-amber-700/20' :
-                              'bg-slate-800 text-slate-400'
-                          }`}>
-                          {index + 1}
-                        </div>
-                      </td>
-                      <td className="p-4">
+                      <td className="w-px whitespace-nowrap py-3 pl-4 pr-2 sticky left-0 bg-[#0d1322] z-10">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold ${isFirst ? 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 text-yellow-500 border border-yellow-500/30' :
-                            'bg-slate-800 text-slate-400 border border-slate-700'
-                            }`}>
-                            {team.teamName.substring(0, 2).toUpperCase()}
-                          </div>
-                          <span className={`font-bold text-lg flex items-center gap-1.5 ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
-                            {team.teamName}
-                            {league?.status === 'complete' && isFirst && <Icon as={Trophy} size="sm" className="text-rank" />}
+                          <span
+                            className="block h-9 w-1 shrink-0 rounded-full"
+                            style={{ backgroundColor: accent }}
+                            aria-hidden
+                          />
+                          <span className={cn('font-data text-lg font-bold tabular-nums', podiumTone(index))}>
+                            {index + 1}
                           </span>
                         </div>
                       </td>
-                      <td className="p-4 text-center">
-                        <TeamPointsCell points={team.totalPoints} />
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col gap-1.5 min-w-[9rem]">
+                          <span className={cn(
+                            'font-heading text-sm font-bold uppercase tracking-[0.055em] flex items-center gap-1.5',
+                            isFirst ? 'text-rank' : 'text-white',
+                          )}>
+                            {team.teamName}
+                            {league?.status === 'complete' && isFirst && <Icon as={Trophy} size="sm" className="text-rank" />}
+                          </span>
+                          <span className="block h-[3px] w-full rounded-full bg-ice-raise overflow-hidden">
+                            <span
+                              className="block h-full rounded-full motion-safe:transition-[width] motion-safe:duration-500"
+                              style={{ width: `${(share * 100).toFixed(2)}%`, backgroundColor: accent }}
+                            />
+                          </span>
+                        </div>
                       </td>
-
-                      <td className="hidden sm:table-cell p-4 text-right text-slate-500 text-sm font-mono">
-                        {team.lastUpdated
-                          ? new Date(team.lastUpdated).toLocaleDateString()
-                          : '-'}
+                      <td className="py-3 pr-4 pl-2 text-right">
+                        <TeamPointsCell points={team.totalPoints} />
+                        <span className="mt-1 block font-data text-[11px] text-slate-500">
+                          {isFirst ? 'leader' : `−${gap.toFixed(1)}`}
+                        </span>
                       </td>
                     </motion.tr>
                   );

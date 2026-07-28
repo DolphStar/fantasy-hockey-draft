@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_MAX_TEAMS } from '../constants/scoring';
 import { toLeagueSummary } from './leagueService';
 
 // `leagueService` imports `src/firebase`, which calls `getAuth(app)` at module load and
@@ -9,20 +10,52 @@ import { toLeagueSummary } from './leagueService';
 vi.mock('../firebase', () => ({ db: {} }));
 
 describe('toLeagueSummary', () => {
-  it('maps a league doc to id + leagueName + status', () => {
-    expect(toLeagueSummary('abc', { leagueName: 'My League', memberUids: ['u1'], status: 'live' })).toEqual({
+  it('maps a league doc to the hub summary', () => {
+    const teams = [{ teamName: 'Kolya', ownerUid: 'u1' }];
+    expect(
+      toLeagueSummary('abc', {
+        leagueName: 'My League',
+        memberUids: ['u1'],
+        status: 'live',
+        teams,
+        maxTeams: 6,
+        admin: 'u1',
+      }),
+    ).toEqual({
       id: 'abc',
       leagueName: 'My League',
       status: 'live',
+      teams,
+      maxTeams: 6,
+      admin: 'u1',
     });
   });
 
-  it('falls back to a placeholder name when leagueName is missing', () => {
-    expect(toLeagueSummary('abc', {})).toEqual({ id: 'abc', leagueName: 'Untitled League', status: 'pending' });
+  it('falls back to placeholders when the doc is empty', () => {
+    expect(toLeagueSummary('abc', {})).toEqual({
+      id: 'abc',
+      leagueName: 'Untitled League',
+      status: 'pending',
+      teams: [],
+      maxTeams: DEFAULT_MAX_TEAMS,
+      admin: null,
+    });
   });
 
   it('carries the league status through (defaulting to pending)', () => {
     expect(toLeagueSummary('L1', { leagueName: 'X', status: 'complete' }).status).toBe('complete');
     expect(toLeagueSummary('L1', { leagueName: 'X' }).status).toBe('pending');
+  });
+
+  it('drops team entries that have no name rather than rendering blanks', () => {
+    const summary = toLeagueSummary('L1', {
+      leagueName: 'X',
+      teams: [{ teamName: 'Kolya', ownerUid: 'u1' }, null, { ownerUid: 'u2' }, 'nope'],
+    });
+    expect(summary.teams).toEqual([{ teamName: 'Kolya', ownerUid: 'u1' }]);
+  });
+
+  it('ignores a non-array teams field', () => {
+    expect(toLeagueSummary('L1', { leagueName: 'X', teams: 'oops' }).teams).toEqual([]);
   });
 });

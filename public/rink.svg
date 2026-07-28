@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 85" preserveAspectRatio="xMidYMid slice">
+  <!-- NHL rink geometry, 200ft x 85ft. Drawn at full strength; the page dials
+       it back with opacity so it reads as ambient texture, not decoration. -->
+  <g fill="none" stroke-width="0.7">
+    <!-- Boards -->
+    <rect x="0.5" y="0.5" width="199" height="84" rx="28" stroke="#4CB4E7" />
+
+    <!-- Goal lines -->
+    <path d="M11 3.6 V81.4 M189 3.6 V81.4" stroke="#EF4444" stroke-width="0.5" />
+
+    <!-- Blue lines -->
+    <path d="M75 0.5 V84.5 M125 0.5 V84.5" stroke="#4CB4E7" stroke-width="0.9" />
+
+    <!-- Centre red line -->
+    <path d="M100 0.5 V84.5" stroke="#EF4444" stroke-width="0.9" />
+
+    <!-- Centre faceoff circle -->
+    <circle cx="100" cy="42.5" r="15" stroke="#4CB4E7" />
+
+    <!-- End-zone faceoff circles -->
+    <circle cx="31" cy="20.5" r="15" stroke="#EF4444" />
+    <circle cx="31" cy="64.5" r="15" stroke="#EF4444" />
+    <circle cx="169" cy="20.5" r="15" stroke="#EF4444" />
+    <circle cx="169" cy="64.5" r="15" stroke="#EF4444" />
+
+    <!-- Neutral-zone faceoff dots -->
+    <circle cx="80" cy="20.5" r="1" fill="#EF4444" stroke="none" />
+    <circle cx="80" cy="64.5" r="1" fill="#EF4444" stroke="none" />
+    <circle cx="120" cy="20.5" r="1" fill="#EF4444" stroke="none" />
+    <circle cx="120" cy="64.5" r="1" fill="#EF4444" stroke="none" />
+
+    <!-- Creases -->
+    <path d="M11 37.5 a6 6 0 0 1 0 10" stroke="#4CB4E7" stroke-width="0.5" />
+    <path d="M189 37.5 a6 6 0 0 0 0 10" stroke="#4CB4E7" stroke-width="0.5" />
+
+    <!-- Centre dot -->
+    <circle cx="100" cy="42.5" r="1.4" fill="#4CB4E7" stroke="none" />
+  </g>
+</svg>

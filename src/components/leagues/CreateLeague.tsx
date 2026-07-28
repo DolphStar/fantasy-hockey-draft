@@ -58,7 +58,7 @@ export default function CreateLeague() {
         <Link to="/leagues" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors">
           <Icon as={ArrowLeft} size="sm" /> My Leagues
         </Link>
-        <Logo className="w-9 h-9" />
+        <Logo className="w-10 h-10" />
       </header>
 
       <div className="flex-1 flex flex-col justify-center pb-12">

@@ -298,7 +298,7 @@ export default function MyPlayerCard({
                             <div className="text-[9px] text-gray-400 uppercase tracking-wide font-semibold">
                                 Fantasy Points:
                             </div>
-                            <div className={cn("text-5xl font-black leading-none bg-transparent drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] tabular-nums", fpColor.text)}>
+                            <div className={cn("font-data text-5xl font-bold leading-none bg-transparent drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]", fpColor.text)}>
                                 {animatedFp}
                             </div>
                         </div>

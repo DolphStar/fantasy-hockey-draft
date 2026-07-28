@@ -52,7 +52,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <header className="max-w-6xl mx-auto px-4 sm:px-6 mb-8 flex items-center gap-3">
           {/* Brand — left-aligned so it never collides with the actions */}
           <div className="flex items-center gap-2.5 shrink-0">
-            <Logo className="w-9 h-9 xl:w-10 xl:h-10" />
+            <Logo className="w-10 h-10 xl:w-11 xl:h-11" />
             <span className="hidden lg:block font-heading font-bold text-white text-lg xl:text-xl whitespace-nowrap">
               Fantasy Hockey Draft
             </span>
@@ -76,7 +76,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             {user?.photoURL ? (
               <img src={user.photoURL} alt="Profile" className="w-9 h-9 xl:w-10 xl:h-10 rounded-full border-2 border-white/20" />
             ) : (
-              <div className="w-9 h-9 xl:w-10 xl:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+              <div className="w-9 h-9 xl:w-10 xl:h-10 rounded-full bg-ice-raise border border-paint/30 flex items-center justify-center text-slate-100 font-heading font-bold">
                 {(user?.displayName || user?.email || 'U')[0].toUpperCase()}
               </div>
             )}

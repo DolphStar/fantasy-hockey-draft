@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { authedGet } from '../../services/apiClient';
 import { getRecentNewYorkDateStrings } from '../../utils/dateUtils';
-import { GlassCard } from '../ui/GlassCard';
+import { AdminPanel } from './AdminPanel';
 
 const BACKFILL_WEEK_DAYS = 7;
 
@@ -87,10 +87,7 @@ export default function BackfillStats() {
   if (!isAdmin) return null;
 
   return (
-    <GlassCard className="p-5 space-y-4">
-      <h3 className="text-lg font-bold text-white flex items-center gap-2 border-b border-slate-700/50 pb-2">
-        <span>📥</span> Backfill NHL Stats
-      </h3>
+    <AdminPanel title="Stats backfill" description="Re-imports historical NHL stats for a date range.">
       
       <p className="text-slate-300 text-sm">
         Manually fetch and save daily NHL stats to Firestore (nhl_daily_stats). This populates the "Hot Pickups" trend data.
@@ -142,6 +139,6 @@ export default function BackfillStats() {
           {result}
         </div>
       )}
-    </GlassCard>
+    </AdminPanel>
   );
 }

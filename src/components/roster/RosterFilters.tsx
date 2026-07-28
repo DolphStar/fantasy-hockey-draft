@@ -1,4 +1,5 @@
 import { NHL_TEAMS } from '../../utils/nhlApi';
+import { Select } from '../ui/Select';
 
 interface RosterFiltersProps {
     searchQuery: string;
@@ -10,6 +11,8 @@ interface RosterFiltersProps {
     loading: boolean;
     totalCount: number;
     filteredCount: number;
+    sortBy: 'points' | 'team';
+    setSortBy: (sort: 'points' | 'team') => void;
 }
 
 export default function RosterFilters({
@@ -21,7 +24,9 @@ export default function RosterFilters({
     setTeamFilter,
     loading,
     totalCount,
-    filteredCount
+    filteredCount,
+    sortBy,
+    setSortBy
 }: RosterFiltersProps) {
     const hasActiveFilters = searchQuery || positionFilter !== 'ALL' || teamFilter !== 'ALL';
 
@@ -67,57 +72,46 @@ export default function RosterFilters({
                     {/* Filters Row */}
                     <div className="flex flex-col sm:flex-row gap-4">
                         {/* Position Filter */}
-                        <div className="sm:w-44">
-                            <label className="block text-slate-300 text-sm font-medium mb-2 tracking-wide">
-                                Position
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={positionFilter}
-                                    onChange={(e) => setPositionFilter(e.target.value)}
-                                    className="w-full appearance-none px-4 py-3 pr-10 rounded-xl bg-slate-800/80 text-white border border-slate-600/50 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none transition-all duration-200 cursor-pointer"
-                                >
-                                    <option value="ALL">All Positions</option>
-                                    <option value="F">Forwards</option>
-                                    <option value="C">Center</option>
-                                    <option value="L">Left Wing</option>
-                                    <option value="R">Right Wing</option>
-                                    <option value="D">Defense</option>
-                                    <option value="G">Goalie</option>
-                                </select>
-                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+                        <Select
+                            label="Position"
+                            wrapperClassName="sm:w-44"
+                            value={positionFilter}
+                            onChange={(e) => setPositionFilter(e.target.value)}
+                        >
+                            <option value="ALL">All Positions</option>
+                            <option value="F">Forwards</option>
+                            <option value="C">Center</option>
+                            <option value="L">Left Wing</option>
+                            <option value="R">Right Wing</option>
+                            <option value="D">Defense</option>
+                            <option value="G">Goalie</option>
+                        </Select>
+
+                        {/* Sort */}
+                        <Select
+                            label="Sort by"
+                            wrapperClassName="sm:w-44"
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as 'points' | 'team')}
+                        >
+                            <option value="points">Last season</option>
+                            <option value="team">Team</option>
+                        </Select>
 
                         {/* Team Filter */}
-                        <div className="sm:w-44">
-                            <label className="block text-slate-300 text-sm font-medium mb-2 tracking-wide">
-                                NHL Team
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={teamFilter}
-                                    onChange={(e) => setTeamFilter(e.target.value)}
-                                    className="w-full appearance-none px-4 py-3 pr-10 rounded-xl bg-slate-800/80 text-white border border-slate-600/50 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none transition-all duration-200 cursor-pointer"
-                                >
-                                    <option value="ALL">All Teams</option>
-                                    {Object.entries(NHL_TEAMS).map(([abbrev, name]) => (
-                                        <option key={abbrev} value={abbrev}>
-                                            {abbrev} - {name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+                        <Select
+                            label="NHL Team"
+                            wrapperClassName="sm:w-44"
+                            value={teamFilter}
+                            onChange={(e) => setTeamFilter(e.target.value)}
+                        >
+                            <option value="ALL">All Teams</option>
+                            {Object.entries(NHL_TEAMS).map(([abbrev, name]) => (
+                                <option key={abbrev} value={abbrev}>
+                                    {abbrev} - {name}
+                                </option>
+                            ))}
+                        </Select>
 
                         {/* Clear Button */}
                         {hasActiveFilters && (
@@ -142,9 +136,9 @@ export default function RosterFilters({
                     <div className="relative z-10 mt-4 pt-4 border-t border-slate-700/50">
                         <div className="flex items-center gap-2 text-sm">
                             <span className="text-slate-500">Showing</span>
-                            <span className="text-cyan-400 font-mono font-semibold">{filteredCount}</span>
+                            <span className="text-cyan-400 font-data font-semibold">{filteredCount}</span>
                             <span className="text-slate-500">of</span>
-                            <span className="text-slate-300 font-mono">{totalCount}</span>
+                            <span className="text-slate-300 font-data">{totalCount}</span>
                             <span className="text-slate-500">players</span>
                             
                             {hasActiveFilters && (

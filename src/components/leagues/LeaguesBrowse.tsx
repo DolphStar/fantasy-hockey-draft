@@ -126,7 +126,7 @@ export default function LeaguesBrowse() {
             const eligible = canRequestJoin(lg, user?.uid ?? '', lg.requested);
             return (
               <div key={lg.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-400/20 flex items-center justify-center font-bold text-blue-200 shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-ice-raise border border-paint/25 flex items-center justify-center font-heading font-bold text-slate-200 shrink-0">
                   {lg.leagueName.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">

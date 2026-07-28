@@ -17,12 +17,17 @@
 /** Size we measure at; dividing by it converts px back to em. */
 const MEASURE_PX = 100;
 
-/** Advance width in em of an average uppercase glyph in a heavy geometric sans. */
-const AVG_EM = 0.72;
-const NARROW_EM = 0.36;
-const WIDE_EM = 0.95;
+/**
+ * Advance width in em of an uppercase glyph in the display face, measured from
+ * Archivo Variable at weight 900 / `font-stretch: expanded`. Only `I` and the
+ * punctuation are meaningfully narrow at this width — `J`, `L` and `1` sit close
+ * enough to average that counting them as narrow under-measured long names.
+ */
+const AVG_EM = 0.95;
+const NARROW_EM = 0.42;
+const WIDE_EM = 1.2;
 
-const NARROW_CHARS = new Set([...'IJL1 .,\'’-']);
+const NARROW_CHARS = new Set([...'I .,\'’-']);
 const WIDE_CHARS = new Set([...'MW']);
 
 export interface MeasureOptions {
@@ -30,6 +35,11 @@ export interface MeasureOptions {
     weight?: number | string;
     /** CSS font-family stack the text renders with. */
     family?: string;
+    /**
+     * CSS font-stretch keyword the text renders at, e.g. `expanded` for the
+     * display face. Must be a keyword: canvas rejects the percentage form.
+     */
+    stretch?: string;
     /** Tracking in em applied after every character (Tailwind's `tracking-*`). */
     letterSpacingEm?: number;
 }
@@ -130,15 +140,20 @@ export function getFontEpoch(): number {
 export function textWidthEm(text: string, options: MeasureOptions = {}): number {
     if (!text) return 0;
 
-    const { weight = 400, family = 'sans-serif', letterSpacingEm = 0 } = options;
-    const key = `${weight}|${family}|${letterSpacingEm}|${text}`;
+    const { weight = 400, family = 'sans-serif', stretch, letterSpacingEm = 0 } = options;
+    const key = `${weight}|${stretch ?? ''}|${family}|${letterSpacingEm}|${text}`;
     const cached = widthCache.get(key);
     if (cached !== undefined) return cached;
 
     const ctx = getMeasureContext();
     let em: number;
     if (ctx) {
+        // Set the plain font first. The setter silently ignores a string it can't
+        // parse, keeping whatever was there before — so if a browser rejects the
+        // font-stretch form we fall back to this line's width rather than to some
+        // unrelated font left over from the previous call.
         ctx.font = `${weight} ${MEASURE_PX}px ${family}`;
+        if (stretch) ctx.font = `${weight} ${stretch} ${MEASURE_PX}px ${family}`;
         em = ctx.measureText(text).width / MEASURE_PX + letterSpacingEm * [...text].length;
         // A font that hasn't resolved can measure as zero; the estimate is better
         // than a divide-by-zero.

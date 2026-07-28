@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
 
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -6,6 +5,12 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
     className?: string;
     hoverEffect?: boolean;
     variant?: 'default' | 'dark' | 'light';
+    /**
+     * How far off the ice this surface sits. Pick one per page:
+     * `flat` for supporting chrome (filters, toolbars, form rows), `raised` for
+     * the working default, `hero` for the single thing the page is about.
+     */
+    elevation?: 'flat' | 'raised' | 'hero';
 }
 
 export function GlassCard({
@@ -13,28 +18,40 @@ export function GlassCard({
     className,
     hoverEffect = false,
     variant = 'default',
+    elevation = 'raised',
     ...props
 }: GlassCardProps) {
     const variants = {
-        default: "bg-gradient-to-br from-slate-800/55 to-[#0d1322]/85 border-blue-400/20 shadow-glass",
-        dark: "bg-black/40 border-white/10 shadow-glass",
+        default: "bg-gradient-to-br from-ice-raise/70 to-ice-deep/90 border-paint/15",
+        dark: "bg-ice-boards/50 border-white/10",
         light: "bg-white/10 border-white/20",
     };
 
+    // Elevation carries weight three ways at once — shadow depth, border
+    // brightness and blur — so the difference reads without a size change.
+    const elevations = {
+        flat: "shadow-flat backdrop-blur-sm",
+        raised: "shadow-glass backdrop-blur-md",
+        hero: "shadow-hero backdrop-blur-lg border-paint/30",
+    };
+
+    // Deliberately not animated. Every card fading up on mount meant a dozen
+    // independent 0.4s reveals on each navigation, which made nothing feel like
+    // an event — the page as a whole already fades in via `pageEnter` in
+    // AppShell. Motion is reserved for things that actually happened: a pick
+    // landing on the draft board, a lead changing in the standings.
     return (
-        <motion.div
+        <div
             className={cn(
-                "backdrop-blur-md border rounded-xl overflow-hidden",
+                "border rounded-xl overflow-hidden",
                 variants[variant],
+                elevations[elevation],
                 hoverEffect && "hover:-translate-y-[3px] hover:border-blue-400/45 hover:shadow-glass-hover transition-all duration-300",
                 className
             )}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            {...props as any}
+            {...props}
         >
             {children}
-        </motion.div>
+        </div>
     );
 }

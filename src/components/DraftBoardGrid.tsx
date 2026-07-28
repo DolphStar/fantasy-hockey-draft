@@ -10,6 +10,7 @@ import { Icon } from './ui/Icon';
 import { ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { accentAlpha, managerAccentAt } from '../lib/managerColors';
 
 interface DraftedPlayer {
   id: string;
@@ -22,15 +23,6 @@ interface DraftedPlayer {
   round: number;
   headshotUrl?: string;
 }
-
-const addAlpha = (hex: string, alpha: number) => {
-  const sanitized = hex.replace('#', '');
-  const bigint = parseInt(sanitized, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
 
 export default function DraftBoardGrid() {
   const { draftState } = useDraft();
@@ -164,22 +156,10 @@ export default function DraftBoardGrid() {
     draftGrid.push(roundPicks);
   }
 
-  // Vibrant accent palette
-  const teamAccents = [
-    '#22c55e', // emerald
-    '#3b82f6', // blue
-    '#f97316', // orange
-    '#ec4899', // pink
-    '#a855f7', // violet
-    '#0ea5e9', // sky
-    '#facc15', // amber
-    '#14b8a6', // teal
-  ];
-
   const mobilePicks = draftState.draftOrder.map((pick) => {
     const teamIdx = teams.findIndex((t) => t.teamName === pick.team);
     const team = teamIdx >= 0 ? teams[teamIdx] : teams[0];
-    const accent = teamAccents[(teamIdx >= 0 ? teamIdx : 0) % teamAccents.length];
+    const accent = managerAccentAt(teamIdx >= 0 ? teamIdx : 0);
     const player = pickMap.get(pick.pick);
     const isCurrentPick = pick.pick === draftState.currentPickNumber;
     const isPastPick = pick.pick < draftState.currentPickNumber;
@@ -194,6 +174,24 @@ export default function DraftBoardGrid() {
       isPastPick,
     };
   });
+
+  // Group the flat pick order into rounds. `draftOrder` already encodes the
+  // snake, so grouping preserves each round's direction without recomputing it.
+  const mobileRounds = Array.from(
+    mobilePicks.reduce((rounds, pick) => {
+      const bucket = rounds.get(pick.round);
+      if (bucket) bucket.push(pick);
+      else rounds.set(pick.round, [pick]);
+      return rounds;
+    }, new Map<number, typeof mobilePicks>()),
+  )
+    .sort(([a], [b]) => a - b)
+    .map(([round, picks]) => ({
+      round,
+      picks,
+      made: picks.filter((p) => p.player).length,
+      isSnakeRound: round % 2 === 0,
+    }));
 
   return (
     <GlassCard className="p-0 overflow-hidden border-slate-700/50">
@@ -214,54 +212,77 @@ export default function DraftBoardGrid() {
         )}
       </div>
 
-      {/* Mobile: vertical list of picks (flows with the page — no nested scroll) */}
-      <div className="md:hidden p-3 space-y-2">
-        {mobilePicks.map(({ pickNumber, round, team, accent, player, isCurrentPick, isPastPick }) => {
-          return (
-            <motion.div
-              key={pickNumber}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                "flex items-center gap-3 p-2.5 rounded-xl border transition-all",
-                isCurrentPick
-                  ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
-                  : isPastPick
-                    ? 'bg-slate-800/50 border-slate-700/50'
-                    : 'bg-slate-900/30 border-slate-800/50'
+      {/* Mobile: one horizontally scrollable strip per round.
+          A flat list of every pick loses the thing the board is *for* — you
+          can't see who picks next, or that even rounds run backwards. Keeping
+          the round as the unit preserves the snake on the device most people
+          actually draft from. */}
+      <div className="md:hidden p-3 space-y-5">
+        {mobileRounds.map(({ round, picks, made, isSnakeRound }) => (
+          <section key={round}>
+            <div className="flex items-baseline gap-2 mb-2">
+              <h3 className="font-heading text-sm font-bold uppercase tracking-[0.08em] text-white">
+                Round {round}
+              </h3>
+              {isSnakeRound && (
+                <span className="font-data text-[10px] font-bold uppercase tracking-[0.18em] text-rank">
+                  ← Snake
+                </span>
               )}
-              style={{ borderLeft: `3px solid ${accent}` }}
-            >
-              {player ? (
-                <img
-                  src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
-                  alt={player.name}
-                  loading="lazy"
-                  onError={(e) => { e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png'; }}
-                  className="w-11 h-11 rounded-full border-2 border-slate-600 bg-slate-800 object-cover shrink-0"
-                />
-              ) : (
-                <div className="w-11 h-11 rounded-full border-2 border-dashed border-slate-600 flex items-center justify-center shrink-0 text-[11px] text-slate-500 font-bold">
-                  #{pickNumber}
+              <span className="ml-auto font-data text-[11px] text-slate-500">
+                {made}/{picks.length}
+              </span>
+            </div>
+
+            {/* Bleed to the card edge so the strip reads as scrollable */}
+            <div className="-mx-3 px-3 flex gap-2 overflow-x-auto snap-x pb-1">
+              {picks.map(({ pickNumber, team, accent, player, isCurrentPick, isPastPick }) => (
+                <div
+                  key={pickNumber}
+                  className={cn(
+                    'w-[8.5rem] shrink-0 snap-start rounded-xl border p-2.5 flex flex-col items-center text-center',
+                    isCurrentPick
+                      ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                      : isPastPick
+                        ? 'bg-slate-800/50 border-slate-700/50'
+                        : 'bg-slate-900/30 border-slate-800/50',
+                  )}
+                  style={{ borderTop: `3px solid ${accent}` }}
+                >
+                  <span
+                    className="font-heading text-[10px] font-bold uppercase tracking-[0.1em] truncate max-w-full"
+                    style={{ color: accent }}
+                  >
+                    {team.teamName}
+                  </span>
+
+                  {player ? (
+                    <img
+                      src={player.headshotUrl || `https://assets.nhle.com/mugs/nhl/20242025/${player.nhlTeam}/${player.playerId}.png`}
+                      alt={player.name}
+                      loading="lazy"
+                      onError={(e) => { e.currentTarget.src = 'https://assets.nhle.com/mugs/nhl/default-skater.png'; }}
+                      className="w-12 h-12 my-1.5 rounded-full border-2 border-slate-600 bg-slate-800 object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 my-1.5 rounded-full border-2 border-dashed border-slate-600 flex items-center justify-center text-slate-500">
+                      {isCurrentPick
+                        ? <span className="animate-live-pulse motion-reduce:animate-none text-amber-400 text-lg">●</span>
+                        : <span className="font-data text-[11px] font-bold">#{pickNumber}</span>}
+                    </div>
+                  )}
+
+                  <p className="text-white text-xs font-bold leading-tight line-clamp-2 min-h-[2rem]">
+                    {player ? player.name : isCurrentPick ? 'On the clock' : 'Pending'}
+                  </p>
+                  <p className="font-data text-[10px] text-slate-500 mt-0.5">
+                    {player ? `${player.position} · ${player.nhlTeam}` : `#${pickNumber}`}
+                  </p>
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <Badge variant="outline" className="text-[10px]">R{round}</Badge>
-                  <span className="text-xs text-slate-400">Pick #{pickNumber}</span>
-                  <span className="text-xs text-slate-500 truncate">· {team.teamName}</span>
-                </div>
-                <p className="text-white font-bold truncate">
-                  {player ? player.name : isCurrentPick ? 'On The Clock…' : 'Pending'}
-                </p>
-                {player && (
-                  <p className="text-slate-400 text-xs truncate">{player.position} • {player.nhlTeam}</p>
-                )}
-              </div>
-              {isCurrentPick && <div className="animate-pulse text-amber-400 text-xl shrink-0">⏳</div>}
-            </motion.div>
-          );
-        })}
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
 
       {/* Scrollable Grid Container */}
@@ -274,7 +295,7 @@ export default function DraftBoardGrid() {
                 Rnd
               </th>
               {teams.map((team, idx) => {
-                const accent = teamAccents[idx % teamAccents.length];
+                const accent = managerAccentAt(idx);
                 return (
                   <th
                     key={team.teamName}
@@ -285,10 +306,10 @@ export default function DraftBoardGrid() {
                     <div
                       className="flex flex-col items-center gap-1 relative z-10"
                       style={{
-                        background: `linear-gradient(140deg, ${addAlpha(accent, 0.15)}, ${addAlpha(accent, 0.02)})`,
+                        background: `linear-gradient(140deg, ${accentAlpha(accent, 0.15)}, ${accentAlpha(accent, 0.02)})`,
                         borderRadius: '0.5rem',
                         padding: '0.5rem',
-                        border: `1px solid ${addAlpha(accent, 0.2)}`
+                        border: `1px solid ${accentAlpha(accent, 0.2)}`
                       }}
                     >
                       <span className="text-sm font-bold truncate w-full">{team.teamName}</span>
@@ -311,7 +332,7 @@ export default function DraftBoardGrid() {
                   <td className="sticky left-0 bg-slate-900 border-b border-r border-slate-700 p-3 text-center font-bold text-white z-20 shadow-lg">
                     <div className="flex flex-col items-center justify-center gap-1">
                       <span className="text-lg text-slate-300">{round}</span>
-                      {isSnakeRound && <span className="text-xs text-amber-400 font-mono">SNAKE</span>}
+                      {isSnakeRound && <span className="text-xs text-amber-400 font-data tracking-widest">SNAKE</span>}
                     </div>
                   </td>
 
@@ -321,7 +342,7 @@ export default function DraftBoardGrid() {
                     const isCurrentPick = pickNumber === draftState.currentPickNumber;
                     const isPastPick = pickNumber < draftState.currentPickNumber;
                     const team = teams[teamIdx];
-                    const accent = teamAccents[teamIdx % teamAccents.length];
+                    const accent = managerAccentAt(teamIdx);
 
                     // Smart tooltip positioning
                     const isFirstColumn = teamIdx === 0;
@@ -334,9 +355,9 @@ export default function DraftBoardGrid() {
 
                     const cellStyle: CSSProperties = {};
                     if (!isCurrentPick) {
-                      cellStyle.boxShadow = `inset 0 0 20px ${addAlpha(accent, 0.02)}`;
+                      cellStyle.boxShadow = `inset 0 0 20px ${accentAlpha(accent, 0.02)}`;
                       const intensity = player ? 0.15 : isPastPick ? 0.08 : 0.02;
-                      cellStyle.background = `linear-gradient(135deg, ${addAlpha(accent, intensity)}, rgba(15,23,42,0.4))`;
+                      cellStyle.background = `linear-gradient(135deg, ${accentAlpha(accent, intensity)}, rgba(15,23,42,0.4))`;
                     }
 
                     return (

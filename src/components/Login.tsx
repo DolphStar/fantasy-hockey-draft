@@ -1,8 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { GlassCard } from './ui/GlassCard';
-import { GlowBackdrop } from './ui/GlowBackdrop';
 import { Logo } from './ui/Logo';
 
 function GoogleIcon() {
@@ -16,6 +13,14 @@ function GoogleIcon() {
   );
 }
 
+/**
+ * The one full-bleed moment in the product.
+ *
+ * The nameplate is deliberately the *same* device the player cards use — a small
+ * tracked-out line over a huge heavy one — because the cards are the strongest
+ * thing in the app and this is the first screen anyone sees. No card, no glass:
+ * the type sits directly on the ice.
+ */
 export default function Login() {
   const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -35,64 +40,65 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10">
-      <GlowBackdrop />
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 text-center">
+      <Logo className="w-24 h-24 mb-8" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-md"
-      >
-        {/* Brand */}
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="relative mb-5">
-            <div className="absolute inset-0 rounded-2xl bg-blue-500/30 blur-xl" aria-hidden />
-            <Logo className="relative w-20 h-20 rounded-2xl" />
-          </div>
-          <h1 className="text-4xl font-bold text-white tracking-tight">Fantasy Hockey Draft</h1>
-          <p className="mt-3 text-slate-400">Draft your roster. Track every night. Win the league.</p>
+      <h1 className="flex flex-col items-center leading-none">
+        <span className="font-heading text-white/55 font-medium uppercase text-[clamp(0.7rem,2.2vw,1.05rem)] tracking-[0.42em] indent-[0.42em]">
+          Fantasy
+        </span>
+        {/* Two words, not one string: on phones they stack so the nameplate can
+            stay big, and on wider screens they sit on one line. The size ramps
+            differ across that break because a stacked word is half the width —
+            a single clamp that fits one line looks tiny stacked, and one that
+            fits stacked overflows the line. */}
+        <span
+          className="mt-2 flex flex-col items-center sm:flex-row sm:gap-[0.22em]
+                     font-heading font-black uppercase text-white
+                     text-[clamp(2.75rem,13vw,7.5rem)] sm:text-[clamp(2rem,8vw,7.5rem)]
+                     tracking-[0.02em] indent-[0.02em]
+                     drop-shadow-[0_6px_14px_rgba(0,0,0,0.75)]"
+        >
+          <span>Hockey</span>
+          <span>Draft</span>
+        </span>
+      </h1>
+
+      <p className="mt-7 max-w-sm text-slate-400 text-base">
+        Draft your roster. Track every night. Win the league.
+      </p>
+
+      {error && (
+        <div
+          className="mt-7 max-w-sm rounded-lg border border-live/30 bg-live/10 px-4 py-3 text-sm text-red-200"
+          role="alert"
+        >
+          {error}
         </div>
+      )}
 
-        {/* Sign-in card */}
-        <GlassCard className="p-8">
-          <h2 className="text-lg font-semibold text-white text-center">Welcome</h2>
-          <p className="text-slate-400 text-sm text-center mt-1 mb-6">Sign in to continue to your leagues</p>
+      <button
+        type="button"
+        onClick={handleGoogleSignIn}
+        disabled={loading}
+        className="mt-9 inline-flex items-center justify-center gap-3 rounded-xl bg-white px-7 py-3.5 font-semibold text-slate-900 transition-all hover:bg-slate-100 hover:shadow-[0_0_28px_rgba(255,255,255,.18)] active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paint focus-visible:ring-offset-2 focus-visible:ring-offset-ice-boards"
+      >
+        {loading ? (
+          <>
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-slate-900 motion-reduce:animate-none" />
+            Signing in…
+          </>
+        ) : (
+          <>
+            <GoogleIcon />
+            Sign in with Google
+          </>
+        )}
+      </button>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-200 text-sm rounded-lg p-3 mb-5 text-center" role="alert">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-full inline-flex items-center justify-center gap-3 bg-white hover:bg-slate-100 text-slate-900 font-semibold py-3.5 px-6 rounded-xl transition-all hover:shadow-[0_0_24px_rgba(255,255,255,.15)] active:scale-[.99] disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <span className="w-4 h-4 border-2 border-slate-400 border-t-slate-900 rounded-full animate-spin motion-reduce:animate-none" />
-                Signing in…
-              </>
-            ) : (
-              <>
-                <GoogleIcon />
-                Sign in with Google
-              </>
-            )}
-          </button>
-
-          <p className="text-slate-500 text-xs text-center mt-5">
-            By signing in, you agree to participate in the draft.
-          </p>
-        </GlassCard>
-
-        <p className="text-center text-slate-600 text-sm mt-8">
-          Need help? Contact your league commissioner.
-        </p>
-      </motion.div>
+      <p className="mt-10 font-heading text-[10px] uppercase tracking-[0.28em] text-slate-600">
+        Need help? Ask your commissioner
+      </p>
     </div>
   );
 }

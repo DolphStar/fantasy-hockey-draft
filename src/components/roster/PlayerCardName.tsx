@@ -2,8 +2,10 @@ import { useSyncExternalStore, type CSSProperties } from 'react';
 import { cn } from '../../lib/utils';
 import { fitFontSizeCss, getFontEpoch, subscribeFontEpoch } from '../../lib/fitText';
 
-/** Matches `font-heading` in tailwind.config.js. */
-const HEADING_FAMILY = "'Outfit Variable', sans-serif";
+/** Matches the `.font-heading` utility in index.css — family *and* width. */
+const HEADING_FAMILY = "'Archivo Variable', sans-serif";
+/** `font-stretch: 125%` in CSS. Canvas only accepts the keyword form. */
+const HEADING_STRETCH = 'expanded';
 
 /** The design sizes — what a name that already fits still renders at. */
 const FIRST_NAME_MAX = '0.875rem'; // text-sm
@@ -30,7 +32,7 @@ interface PlayerCardNameProps {
  * already fits still renders at the design size and nothing measures the DOM.
  */
 export function PlayerCardName({ firstName, lastName, className, style }: PlayerCardNameProps) {
-    // Outfit loads with `font-display: swap`. A card that mounted before the face
+    // Archivo loads with `font-display: swap`. A card that mounted before the face
     // arrived was sized against the fallback, so re-render once fonts settle —
     // otherwise the swap silently reintroduces the overflow this component fixes.
     useSyncExternalStore(subscribeFontEpoch, getFontEpoch, getFontEpoch);
@@ -39,12 +41,14 @@ export function PlayerCardName({ firstName, lastName, className, style }: Player
     const firstSize = fitFontSizeCss(firstName.toUpperCase(), {
         weight: 500,
         family: HEADING_FAMILY,
+        stretch: HEADING_STRETCH,
         letterSpacingEm: FIRST_NAME_TRACKING,
         maxFontSize: FIRST_NAME_MAX,
     });
     const lastSize = fitFontSizeCss(lastName.toUpperCase(), {
         weight: 900,
         family: HEADING_FAMILY,
+        stretch: HEADING_STRETCH,
         letterSpacingEm: LAST_NAME_TRACKING,
         maxFontSize: LAST_NAME_MAX,
     });

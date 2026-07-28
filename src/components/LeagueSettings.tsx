@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +6,7 @@ import { useLeague } from '../context/LeagueContext';
 import { useDraft } from '../context/DraftContext';
 import { useMemberships } from '../context/MembershipContext';
 import { buildLeaguePath } from '../lib/leaguePaths';
+import { formatList } from '../lib/formatList';
 import TestScoring from './admin/TestScoring';
 import TestLiveStats from './admin/TestLiveStats';
 import BackfillStats from './admin/BackfillStats';
@@ -123,6 +124,32 @@ export default function LeagueSettings() {
       setAllowedGameTypes(league.allowedGameTypes || [2]);
     }
   }, [league]);
+
+  /**
+   * What the form would change if saved right now, named the way the fields are
+   * labelled. Drives both the button's disabled state and the line above it —
+   * a save button that's always live tells you nothing about whether you have
+   * unsaved work.
+   */
+  const pendingChanges = useMemo(() => {
+    if (!league) return [];
+    const changes: string[] = [];
+    if (leagueName.trim() !== league.leagueName) changes.push('league name');
+    if (draftRounds !== league.draftRounds) changes.push('draft rounds');
+
+    const savedTypes = [...(league.allowedGameTypes || [2])].sort();
+    const formTypes = [...allowedGameTypes].sort();
+    if (savedTypes.join() !== formTypes.join()) changes.push('game types');
+
+    const sameTeams =
+      teams.length === league.teams.length &&
+      teams.every((t, i) =>
+        t.teamName.trim() === league.teams[i].teamName && t.ownerUid === league.teams[i].ownerUid,
+      );
+    if (!sameTeams) changes.push('teams');
+
+    return changes;
+  }, [league, leagueName, draftRounds, allowedGameTypes, teams]);
 
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   useEffect(() => {
@@ -265,9 +292,21 @@ export default function LeagueSettings() {
 
     try {
       setCreating(true);
-      await updateLeague(league.id, { teams: normalizedTeams, draftRounds, allowedGameTypes });
+      // `leagueName` used to be missing here, so editing the name field on an
+      // existing league silently did nothing.
+      await updateLeague(league.id, {
+        leagueName: leagueName.trim(),
+        teams: normalizedTeams,
+        draftRounds,
+        allowedGameTypes,
+      });
       setTeams(normalizedTeams); // reflect trimmed names back into the form
-      setSuccess('League updated successfully! Remember to reset the draft if you changed rounds.');
+      refreshMemberships(); // the league switcher and hub cache the old name
+      setSuccess(
+        pendingChanges.includes('draft rounds')
+          ? 'Saved. Reset the draft for the new round count to take effect.'
+          : 'Saved.',
+      );
     } catch (err) {
       setError('Failed to update league');
       console.error(err);
@@ -635,14 +674,21 @@ export default function LeagueSettings() {
                 </div>
                 )}
 
-                <div className="pt-4">
+                <div className="pt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
                   <GradientButton
                     type="submit"
-                    disabled={creating}
-                    className="w-full py-4 text-lg"
+                    disabled={creating || (!!league && pendingChanges.length === 0)}
+                    size="lg"
                   >
-                    {creating ? 'Saving Changes...' : league ? 'Save League Settings' : 'Create League'}
+                    {creating ? 'Saving…' : league ? 'Save changes' : 'Create league'}
                   </GradientButton>
+                  {league && !creating && (
+                    <p className="text-sm text-slate-400">
+                      {pendingChanges.length === 0
+                        ? 'No unsaved changes.'
+                        : <>Unsaved: <span className="text-slate-200 font-semibold">{formatList(pendingChanges)}</span>.</>}
+                    </p>
+                  )}
                 </div>
               </GlassCard>
             </form>
@@ -879,7 +925,19 @@ export default function LeagueSettings() {
 
         {/* Admin Tools tab */}
         {tab === 'admin' && league && isAdmin && (
-          <div className="space-y-4">
+          /* Back office. Flat, square and monospaced on purpose — these tools
+             rewrite scores and delete rosters, and shouldn't wear the same
+             clothes as the game. */
+          <div className="space-y-3 rounded-lg border border-ice-seam bg-ice-boards/40 p-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-1">
+              <h2 className="font-data text-sm font-bold uppercase tracking-[0.2em] text-slate-300">
+                Operations
+              </h2>
+              <p className="text-xs text-slate-500">
+                These write directly to league data. There is no undo.
+              </p>
+              <code className="ml-auto font-mono text-[11px] text-slate-500">{league.id}</code>
+            </div>
             <TestScoring />
             <TestLiveStats />
             <BackfillStats />

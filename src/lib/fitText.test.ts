@@ -65,10 +65,13 @@ describe('fitFontSizePx', () => {
         expect(overflows).toBeLessThan(36);
     });
 
-    it('shrinks longer names more than shorter ones', () => {
-        const sizes = SURNAMES.map((name) =>
-            fitFontSizePx(estimateWidthEm(name, 0.025), CARD_TEXT_WIDTH, 36),
-        );
+    it('shrinks wider names more than narrower ones', () => {
+        // Order by measured width, not by character count. The display face has a
+        // very narrow `I` and space relative to its caps, so VAN RIEMSDYK is
+        // genuinely narrower than the shorter WOTHERSPOON — what the fit owes us
+        // is monotonicity in width, which is the thing it actually divides by.
+        const byWidth = SURNAMES.map((name) => estimateWidthEm(name, 0.025)).sort((a, b) => a - b);
+        const sizes = byWidth.map((widthEm) => fitFontSizePx(widthEm, CARD_TEXT_WIDTH, 36));
         for (let i = 1; i < sizes.length; i++) {
             expect(sizes[i]).toBeLessThanOrEqual(sizes[i - 1]);
         }

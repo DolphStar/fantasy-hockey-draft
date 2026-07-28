@@ -3,7 +3,7 @@ import { useLeague } from '../../context/LeagueContext';
 import { auth } from '../../firebase';
 import { db } from '../../firebase';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
-import { GlassCard } from '../ui/GlassCard';
+import { AdminPanel } from './AdminPanel';
 
 export default function TestScoring() {
   const { league, isAdmin } = useLeague();
@@ -133,10 +133,7 @@ export default function TestScoring() {
   }
 
   return (
-    <GlassCard className="p-5 space-y-4">
-      <h3 className="text-lg font-bold text-white flex items-center gap-2 border-b border-slate-700/50 pb-2">
-        <span>🧪</span> Test Scoring System
-      </h3>
+    <AdminPanel title="Scoring run" description="Recalculates fantasy points for a night of NHL games.">
 
       {!hasRules && (
         <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg text-sm">
@@ -202,6 +199,6 @@ export default function TestScoring() {
         <p>• In production, this runs automatically every day at 5 AM UTC</p>
         <p>• Requires the deployed environment or vercel dev (plain npm run dev serves only the Vite client)</p>
       </div>
-    </GlassCard>
+    </AdminPanel>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { HeartPulse, RefreshCw } from 'lucide-react';
-import { type InjuryReport } from '../services/injuryService';
 import { useInjuries } from '../queries/useInjuries';
 import { useLeague } from '../context/LeagueContext';
 import { db } from '../firebase';
@@ -10,8 +9,9 @@ import { Badge } from './ui/Badge';
 import { GradientButton } from './ui/GradientButton';
 import { Icon } from './ui/Icon';
 import { SkeletonRow } from './ui/Skeleton';
+import { Select } from './ui/Select';
+import { compareBySeverity, sortBySeverity } from '../lib/injurySeverity';
 import { InjuryCard } from './injuries/InjuryCard';
-import { nhlTeamLogo } from './injuries/nhlTeamLogo';
 
 interface DraftedPlayer {
   id: string;
@@ -103,29 +103,25 @@ export default function Injuries() {
           ? `https://assets.nhle.com/mugs/nhl/${MUG_SEASON}/${player.nhlTeam}/${player.playerId}.png`
           : injury.headshotUrl;
         return { injury, headshotUrl };
-      });
+      })
+      .sort((a, b) => compareBySeverity(a.injury, b.injury));
   }, [injuries, myPlayerByName]);
 
   // Get unique teams
   const teams = Array.from(new Set(injuries.map(i => i.teamAbbrev))).sort();
 
   // Filter injuries
-  const filteredInjuries = injuries.filter(injury => {
+  const filteredInjuries = useMemo(() => injuries.filter(injury => {
     const matchesTeam = teamFilter === 'ALL' || injury.teamAbbrev === teamFilter;
     const matchesStatus = statusFilter === 'ALL' || injury.status.toLowerCase() === statusFilter.toLowerCase();
     return matchesTeam && matchesStatus;
-  });
+  }), [injuries, teamFilter, statusFilter]);
 
-  // Group by team
-  const injuriesByTeam = filteredInjuries.reduce((acc, injury) => {
-    if (!acc[injury.teamAbbrev]) {
-      acc[injury.teamAbbrev] = [];
-    }
-    acc[injury.teamAbbrev].push(injury);
-    return acc;
-  }, {} as Record<string, InjuryReport[]>);
+  // Worst first. Grouping by franchise buried the players worth acting on under
+  // whichever teams happen to start with A; the team filter still narrows to one
+  // club when that's actually what you want.
+  const rankedInjuries = useMemo(() => sortBySeverity(filteredInjuries), [filteredInjuries]);
 
-  const selectClass = 'w-full px-4 py-2 rounded-lg bg-slate-900/50 text-white border border-slate-700 focus:border-blue-500 focus:outline-none transition-colors';
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -177,44 +173,40 @@ export default function Injuries() {
       </GlassCard>
 
       {/* Filters */}
-      <GlassCard className="p-6 mb-6">
+      <GlassCard elevation="flat" className="p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Team Filter */}
-          <div className="flex-1">
-            <label className="block text-white font-semibold mb-2">Filter by Team:</label>
-            <select
-              value={teamFilter}
-              onChange={(e) => setTeamFilter(e.target.value)}
-              className={selectClass}
-            >
-              <option value="ALL">All Teams ({injuries.length} injuries)</option>
-              {teams.map(team => {
-                const teamInjuries = injuries.filter(i => i.teamAbbrev === team);
-                return (
-                  <option key={team} value={team}>
-                    {team} ({teamInjuries.length} injuries)
-                  </option>
-                );
-              })}
-            </select>
-          </div>
+          <Select
+            label="Team"
+            wrapperClassName="flex-1"
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+          >
+            <option value="ALL">All Teams ({injuries.length} injuries)</option>
+            {teams.map(team => {
+              const teamInjuries = injuries.filter(i => i.teamAbbrev === team);
+              return (
+                <option key={team} value={team}>
+                  {team} ({teamInjuries.length} injuries)
+                </option>
+              );
+            })}
+          </Select>
 
           {/* Status Filter */}
-          <div className="flex-1">
-            <label className="block text-white font-semibold mb-2">Filter by Status:</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={selectClass}
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="Out">Out</option>
-              <option value="Day-To-Day">Day-To-Day</option>
-              <option value="Questionable">Questionable</option>
-              <option value="Doubtful">Doubtful</option>
-              <option value="Injured Reserve">Injured Reserve</option>
-            </select>
-          </div>
+          <Select
+            label="Status"
+            wrapperClassName="flex-1"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="Out">Out</option>
+            <option value="Day-To-Day">Day-To-Day</option>
+            <option value="Questionable">Questionable</option>
+            <option value="Doubtful">Doubtful</option>
+            <option value="Injured Reserve">Injured Reserve</option>
+          </Select>
 
           {/* Refresh Button */}
           <div className="md:w-auto md:self-end">
@@ -268,35 +260,24 @@ export default function Injuries() {
         </GlassCard>
       )}
 
-      {!loading && !error && Object.keys(injuriesByTeam).length > 0 && (
-        <div className="space-y-6">
-          {Object.entries(injuriesByTeam)
-            .sort(([teamA], [teamB]) => teamA.localeCompare(teamB))
-            .map(([team, teamInjuries]) => (
-              <GlassCard key={team} className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <img
-                    src={nhlTeamLogo(team)}
-                    alt=""
-                    aria-hidden
-                    className="w-8 h-8 object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                  <h3 className="text-xl font-semibold text-white">{teamInjuries[0].team}</h3>
-                  <Badge variant="outline">{teamInjuries.length} injured</Badge>
-                </div>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {teamInjuries.map((injury) => (
-                    <InjuryCard
-                      key={injury.playerId || injury.playerName}
-                      injury={injury}
-                      headshotUrl={injury.headshotUrl}
-                    />
-                  ))}
-                </div>
-              </GlassCard>
+      {!loading && !error && rankedInjuries.length > 0 && (
+        <GlassCard className="p-6">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+            <h3 className="text-xl font-semibold text-white">Around the league</h3>
+            <p className="text-sm text-slate-400">Most severe first, then out longest.</p>
+            <Badge variant="outline" className="ml-auto">{rankedInjuries.length} injured</Badge>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            {rankedInjuries.map((injury) => (
+              <InjuryCard
+                key={`${injury.teamAbbrev}-${injury.playerId || injury.playerName}`}
+                injury={injury}
+                headshotUrl={injury.headshotUrl}
+              />
             ))}
-        </div>
+          </div>
+        </GlassCard>
       )}
     </div>
   );

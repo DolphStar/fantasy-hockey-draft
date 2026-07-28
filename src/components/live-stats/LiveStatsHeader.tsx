@@ -93,7 +93,7 @@ export function LiveStatsHeader({
           {isViewingToday && (
             <div className="text-center hidden sm:block">
               <p className="text-slate-400 text-xs">Next refresh in</p>
-              <p className="text-green-400 text-sm font-mono font-bold">{formatCountdown(secondsUntilRefresh)}</p>
+              <p className="text-green-400 text-sm font-data font-bold">{formatCountdown(secondsUntilRefresh)}</p>
             </div>
           )}
 
@@ -102,7 +102,7 @@ export function LiveStatsHeader({
           {lastUpdate && (
             <div className="text-right hidden sm:block">
               <p className="text-slate-400 text-xs">Last updated</p>
-              <p className="text-slate-300 text-sm font-mono">{lastUpdate.toLocaleTimeString()}</p>
+              <p className="text-slate-300 text-sm font-data">{lastUpdate.toLocaleTimeString()}</p>
             </div>
           )}
         </div>
