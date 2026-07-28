@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useLeague } from '../../context/LeagueContext';
-import { GlassCard } from '../ui/GlassCard';
+import { AdminPanel } from './AdminPanel';
 import { Badge } from '../ui/Badge';
 import { Select } from '../ui/Select';
 
@@ -87,11 +87,9 @@ export default function AdminPlayerManagement() {
 
   if (!isAdmin) {
     return (
-      <GlassCard className="p-6">
-        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-lg text-center">
-          <p className="text-red-200">❌ Admin access required</p>
-        </div>
-      </GlassCard>
+      <AdminPanel title="Player management">
+        <p className="text-sm text-live">Admin access required.</p>
+      </AdminPanel>
     );
   }
 
@@ -109,10 +107,7 @@ export default function AdminPlayerManagement() {
   }, {} as Record<string, DraftedPlayer[]>);
 
   return (
-    <GlassCard className="p-5 space-y-4">
-      <h3 className="text-lg font-bold text-white flex items-center gap-2 border-b border-slate-700/50 pb-2">
-        <span>🛠️</span> Admin: Player Management
-      </h3>
+    <AdminPanel title="Player management" description="Adds and removes drafted players on any team.">
 
       {/* Info Banner */}
       <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg">
@@ -200,6 +195,6 @@ export default function AdminPlayerManagement() {
           💡 <strong>To add players:</strong> Players can use the “Browse NHL” tab during their draft turn.
         </p>
       </div>
-    </GlassCard>
+    </AdminPanel>
   );
 }

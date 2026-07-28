@@ -925,7 +925,19 @@ export default function LeagueSettings() {
 
         {/* Admin Tools tab */}
         {tab === 'admin' && league && isAdmin && (
-          <div className="space-y-4">
+          /* Back office. Flat, square and monospaced on purpose — these tools
+             rewrite scores and delete rosters, and shouldn't wear the same
+             clothes as the game. */
+          <div className="space-y-3 rounded-lg border border-ice-seam bg-ice-boards/40 p-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-1">
+              <h2 className="font-data text-sm font-bold uppercase tracking-[0.2em] text-slate-300">
+                Operations
+              </h2>
+              <p className="text-xs text-slate-500">
+                These write directly to league data. There is no undo.
+              </p>
+              <code className="ml-auto font-mono text-[11px] text-slate-500">{league.id}</code>
+            </div>
             <TestScoring />
             <TestLiveStats />
             <BackfillStats />
